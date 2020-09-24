@@ -43,7 +43,7 @@ program
     .option('--forbid-only', 'Fail if exclusive test(s) encountered', false)
     .option('-g, --grep <grep>', 'Only run tests matching this string or regexp', '.*')
     .option('--global-timeout <timeout>', 'Specify maximum time this test suite can run (in milliseconds), default: 0 for unlimited', '0')
-    .option('-j, --jobs <jobs>', 'Number of concurrent jobs for --parallel; use 1 to run in serial, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
+    .option('-j, --jobs <jobs>', 'Number of concurrent jobs to run in parallel. Set 1 to run in serial, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
     .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'))
     .option('--quiet', 'Suppress stdio', false)
     .option('--repeat-each <repeat-each>', 'Specify how many times to run the tests', '1')
