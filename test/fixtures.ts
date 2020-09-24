@@ -107,14 +107,12 @@ async function runTest(reportFile: string, outputDir: string, filePath: string, 
   };
 }
 
-declare global {
-  interface TestState {
-    outputDir: string;
-    runTest: (filePath: string, options?: any) => Promise<RunResult>;
-    runInlineTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
-    runInlineFixturesTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
-  }
-}
+type TestState = {
+  outputDir: string;
+  runTest: (filePath: string, options?: any) => Promise<RunResult>;
+  runInlineTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
+  runInlineFixturesTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
+};
 
 export const fixtures = baseFixtures.declareTestFixtures<TestState>();
 
