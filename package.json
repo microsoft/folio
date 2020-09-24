@@ -1,6 +1,6 @@
 {
   "name": "@playwright/test-runner",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "bin": {
     "test-runner": "./cli.js"
   },
@@ -14,7 +14,7 @@
     "watch": "tsc --build tsconfig.json --watch",
     "test": "test-runner test/ --test-ignore=assets/**",
     "prepare": "npm run build",
-    "preinstall": "cd stable-test-runner &&  npm install && cd .."
+    "roll-stable": "cd stable-test-runner && npm install"
   },
   "dependencies": {
     "@babel/code-frame": "^7.10.4",
