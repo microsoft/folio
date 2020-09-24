@@ -93,3 +93,47 @@ it('should respect boolean CLI option', async ({ runInlineFixturesTest }) => {
   }, { 'foo-camel-case': true });
   expect(result.exitCode).toBe(0);
 });
+
+it('should show parameters descriptions', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.ts': `
+      const fixtures = baseFixtures.declareParameters<{ browserName: string, headful: boolean }>();
+      fixtures.defineParameter('browserName', 'Browser name', 'chromium');
+      fixtures.defineParameter('headful', 'Whether to show browser window or not', false);
+    `
+  }, { 'help': true });
+  expect(result.output).toContain(`--browser-name <value>`);
+  expect(result.output).toContain(`Browser name (default: "chromium")`);
+  expect(result.output).toContain(`--headful  `);
+  expect(result.output).toContain(`Whether to show browser window or not`);
+
+  expect(result.exitCode).toBe(0);
+});
+
+it('should support integer parameter', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.ts': `
+      const fixtures = baseFixtures.declareParameters<{ integer: number }>();
+      fixtures.defineParameter('integer', 'Some integer', 5);
+      const { it } = fixtures;
+      it('success', async ({integer}) => {
+        expect(integer).toBe(6);
+      });
+    `
+  }, { 'integer': 6 });
+  expect(result.exitCode).toBe(0);
+});
+
+it('should support boolean parameter', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.ts': `
+      const fixtures = baseFixtures.declareParameters<{ bool: boolean }>();
+      fixtures.defineParameter('bool', 'Some bool', false);
+      const { it } = fixtures;
+      it('success', async ({bool}) => {
+        expect(bool).toBe(true);
+      });
+    `
+  }, { 'bool': true });
+  expect(result.exitCode).toBe(0);
+});

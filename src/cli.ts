@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import program from 'commander';
+import * as commander from 'commander';
 import * as fs from 'fs';
 import { isMatch } from 'micromatch';
 import * as path from 'path';
@@ -36,35 +36,14 @@ export const reporters = {
 
 const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
 
-let runAction: any = runStage1;
+const loadProgram = new commander.Command();
+addRunnerOptions(loadProgram);
+loadProgram.allowUnknownOption(true);
+loadProgram.helpOption(false);
+loadProgram.action(command => loadTests(command));
+loadProgram.parse(process.argv);
 
-program
-    .version('Version ' + /** @type {any} */ (require)('../package.json').version)
-    .option('--forbid-only', 'Fail if exclusive test(s) encountered', false)
-    .option('-g, --grep <grep>', 'Only run tests matching this string or regexp', '.*')
-    .option('--global-timeout <timeout>', 'Specify maximum time this test suite can run (in milliseconds), default: 0 for unlimited', '0')
-    .option('-j, --jobs <jobs>', 'Number of concurrent jobs for --parallel; use 1 to run in serial, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
-    .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'))
-    .option('--quiet', 'Suppress stdio', false)
-    .option('--repeat-each <repeat-each>', 'Specify how many times to run the tests', '1')
-    .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
-    .option('--retries <retries>', 'Specify retry count', '0')
-    .option('--shard <shard>', 'Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"', '')
-    .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
-    .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
-    .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
-    .option('--list', 'Only collect all the test and report them')
-    .option('-u, --update-snapshots', 'Use this flag to re-record every snapshot that fails during this test run')
-    .action(command => runAction(command));
-
-let runner: Runner;
-let parameterRegistrations: ParameterRegistration[];
-let reporter: Reporter;
-
-program.allowUnknownOption(true);
-program.parse(process.argv);
-
-async function runStage1(command) {
+function loadTests(command) {
   const filteredArguments = [];
   for (const arg of command.args) {
     if (arg.startsWith('-'))
@@ -116,21 +95,32 @@ async function runStage1(command) {
     process.exit(1);
   }
 
-  reporter = new Multiplexer(reporterObjects);
-  runner = new Runner(config, reporter);
-  parameterRegistrations = runner.loadFiles(files).parameters;
-  runAction = runStage2;
-  program.allowUnknownOption(false);
-  for (const param of parameterRegistrations)
-    program.option(`--${toKebabCase(param.name)}${typeof param.defaultValue === 'boolean' ? '' : ' <value>'}`);
-  program.parse(process.argv);
+  const reporter = new Multiplexer(reporterObjects);
+  const runner = new Runner(config, reporter);
+  const parameterRegistrations = runner.loadFiles(files).parameters;
+  const runProgram = new commander.Command();
+  for (const param of parameterRegistrations) {
+    if (typeof param.defaultValue === 'boolean')
+      runProgram.option(`--${toKebabCase(param.name)}`, param.description);
+    else
+      runProgram.option(`--${toKebabCase(param.name)} <value>`, param.description + ` (default: ${JSON.stringify(param.defaultValue)})`);
+  }
+  addRunnerOptions(runProgram);
+  runProgram.action(command => runTests(command, runner, parameterRegistrations));
+  runProgram.parse(process.argv);
 }
 
-async function runStage2(command) {
+async function runTests(command: commander.Command, runner: Runner, parameterRegistrations: ParameterRegistration[]) {
   const parameters: any = {};
   for (const param of parameterRegistrations) {
-    if (param.name in command)
+    if (command[param.name] === undefined)
+      continue;
+    if (typeof param.defaultValue === 'string')
       parameters[param.name] = command[param.name];
+    else if (typeof param.defaultValue === 'number')
+      parameters[param.name] = parseFloat(command[param.name]);
+    else if (typeof param.defaultValue === 'boolean')
+      parameters[param.name] = param.name in command;
   }
   runner.generateTests({ parameters });
   if (command.list) {
@@ -193,4 +183,25 @@ function collectFiles(testDir: string, dir: string, filters: string[], testMatch
 
 function toKebabCase(name: string): string {
   return name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+
+function addRunnerOptions(program: commander.Command) {
+  program
+      .version('Version ' + /** @type {any} */ (require)('../package.json').version)
+      .option('--forbid-only', 'Fail if exclusive test(s) encountered', false)
+      .option('-g, --grep <grep>', 'Only run tests matching this string or regexp', '.*')
+      .option('--global-timeout <timeout>', 'Specify maximum time this test suite can run (in milliseconds), default: 0 for unlimited', '0')
+      .option('-j, --jobs <jobs>', 'Number of concurrent jobs for --parallel; use 1 to run in serial, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
+      .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'))
+      .option('--quiet', 'Suppress stdio', false)
+      .option('--repeat-each <repeat-each>', 'Specify how many times to run the tests', '1')
+      .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
+      .option('--retries <retries>', 'Specify retry count', '0')
+      .option('--shard <shard>', 'Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"', '')
+      .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
+      .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
+      .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
+      .option('--list', 'Only collect all the test and report them')
+      .option('-u, --update-snapshots', 'Use this flag to re-record every snapshot that fails during this test run');
 }
