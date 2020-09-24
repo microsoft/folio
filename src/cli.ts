@@ -47,7 +47,7 @@ program
     .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'))
     .option('--quiet', 'Suppress stdio', false)
     .option('--repeat-each <repeat-each>', 'Specify how many times to run the tests', '1')
-    .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, 'line')
+    .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
     .option('--retries <retries>', 'Specify retry count', '0')
     .option('--shard <shard>', 'Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"', '')
     .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
