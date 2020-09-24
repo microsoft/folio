@@ -14,7 +14,7 @@
     "watch": "tsc --build tsconfig.json --watch",
     "test": "test-runner test/ --test-ignore=assets/**",
     "prepare": "npm run build",
-    "preinstall": "npm i --prefix stable-test-runner"
+    "preinstall": "cd stable-test-runner &&  npm install && cd .."
   },
   "dependencies": {
     "@babel/code-frame": "^7.10.4",

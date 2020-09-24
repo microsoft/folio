@@ -18,7 +18,7 @@ jobs:
       with:
         node-version: '10.x'
     - name: preinstall
-      run: npm i --prefix stable-test-runner
+      run: npm run preinstall
     - name: install
       run: npm ci
     - name: build
