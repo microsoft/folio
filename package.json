@@ -1,6 +1,6 @@
 {
   "name": "@playwright/test-runner",
-  "version": "0.9.13-post",
+  "version": "0.9.14-post",
   "bin": {
     "test-runner": "./cli.js"
   },
