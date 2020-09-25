@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { FixturePool, rerunRegistrations, assignParameters, TestInfo, parameters } from './fixtures';
+import { FixturePool, rerunRegistrations, assignParameters, TestInfo, parameters, assignConfig, config } from './fixtures';
 import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
@@ -41,7 +41,6 @@ export class WorkerRunner extends EventEmitter {
   private _remaining: Map<string, TestEntry>;
   private _stopped: any;
   private _parsedParameters: any = {};
-  private _config: Config;
   private _testId: string | null;
   private _stdOutBuffer: (string | Buffer)[] = [];
   private _stdErrBuffer: (string | Buffer)[] = [];
@@ -53,15 +52,14 @@ export class WorkerRunner extends EventEmitter {
 
   constructor(runPayload: RunPayload, config: Config, workerIndex: number) {
     super();
+    assignConfig(config);
     this._suite = new WorkerSuite('');
     this._suite.file = runPayload.file;
     this._workerIndex = workerIndex;
     this._parametersString = runPayload.parametersString;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
-    this._config = config;
     this._parsedParameters = runPayload.parameters;
-    this._parsedParameters['testConfig'] = config;
     this._parsedParameters['testWorkerIndex'] = workerIndex;
   }
 
@@ -157,7 +155,6 @@ export class WorkerRunner extends EventEmitter {
       file: test.file,
       location: test.location,
       fn: test.fn,
-      config: this._config,
       parameters,
       workerIndex: this._workerIndex,
       expectedStatus: expectedStatus,

@@ -18,13 +18,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
-import { Config } from './config';
 import expectFunction from 'expect';
-import { registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
+import { config, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
 import * as spec from './spec';
 import { TestModifier } from './testModifier';
 export { Config } from './config';
 export { TestInfo } from './fixtures';
+export { config } from './fixtures';
 
 const mkdirAsync = promisify(fs.mkdir);
 
@@ -128,8 +128,6 @@ type BuiltinWorkerParameters = {
 };
 
 type BuiltinWorkerFixtures = {
-  // Test run config.
-  testConfig: Config;
   // Worker index that runs this test.
   testWorkerIndex: number;
 };
@@ -144,11 +142,6 @@ type BuiltinTestFixtures = {
 export const fixtures = new FixturesImpl<BuiltinWorkerParameters, BuiltinWorkerFixtures, BuiltinTestFixtures>();
 export const expect = expectFunction;
 
-fixtures.defineWorkerFixture('testConfig', async ({}, runTest) => {
-  // Worker injects the value for this one.
-  await runTest(undefined as any);
-});
-
 fixtures.defineWorkerFixture('testWorkerIndex', async ({}, runTest) => {
   // Worker injects the value for this one.
   await runTest(undefined as any);
@@ -161,11 +154,11 @@ fixtures.defineTestFixture('testInfo', async ({}, runTest) => {
 
 fixtures.defineTestFixture('testOutputFile', async ({ testInfo }, runTest) => {
   const outputFile = async (suffix: string): Promise<string> => {
-    const relativePath = path.relative(testInfo.config.testDir, testInfo.file)
+    const relativePath = path.relative(config.testDir, testInfo.file)
         .replace(/\.spec\.[jt]s/, '')
         .replace(new RegExp(`(tests|test|src)${path.sep}`), '');
     const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '_');
-    const assetPath = path.join(testInfo.config.outputDir, relativePath, `${sanitizedTitle}-${suffix}`);
+    const assetPath = path.join(config.outputDir, relativePath, `${sanitizedTitle}-${suffix}`);
     await mkdirAsync(path.dirname(assetPath), {
       recursive: true
     });

@@ -14,22 +14,20 @@
  * limitations under the License.
  */
 
-import { fixtures } from '../../';
-const { it, expect, defineTestFixture, defineWorkerFixture } = fixtures
-    .declareTestFixtures<{ postProcess: string }>()
+import { config, fixtures, TestInfo } from '../../';
+
+const { it, expect, defineTestFixture } = fixtures
+    .declareTestFixtures<{ testInfoForward: TestInfo }>()
     .declareWorkerFixtures<{ config: any }>();
 
-defineTestFixture('postProcess', async ({testInfo}, runTest) => {
-  await runTest('');
+defineTestFixture('testInfoForward', async ({ testInfo }, runTest) => {
+  await runTest(testInfo);
   testInfo.data['myname'] = 'myvalue';
 });
 
-defineWorkerFixture('config', async ({testConfig}, runTest) => {
-  await runTest(testConfig);
-});
-
-it('ensure fixture handles test error', async ({ postProcess, testConfig }) => {
+it('ensure fixture handles test error', async ({ testInfoForward }) => {
   console.log('console.log');
   console.error('console.error');
-  expect(testConfig.outputDir).toBeTruthy();
+  expect(config.testDir).toBeTruthy();
+  expect(testInfoForward.file).toContain('test-data-visible-in-fixture');
 });

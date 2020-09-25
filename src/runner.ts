@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
+import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
@@ -36,7 +36,6 @@ const removeFolderAsync = promisify(rimraf);
 type RunResult = 'passed' | 'failed' | 'forbid-only' | 'no-tests';
 
 export class Runner {
-  private _config: Config;
   private _reporter: Reporter;
   private _beforeFunctions: Function[] = [];
   private _afterFunctions: Function[] = [];
@@ -45,7 +44,7 @@ export class Runner {
   private _suites: RunnerSuite[] = [];
 
   constructor(config: Config, reporter: Reporter) {
-    this._config = config;
+    assignConfig(config);
     this._reporter = reporter;
   }
 
@@ -57,7 +56,7 @@ export class Runner {
     for (const file of files) {
       const suite = new RunnerSuite('');
       suite.file = file;
-      const revertBabelRequire = runnerSpec(suite, this._config.timeout);
+      const revertBabelRequire = runnerSpec(suite, config.timeout);
       try {
         require(file);
         this._suites.push(suite);
@@ -84,20 +83,20 @@ export class Runner {
     }
 
     // We can only generate tests after parameters have been assigned.
-    this._rootSuite = generateTests(this._suites, this._config);
+    this._rootSuite = generateTests(this._suites, config);
     return this._rootSuite;
   }
 
   list() {
-    this._reporter.onBegin(this._config, this._rootSuite);
+    this._reporter.onBegin(config, this._rootSuite);
     this._reporter.onEnd();
   }
 
   async run(): Promise<RunResult> {
-    await removeFolderAsync(this._config.outputDir).catch(e => {});
-    fs.mkdirSync(this._config.outputDir, { recursive: true });
+    await removeFolderAsync(config.outputDir).catch(e => {});
+    fs.mkdirSync(config.outputDir, { recursive: true });
 
-    if (this._config.forbidOnly) {
+    if (config.forbidOnly) {
       const hasOnly = this._rootSuite.findSpec(t => t._only) || this._rootSuite.findSuite(s => s._only);
       if (hasOnly)
         return 'forbid-only';
@@ -106,9 +105,9 @@ export class Runner {
     const total = this._rootSuite.total;
     if (!total && !this._hasBadFiles)
       return 'no-tests';
-    const { result, timedOut } = await raceAgainstTimeout(this._runTests(this._rootSuite), this._config.globalTimeout);
+    const { result, timedOut } = await raceAgainstTimeout(this._runTests(this._rootSuite), config.globalTimeout);
     if (timedOut) {
-      this._reporter.onTimeout(this._config.globalTimeout);
+      this._reporter.onTimeout(config.globalTimeout);
       process.exit(1);
     }
     return result;
@@ -116,11 +115,11 @@ export class Runner {
 
   private async _runTests(suite: RunnerSuite): Promise<RunResult> {
     // Trial run does not need many workers, use one.
-    const runner = new Dispatcher(suite, { ...this._config, jobs: this._config.jobs }, this._reporter);
+    const runner = new Dispatcher(suite, { ...config, jobs: config.jobs }, this._reporter);
     try {
       for (const f of this._beforeFunctions)
         await f();
-      this._reporter.onBegin(this._config, suite);
+      this._reporter.onBegin(config, suite);
       await runner.run();
       await runner.stop();
       this._reporter.onEnd();

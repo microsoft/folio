@@ -37,7 +37,6 @@ export type TestInfo = {
   fn: Function;
 
   // Parameters
-  config: Config;
   parameters: Parameters;
   workerIndex: number;
 
@@ -70,6 +69,11 @@ export function assignParameters(params: any) {
 }
 
 export const matrix: any = {};
+
+export let config: Config = {} as any;
+export function assignConfig(c: Config) {
+  config = Object.assign(config, c);
+}
 
 class Fixture {
   pool: FixturePool;
