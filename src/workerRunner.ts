@@ -19,7 +19,7 @@ import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
 import * as util from 'util';
-import { serializeError } from './util';
+import { monotonicTime, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, TestOutputPayload, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
@@ -145,7 +145,7 @@ export class WorkerRunner extends EventEmitter {
     if (!this._entries.has(test._id))
       return;
     const { timeout, expectedStatus, skipped } = this._entries.get(test._id);
-    const deadline = timeout ? Date.now() + timeout : 0;
+    const deadline = timeout ? monotonicTime() + timeout : 0;
     this._remaining.delete(test._id);
 
     const testId = test._id;
@@ -178,7 +178,7 @@ export class WorkerRunner extends EventEmitter {
       return;
     }
 
-    const startTime = Date.now();
+    const startTime = monotonicTime();
     try {
       await this._runHooks(test.parent as WorkerSuite, 'beforeEach', 'before');
       debugLog(`running test "${test.fullTitle()}"`);
@@ -192,7 +192,7 @@ export class WorkerRunner extends EventEmitter {
       testInfo.status = 'failed';
       testInfo.error = serializeError(error);
     }
-    testInfo.duration = Date.now() - startTime;
+    testInfo.duration = monotonicTime() - startTime;
     if (this._testInfo) {
       // We could have reported end due to an unhandled exception.
       this.emit('testEnd', buildTestEndPayload(testId, testInfo));

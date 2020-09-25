@@ -18,7 +18,7 @@ export async function raceAgainstTimeout<T>(promise: Promise<T>, deadline: numbe
   if (!deadline)
     return { result: await promise };
 
-  const timeout = deadline - Date.now();
+  const timeout = deadline - monotonicTime();
   if (timeout <= 0)
     return { timedOut: true };
 
@@ -78,4 +78,9 @@ export function extractLocation(error: Error): string {
   if (match)
     return match[1];
   return '';
+}
+
+export function monotonicTime(): number {
+  const [seconds, nanoseconds] = process.hrtime();
+  return seconds * 1000 + (nanoseconds / 1000000 | 0);
 }

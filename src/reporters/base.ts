@@ -33,11 +33,11 @@ export class BaseReporter implements Reporter  {
   expectedFlaky: Test[] = [];
   unexpectedFlaky: Test[] = [];
   duration = 0;
-  startTime: number;
   config: Config;
   suite: Suite;
   timeout: number;
   fileDurations = new Map<string, number>();
+  monotonicStartTime: number;
 
   constructor() {
     process.on('SIGINT', async () => {
@@ -47,7 +47,7 @@ export class BaseReporter implements Reporter  {
   }
 
   onBegin(config: Config, suite: Suite) {
-    this.startTime = Date.now();
+    this.monotonicStartTime = monotonicTime();
     this.config = config;
     this.suite = suite;
   }
@@ -104,7 +104,7 @@ export class BaseReporter implements Reporter  {
   }
 
   onEnd() {
-    this.duration = Date.now() - this.startTime;
+    this.duration = monotonicTime() - this.monotonicStartTime;
   }
 
   private _printSlowTests() {
@@ -253,4 +253,9 @@ function serializeParameters(parameters: Parameters): string {
   for (const name of Object.keys(parameters))
     tokens.push(`${name}=${parameters[name]}`);
   return tokens.join(', ');
+}
+
+function monotonicTime(): number {
+  const [seconds, nanoseconds] = process.hrtime();
+  return seconds * 1000 + (nanoseconds / 1000000 | 0);
 }

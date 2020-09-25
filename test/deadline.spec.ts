@@ -19,12 +19,17 @@ const { it, expect } = fixtures;
 
 it('should expose deadline', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-		'a.spec.ts': `
+    'a.spec.ts': `
+      function monotonicTime(): number {
+        const [seconds, nanoseconds] = process.hrtime();
+        return seconds * 1000 + (nanoseconds / 1000000 | 0);
+      }
+
       it('fixture timeout', test => {
-				test.setTimeout(10000);
-			}, async ({testInfo}) => {
-        expect(testInfo.deadline).toBeGreaterThan(Date.now());
-        expect(testInfo.deadline).toBeLessThan(Date.now() + 20000);
+        test.setTimeout(10000);
+      }, async ({testInfo}) => {
+        expect(testInfo.deadline).toBeGreaterThan(monotonicTime());
+        expect(testInfo.deadline).toBeLessThan(monotonicTime() + 20000);
       });
     `
   });
