@@ -98,11 +98,12 @@ class JSONReporter implements Reporter {
       annotations: test.annotations,
       expectedStatus: test.expectedStatus,
       parameters: test.parameters,
-      runs: test.results.map(r => this._serializeTestRun(r))
+      // TODO: rename to results.
+      runs: test.results.map(r => this._serializeTestResult(r))
     };
   }
 
-  private _serializeTestRun(result: TestResult) {
+  private _serializeTestResult(result: TestResult) {
     return {
       workerIndex: result.workerIndex,
       status: result.status,
@@ -110,7 +111,8 @@ class JSONReporter implements Reporter {
       error: result.error,
       stdout: result.stdout.map(s => stdioEntry(s)),
       stderr: result.stderr.map(s => stdioEntry(s)),
-      data: result.data
+      data: result.data,
+      retry: result.retry,
     };
   }
 }

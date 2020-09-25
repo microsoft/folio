@@ -14,17 +14,10 @@
  * limitations under the License.
  */
 
-const fs = require('fs');
-const path = require('path');
 const { fixtures } = require('../../');
 const { it, expect } = fixtures;
 
-it('flake', async ({}) => {
-  try {
-    fs.readFileSync(path.join(process.env.PW_OUTPUT_DIR, 'retry-failures.txt'));
-  } catch (e) {
-    // First time this fails.
-    fs.writeFileSync(path.join(process.env.PW_OUTPUT_DIR, 'retry-failures.txt'), 'TRUE');
-    expect(true).toBe(false);
-  }
+it('flake', async ({ testInfo }) => {
+  // Passes on the second run.
+  expect(testInfo.retry).toBe(1);
 });

@@ -27,6 +27,7 @@ export { TestInfo } from './fixtures';
 export { config } from './fixtures';
 
 const mkdirAsync = promisify(fs.mkdir);
+const realPathAsync = promisify(fs.realpath);
 
 interface DescribeHelper<WorkerParameters> {
   describe(name: string, inner: () => void): void;
@@ -135,8 +136,10 @@ type BuiltinWorkerFixtures = {
 type BuiltinTestFixtures = {
   // Information about the test being run.
   testInfo: TestInfo;
+  // Output directory for a particular test run.
+  testOutputDir: string;
   // File name for an artifact this test intends to write.
-  testOutputFile: (suffix: string) => Promise<string>;
+  testOutputFile: (relativePath: string) => Promise<string>;
 };
 
 export const fixtures = new FixturesImpl<BuiltinWorkerParameters, BuiltinWorkerFixtures, BuiltinTestFixtures>();
@@ -152,17 +155,22 @@ fixtures.defineTestFixture('testInfo', async ({}, runTest) => {
   await runTest(undefined as any);
 });
 
-fixtures.defineTestFixture('testOutputFile', async ({ testInfo }, runTest) => {
-  const outputFile = async (suffix: string): Promise<string> => {
-    const relativePath = path.relative(config.testDir, testInfo.file)
-        .replace(/\.spec\.[jt]s/, '')
-        .replace(new RegExp(`(tests|test|src)${path.sep}`), '');
-    const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '_');
-    const assetPath = path.join(config.outputDir, relativePath, `${sanitizedTitle}-${suffix}`);
-    await mkdirAsync(path.dirname(assetPath), {
-      recursive: true
-    });
+fixtures.defineTestFixture('testOutputDir', async ({ testInfo }, runTest) => {
+  const relativePath = path.relative(config.testDir, testInfo.file)
+      .replace(/\.spec\.[jt]s/, '')
+      .replace(new RegExp(`(tests|test|src)\\${path.sep}`), '');
+  const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '_') + (testInfo.retry ? '_retry' + testInfo.retry : '');
+  const resolvedOutputDir = await realPathAsync(config.outputDir);
+  const testOutputDir = path.join(resolvedOutputDir, relativePath, sanitizedTitle);
+  await mkdirAsync(testOutputDir, { recursive: true });
+  await runTest(testOutputDir);
+});
+
+fixtures.defineTestFixture('testOutputFile', async ({ testOutputDir }, runTest) => {
+  const testOutputFile = async (relativePath: string): Promise<string> => {
+    const assetPath = path.join(testOutputDir, relativePath);
+    await mkdirAsync(path.dirname(assetPath), { recursive: true });
     return assetPath;
   };
-  await runTest(outputFile);
+  await runTest(testOutputFile);
 });

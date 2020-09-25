@@ -146,18 +146,6 @@ export class Test {
     this.spec = spec;
   }
 
-  _appendTestRun(): TestResult {
-    const result: TestResult = {
-      workerIndex: 0,
-      duration: 0,
-      stdout: [],
-      stderr: [],
-      data: {}
-    };
-    this.results.push(result);
-    return result;
-  }
-
   ok(): boolean {
     let hasPassedResults = false;
     for (const result of this.results) {
@@ -174,6 +162,7 @@ export class Test {
 }
 
 export type TestResult = {
+  retry: number;
   workerIndex: number,
   duration: number;
   status?: TestStatus;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Spec, Suite, Test } from './test';
+import { Spec, Suite, Test, TestResult } from './test';
 import { TestModifier } from './testModifier';
 
 export type ModifierFn = (modifier: TestModifier, parameters: any) => void;
@@ -49,5 +49,18 @@ export class RunnerTest extends Test {
 
   constructor(spec: RunnerSpec) {
     super(spec);
+  }
+
+  _appendTestResult(): TestResult {
+    const result: TestResult = {
+      retry: this.results.length,
+      workerIndex: 0,
+      duration: 0,
+      stdout: [],
+      stderr: [],
+      data: {}
+    };
+    this.results.push(result);
+    return result;
   }
 }

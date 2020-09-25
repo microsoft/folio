@@ -33,6 +33,7 @@ export type TestEndPayload = {
 
 export type TestEntry = {
   testId: string;
+  retry: number;
   timeout: number;
   expectedStatus: TestStatus;
   skipped: boolean;
