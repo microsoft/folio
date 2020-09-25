@@ -234,7 +234,7 @@ export class Dispatcher {
     });
     worker.on('testStdOut', (params: TestOutputPayload) => {
       const chunk = chunkFromParams(params);
-      if (params.testId === undefined) {
+      if (params.testId === undefined || !this._testById.has(params.testId)) {
         process.stdout.write(chunk);
         return;
       }

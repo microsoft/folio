@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import expectFunction from 'expect';
-import { config, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
+import { config, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo, FixtureDefinitionOptions } from './fixtures';
 import * as spec from './spec';
 import { TestModifier } from './testModifier';
 export { Config } from './config';
@@ -79,28 +79,28 @@ class FixturesImpl<WorkerParameters, WorkerFixtures, TestFixtures> {
     return this as any;
   }
 
-  defineTestFixture<T extends keyof TestFixtures>(name: T, fn: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (arg: TestFixtures[T]) => Promise<void>) => Promise<void>) {
+  defineTestFixture<T extends keyof TestFixtures>(name: T | '*', fn: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (arg: TestFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
     // TODO: make this throw when overriding.
-    registerFixture(name as string, fn);
+    registerFixture(name as string, fn, options);
   }
 
-  overrideTestFixture<T extends keyof TestFixtures>(name: T, fn: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (arg: TestFixtures[T]) => Promise<void>) => Promise<void>) {
+  overrideTestFixture<T extends keyof TestFixtures>(name: T, fn: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (arg: TestFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
     // TODO: make this throw when not overriding.
-    registerFixture(name as string, fn);
+    registerFixture(name as string, fn, options);
   }
 
   declareWorkerFixtures<W>(): Fixtures<WorkerParameters, WorkerFixtures & W, TestFixtures> {
     return this as any;
   }
 
-  defineWorkerFixture<T extends keyof WorkerFixtures>(name: T, fn: (params: WorkerParameters & WorkerFixtures, runTest: (arg: WorkerFixtures[T]) => Promise<void>) => Promise<void>) {
+  defineWorkerFixture<T extends keyof WorkerFixtures>(name: T | '*', fn: (params: WorkerParameters & WorkerFixtures, runTest: (arg: WorkerFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
     // TODO: make this throw when overriding.
-    registerWorkerFixture(name as string, fn);
+    registerWorkerFixture(name as string, fn, options);
   }
 
-  overrideWorkerFixture<T extends keyof WorkerFixtures>(name: T, fn: (params: WorkerFixtures, runTest: (arg: WorkerFixtures[T]) => Promise<void>) => Promise<void>) {
+  overrideWorkerFixture<T extends keyof WorkerFixtures>(name: T, fn: (params: WorkerFixtures, runTest: (arg: WorkerFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
     // TODO: make this throw when not overriding.
-    registerWorkerFixture(name as string, fn);
+    registerWorkerFixture(name as string, fn, options);
   }
 
   declareParameters<P>(): Fixtures<WorkerParameters & P, WorkerFixtures, TestFixtures> {
@@ -113,7 +113,7 @@ class FixturesImpl<WorkerParameters, WorkerFixtures, TestFixtures> {
       description,
       defaultValue: defaultValue as any,
     });
-    registerWorkerFixture(name as string, async ({}, runTest) => runTest(defaultValue));
+    registerWorkerFixture(name as string, async ({}, runTest) => runTest(defaultValue), {});
   }
 
   generateParametrizedTests<T extends keyof WorkerParameters>(name: T, values: WorkerParameters[T][]) {

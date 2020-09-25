@@ -178,13 +178,13 @@ export class WorkerRunner extends EventEmitter {
 
     const startTime = Date.now();
     try {
-      await this._runHooks(test.parent as WorkerSuite, 'beforeEach', 'before', testInfo);
+      await this._runHooks(test.parent as WorkerSuite, 'beforeEach', 'before');
       debugLog(`running test "${test.fullTitle}"`);
       if (this._stopped)
         return;
       await fixturePool.runTestWithFixturesAndTimeout(test.fn, timeout, testInfo);
       debugLog(`done running test "${test.fullTitle}"`);
-      await this._runHooks(test.parent as WorkerSuite, 'afterEach', 'after', testInfo);
+      await this._runHooks(test.parent as WorkerSuite, 'afterEach', 'after');
     } catch (error) {
       // Error in the test fixture teardown.
       testInfo.status = 'failed';
@@ -203,10 +203,10 @@ export class WorkerRunner extends EventEmitter {
     this._testId = null;
   }
 
-  private async _runHooks(suite: WorkerSuite, type: string, dir: 'before' | 'after', testInfo?: TestInfo) {
+  private async _runHooks(suite: WorkerSuite, type: string, dir: 'before' | 'after') {
     if (this._stopped)
       return;
-    debugLog(`running hooks "${type}" for suite "${suite.fullTitle}"`);
+    debugLog(`running hooks "${type}" for suite "${suite.fullTitle()}"`);
     if (!this._hasTestsToRun(suite))
       return;
     const all = [];
@@ -217,8 +217,8 @@ export class WorkerRunner extends EventEmitter {
     if (dir === 'before')
       all.reverse();
     for (const hook of all)
-      await fixturePool.resolveParametersAndRun(hook);
-    debugLog(`done running hooks "${type}" for suite "${suite.fullTitle}"`);
+      await fixturePool.resolveParametersAndRunHookOrTest(hook);
+    debugLog(`done running hooks "${type}" for suite "${suite.fullTitle()}"`);
   }
 
   private _reportDone() {

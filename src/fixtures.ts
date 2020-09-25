@@ -21,12 +21,17 @@ import { debugLog } from './debug';
 
 type Scope = 'test' | 'worker';
 
+export type FixtureDefinitionOptions = {
+  auto?: boolean;
+};
+
 type FixtureRegistration = {
   name: string;
   scope: Scope;
   fn: Function;
   file: string;
   location: string;
+  auto: boolean;
 };
 
 export type TestInfo = {
@@ -181,7 +186,14 @@ export class FixturePool {
     }
   }
 
-  async resolveParametersAndRun(fn: Function) {
+  async resolveParametersAndRunHookOrTest(fn: Function) {
+    // Install all automatic fixtures.
+    for (const registration of registrations.values()) {
+      if (registration.auto)
+        await this.setupFixture(registration.name);
+    }
+
+    // Install used fixtures.
     const names = fixtureParameterNames(fn);
     for (const name of names)
       await this.setupFixture(name);
@@ -200,7 +212,7 @@ export class FixturePool {
 
   async _runTestWithFixtures(fn: Function, info: TestInfo) {
     try {
-      await this.resolveParametersAndRun(fn);
+      await this.resolveParametersAndRunHookOrTest(fn);
       info.status = 'passed';
     } catch (error) {
       // Prefer original error to the fixture teardown error or timeout.
@@ -265,7 +277,7 @@ function innerFixtureParameterNames(fn: Function): string[] {
   return signature.split(',').map((t: string) => t.trim().split(':')[0].trim());
 }
 
-function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: Function) {
+function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: Function, options: FixtureDefinitionOptions) {
   const obj = {stack: ''};
   // disable source-map-support to match the locations seen in require.cache
   const origPrepare = Error.prepareStackTrace;
@@ -278,19 +290,19 @@ function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: 
   const stackFrame = obj.stack.split('\n')[2];
   const location = stackFrame.replace(/.*at Object.<anonymous> \((.*)\)/, '$1');
   const file = location.replace(/^(.+):\d+:\d+$/, '$1');
-  const registration = { name, scope, fn, file, location };
+  const registration: FixtureRegistration = { name, scope, fn, file, location, auto: options.auto };
   registrations.set(name, registration);
   if (!registrationsByFile.has(file))
     registrationsByFile.set(file, []);
   registrationsByFile.get(file).push(registration);
 }
 
-export function registerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>) {
-  innerRegisterFixture(name, 'test', fn, registerFixture);
+export function registerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions) {
+  innerRegisterFixture(name, 'test', fn, registerFixture, options);
 }
 
-export function registerWorkerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>) {
-  innerRegisterFixture(name, 'worker', fn, registerWorkerFixture);
+export function registerWorkerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions) {
+  innerRegisterFixture(name, 'worker', fn, registerWorkerFixture, options);
 }
 
 export function registerWorkerParameter(parameter: ParameterRegistration) {

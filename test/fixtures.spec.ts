@@ -202,3 +202,60 @@ it('tests should be able to share worker fixtures', async ({ runInlineTest }) =>
   });
   expect(results.map(r => r.status)).toEqual(['passed', 'passed', 'passed']);
 });
+
+it('tests respect automatic test fixtures', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      let counter = 0;
+      fixtures.defineTestFixture('automaticTestFixture', async ({}, runTest) => {
+        ++counter;
+        await runTest();
+      }, { auto: true  });
+      it('test 1', async ({}) => {
+        expect(counter).toBe(1);
+      });
+      it('test 2', async ({}) => {
+        expect(counter).toBe(2);
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.results.map(r => r.status)).toEqual(['passed', 'passed']);
+});
+
+it('tests respect automatic worker fixtures', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      let counter = 0;
+      fixtures.defineWorkerFixture('automaticWorkerFixture', async ({}, runTest) => {
+        ++counter;
+        await runTest();
+      }, { auto: true  });
+      it('test 1', async ({}) => {
+        expect(counter).toBe(1);
+      });
+      it('test 2', async ({}) => {
+        expect(counter).toBe(1);
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.results.map(r => r.status)).toEqual(['passed', 'passed']);
+});
+
+it('tests does not run non-automatic worker fixtures', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      let counter = 0;
+      fixtures.defineWorkerFixture('nonAutomaticWorkerFixture', async ({}, runTest) => {
+        ++counter;
+        await runTest();
+      }, { auto: false  });
+      it('test 1', async ({}) => {
+        expect(counter).toBe(0);
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.results.map(r => r.status)).toEqual(['passed']);
+});
