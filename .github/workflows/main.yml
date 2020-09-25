@@ -20,7 +20,7 @@ jobs:
       with:
         node-version: '10.x'
     - name: preinstall
-      run: npm run preinstall
+      run: npm run roll-stable
     - name: install
       run: npm ci
     - name: build
