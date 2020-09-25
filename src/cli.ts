@@ -66,11 +66,10 @@ function loadTests(command) {
     repeatEach: parseInt(command.repeatEach, 10),
     retries: parseInt(command.retries, 10),
     shard,
-    snapshotDir: path.join(testDir, '__snapshots__'),
     testDir,
     timeout: parseInt(command.timeout, 10),
     globalTimeout: parseInt(command.globalTimeout, 10),
-    updateSnapshots: command.updateSnapshots
+
   };
 
   const reporterList = command.reporter.split(',');

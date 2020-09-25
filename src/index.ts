@@ -19,10 +19,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import { Config } from './config';
-import { expect as expectFunction } from './expect';
+import expectFunction from 'expect';
 import { registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
 import * as spec from './spec';
 import { TestModifier } from './testModifier';
+export { Config } from './config';
+export { TestInfo } from './fixtures';
 
 const mkdirAsync = promisify(fs.mkdir);
 

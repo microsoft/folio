@@ -16,7 +16,6 @@
 
 import { FixturePool, rerunRegistrations, assignParameters, TestInfo, parameters } from './fixtures';
 import { EventEmitter } from 'events';
-import { setCurrentTestFile } from './expect';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
 import * as util from 'util';
@@ -64,7 +63,6 @@ export class WorkerRunner extends EventEmitter {
     this._parsedParameters = runPayload.parameters;
     this._parsedParameters['testConfig'] = config;
     this._parsedParameters['testWorkerIndex'] = workerIndex;
-    setCurrentTestFile(this._suite.file);
   }
 
   stop() {

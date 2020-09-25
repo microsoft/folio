@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { initializeImageMatcher } from './expect';
 import { WorkerRunner, fixturePool } from './workerRunner';
 import { Console } from 'console';
 import { serializeError } from './util';
@@ -65,7 +64,6 @@ process.on('message', async message => {
   if (message.method === 'init') {
     workerIndex = message.params.workerIndex;
     setDebugWorkerIndex(workerIndex);
-    initializeImageMatcher(message.params);
     debugLog(`init`, message.params);
     return;
   }
