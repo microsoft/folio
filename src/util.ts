@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-export async function raceAgainstTimeout<T>(promise: Promise<T>, timeout: number): Promise<{ result?: T, timedOut?: boolean }> {
-  if (!timeout)
+export async function raceAgainstTimeout<T>(promise: Promise<T>, deadline: number): Promise<{ result?: T, timedOut?: boolean }> {
+  if (!deadline)
     return { result: await promise };
+
+  const timeout = deadline - Date.now();
+  if (timeout <= 0)
+    return { timedOut: true };
 
   let timer: NodeJS.Timer;
   let done = false;

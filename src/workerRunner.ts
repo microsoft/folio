@@ -145,6 +145,7 @@ export class WorkerRunner extends EventEmitter {
     if (!this._entries.has(test._id))
       return;
     const { timeout, expectedStatus, skipped } = this._entries.get(test._id);
+    const deadline = timeout ? Date.now() + timeout : 0;
     this._remaining.delete(test._id);
 
     const testId = test._id;
@@ -158,6 +159,7 @@ export class WorkerRunner extends EventEmitter {
       parameters,
       workerIndex: this._workerIndex,
       expectedStatus: expectedStatus,
+      deadline,
       duration: 0,
       status: 'passed',
       stdout: [],
@@ -179,11 +181,11 @@ export class WorkerRunner extends EventEmitter {
     const startTime = Date.now();
     try {
       await this._runHooks(test.parent as WorkerSuite, 'beforeEach', 'before');
-      debugLog(`running test "${test.fullTitle}"`);
+      debugLog(`running test "${test.fullTitle()}"`);
       if (this._stopped)
         return;
-      await fixturePool.runTestWithFixturesAndTimeout(test.fn, timeout, testInfo);
-      debugLog(`done running test "${test.fullTitle}"`);
+      await fixturePool.runTestWithFixturesAndDeadline(test.fn, deadline, testInfo);
+      debugLog(`done running test "${test.fullTitle()}"`);
       await this._runHooks(test.parent as WorkerSuite, 'afterEach', 'after');
     } catch (error) {
       // Error in the test fixture teardown.

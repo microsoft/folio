@@ -15,7 +15,7 @@
  */
 
 import { Config } from './config';
-import { raceAgainstTimeout, serializeError } from './util';
+import { raceAgainstTimeout as raceAgainstDeadline, serializeError } from './util';
 import { TestStatus, Parameters } from './test';
 import { debugLog } from './debug';
 
@@ -47,6 +47,7 @@ export type TestInfo = {
 
   // Modifiers
   expectedStatus: TestStatus;
+  deadline: number;
 
   // Results
   duration: number;
@@ -203,8 +204,8 @@ export class FixturePool {
     return fn(params);
   }
 
-  async runTestWithFixturesAndTimeout(fn: Function, timeout: number, info: TestInfo) {
-    const { timedOut } = await raceAgainstTimeout(this._runTestWithFixtures(fn, info), timeout);
+  async runTestWithFixturesAndDeadline(fn: Function, deadline: number, info: TestInfo) {
+    const { timedOut } = await raceAgainstDeadline(this._runTestWithFixtures(fn, info), deadline);
     // Do not overwrite test failure upon timeout in fixture.
     if (timedOut && info.status === 'passed')
       info.status = 'timedOut';
