@@ -46,7 +46,7 @@ export class Dispatcher {
     for (const suite of this._suite.suites) {
       for (const spec of suite._allSpecs()) {
         for (const test of spec.tests as RunnerTest[])
-          this._testById.set(test._id, { test, result: test._appendTestRun() });
+          this._testById.set(test._id, { test, result: test._appendTestResult() });
       }
     }
 
@@ -86,7 +86,7 @@ export class Dispatcher {
   }
 
   _filesSortedByWorkerHash(): RunPayload[] {
-    const result: RunPayload[] = [];
+    const runPayloads: RunPayload[] = [];
     for (const suite of this._suite.suites) {
       const testsByWorkerHash = new Map<string, {
         tests: RunnerTest[],
@@ -110,8 +110,16 @@ export class Dispatcher {
       if (!testsByWorkerHash.size)
         continue;
       for (const [hash, entry] of testsByWorkerHash) {
-        const entries = entry.tests.map(test => ({ testId: test._id, expectedStatus: test.expectedStatus, timeout: test.timeout, skipped: test.skipped }));
-        result.push({
+        const entries = entry.tests.map(test => {
+          return {
+            retry: this._testById.get(test._id).result.retry,
+            testId: test._id,
+            expectedStatus: test.expectedStatus,
+            timeout: test.timeout,
+            skipped: test.skipped
+          };
+        });
+        runPayloads.push({
           entries,
           file: suite.file,
           parameters: entry.parameters,
@@ -120,8 +128,8 @@ export class Dispatcher {
         });
       }
     }
-    result.sort((a, b) => a.hash < b.hash ? -1 : (a.hash === b.hash ? 0 : 1));
-    return result;
+    runPayloads.sort((a, b) => a.hash < b.hash ? -1 : (a.hash === b.hash ? 0 : 1));
+    return runPayloads;
   }
 
   async run() {
@@ -183,8 +191,14 @@ export class Dispatcher {
       if (this._config.retries && params.failedTestId) {
         const pair = this._testById.get(params.failedTestId);
         if (pair.test.expectedStatus === 'passed' && pair.test.results.length < this._config.retries + 1) {
-          pair.result = pair.test._appendTestRun();
-          remaining.unshift({ testId: pair.test._id, expectedStatus: pair.test.expectedStatus, timeout: pair.test.timeout, skipped: pair.test.skipped });
+          pair.result = pair.test._appendTestResult();
+          remaining.unshift({
+            retry: pair.result.retry,
+            testId: pair.test._id,
+            expectedStatus: pair.test.expectedStatus,
+            timeout: pair.test.timeout,
+            skipped: pair.test.skipped,
+          });
         }
       }
 

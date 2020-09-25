@@ -49,8 +49,6 @@ export class Runner {
   }
 
   loadFiles(files: string[]): { parameters: ParameterRegistration[] } {
-    // Resolve symlinks. TODO: do this asynchronously?
-    files = files.map(file => fs.realpathSync(file));
     debugLog(`loadFiles`, files);
     // First traverse tests.
     for (const file of files) {

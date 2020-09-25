@@ -44,6 +44,7 @@ export type TestInfo = {
   // Parameters
   parameters: Parameters;
   workerIndex: number;
+  retry: number;
 
   // Modifiers
   expectedStatus: TestStatus;
@@ -317,6 +318,7 @@ export function setParameterValues(name: string, values: any[]) {
 }
 
 function collectRequires(file: string, result: Set<string>) {
+  file = require.resolve(file);
   if (result.has(file))
     return;
   result.add(file);

@@ -19,10 +19,17 @@ import { fixtures } from './fixtures';
 const { it, expect } = fixtures;
 
 it('should retry failures', async ({ runTest }) => {
-  const result = await runTest('retry-failures.js', { retries: 1 });
+  const result = await runTest('retry-failures.js', { retries: 10 });
   expect(result.exitCode).toBe(1);
   expect(result.expectedFlaky).toBe(0);
   expect(result.unexpectedFlaky).toBe(1);
+  expect(result.results.length).toBe(2);
+  expect(result.results[0].workerIndex).toBe(0);
+  expect(result.results[0].retry).toBe(0);
+  expect(result.results[0].status).toBe('failed');
+  expect(result.results[1].workerIndex).toBe(1);
+  expect(result.results[1].retry).toBe(1);
+  expect(result.results[1].status).toBe('passed');
 });
 
 it('should retry timeout', async ({ runTest }) => {
