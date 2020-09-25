@@ -73,11 +73,15 @@ function trimCycles(obj: any): any {
 }
 
 export function extractLocation(error: Error): string {
-  const location = error.stack.split('\n')[3];
-  const match = location.match(/Object.<anonymous> \((.*)\)/);
-  if (match)
-    return match[1];
-  return '';
+  let location = error.stack.split('\n')[3].trim();
+  if (!location.startsWith('at '))
+    return location;
+  location = location.substr(3);
+  if (location.endsWith(')')) {
+    const from = location.indexOf('(');
+    location = location.substring(from + 1, location.length - 1);
+  }
+  return location;
 }
 
 export function monotonicTime(): number {
