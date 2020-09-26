@@ -259,3 +259,22 @@ it('tests does not run non-automatic worker fixtures', async ({ runInlineTest })
   expect(result.exitCode).toBe(0);
   expect(result.results.map(r => r.status)).toEqual(['passed']);
 });
+
+it('should not reuse fixtures from one file in another one', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, defineTestFixture } = baseFixtures;
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('test1', async ({}) => {});
+    `,
+    'b.spec.ts': `
+      const { it } = baseFixtures;
+      it('test1', async ({}) => {});
+      it('test2', async ({foo}) => {});
+    `,
+  });
+  expect(result.results[2].error.message).toContain('Unknown fixture: foo');
+  expect(result.exitCode).toBe(1);
+});

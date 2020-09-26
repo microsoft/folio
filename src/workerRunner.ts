@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { FixturePool, rerunRegistrations, assignParameters, TestInfo, parameters, assignConfig, config } from './fixtures';
+import { FixturePool, validateRegistrations, assignParameters, TestInfo, parameters, assignConfig, config } from './fixtures';
 import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
@@ -113,7 +113,7 @@ export class WorkerRunner extends EventEmitter {
     this._suite._assignIds(this._parametersString);
     this._loaded = true;
 
-    rerunRegistrations(this._suite.file);
+    validateRegistrations(this._suite.file);
     await this._runSuite(this._suite);
     this._reportDone();
   }

@@ -15,7 +15,7 @@
  */
 
 import crypto from 'crypto';
-import { registrations, fixturesForCallback, rerunRegistrations, matrix } from './fixtures';
+import { registrations, fixturesForCallback, validateRegistrations, matrix } from './fixtures';
 import { Configuration } from './ipc';
 import { Config } from './config';
 import { RunnerSuite, RunnerSpec, RunnerTest, ModifierFn } from './runnerTest';
@@ -30,9 +30,8 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
   }
 
   for (const suite of suites) {
-    // Rerun registrations so that only fixtures for this file
-    // are registered.
-    rerunRegistrations(suite.file);
+    // Leave only those fixtures that are relevant for this file.
+    validateRegistrations(suite.file);
 
     // Name each test.
     suite._renumber();
@@ -123,13 +122,16 @@ function filterOnly(suite: RunnerSuite) {
 }
 
 function computeWorkerRegistrationHash(fixtures: string[]): string {
-  // Build worker hash - location of all worker fixtures as seen by this file.
+  // Build worker hash - indices of all worker fixtures as seen by this file.
+  // Note that tests that share fixture by requiring them from a single fixtures
+  // file will share the fixture registration instance and therefore will
+  // get the same hash.
   const hash = crypto.createHash('sha1');
   for (const fixture of fixtures) {
     const registration = registrations.get(fixture);
     if (registration.scope !== 'worker')
       continue;
-    hash.update(registration.location);
+    hash.update('@' + registration.index);
   }
   return hash.digest('hex');
 }
