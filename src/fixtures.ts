@@ -26,12 +26,14 @@ export type FixtureDefinitionOptions = {
 };
 
 type FixtureRegistration = {
+  index: number;
   name: string;
   scope: Scope;
   fn: Function;
   file: string;
-  location: string;
+  stack: string;
   auto: boolean;
+  isOverride: boolean;
 };
 
 export type TestInfo = {
@@ -61,6 +63,8 @@ export type TestInfo = {
 
 export const registrations = new Map<string, FixtureRegistration>();
 const registrationsByFile = new Map<string, FixtureRegistration[]>();
+let registrationCount = 0;
+
 export let parameters: any = {};
 
 export type ParameterRegistration = {
@@ -279,7 +283,7 @@ function innerFixtureParameterNames(fn: Function): string[] {
   return signature.split(',').map((t: string) => t.trim().split(':')[0].trim());
 }
 
-function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: Function, options: FixtureDefinitionOptions) {
+function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: Function, options: FixtureDefinitionOptions, isOverride: boolean) {
   const obj = {stack: ''};
   // disable source-map-support to match the locations seen in require.cache
   const origPrepare = Error.prepareStackTrace;
@@ -288,23 +292,25 @@ function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: 
   // v8 doesn't actually prepare the stack trace until we access it
   obj.stack;
   Error.prepareStackTrace = origPrepare;
-
   const stackFrame = obj.stack.split('\n')[2];
   const location = stackFrame.replace(/.*at Object.<anonymous> \((.*)\)/, '$1');
   const file = location.replace(/^(.+):\d+:\d+$/, '$1');
-  const registration: FixtureRegistration = { name, scope, fn, file, location, auto: options.auto };
-  registrations.set(name, registration);
+
+  // Now capture with source maps for a nice error stack.
+  Error.captureStackTrace(obj, caller);
+  const stack = obj.stack.substring('Error:\n'.length);
+  const registration: FixtureRegistration = { index: registrationCount++, name, scope, fn, file, stack, auto: options.auto, isOverride };
   if (!registrationsByFile.has(file))
     registrationsByFile.set(file, []);
   registrationsByFile.get(file).push(registration);
 }
 
-export function registerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions) {
-  innerRegisterFixture(name, 'test', fn, registerFixture, options);
+export function registerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions, isOverride: boolean) {
+  innerRegisterFixture(name, 'test', fn, registerFixture, options, isOverride);
 }
 
-export function registerWorkerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions) {
-  innerRegisterFixture(name, 'worker', fn, registerWorkerFixture, options);
+export function registerWorkerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions, isOverride: boolean) {
+  innerRegisterFixture(name, 'worker', fn, registerWorkerFixture, options, isOverride);
 }
 
 export function registerWorkerParameter(parameter: ParameterRegistration) {
@@ -330,26 +336,73 @@ function collectRequires(file: string, result: Set<string>) {
     collectRequires(dep, result);
 }
 
-function lookupRegistrations(file: string) {
+function lookupRegistrations(file: string): FixtureRegistration[] {
   const deps = new Set<string>();
   collectRequires(file, deps);
   const allDeps = [...deps].reverse();
-  const result = new Map();
+  const result = [];
   for (const dep of allDeps) {
-    const registrationList = registrationsByFile.get(dep);
-    if (!registrationList)
-      continue;
-    for (const r of registrationList)
-      result.set(r.name, r);
-
+    const registrationList = registrationsByFile.get(dep) || [];
+    result.push(...registrationList);
   }
   return result;
 }
 
-export function rerunRegistrations(file: string) {
+function registrationError(registration: FixtureRegistration, message: string): Error {
+  const e = new Error(message);
+  e.stack = 'Error: ' + message + registration.stack;
+  return e;
+}
+
+type VisitMarker = 'visiting' | 'visited';
+export function validateRegistrations(file: string) {
+  // When we are running several tests in the same worker, we should cherry pick
+  // registrations specific to each file. That way we erase potential fixtures
+  // from previous test files.
   registrations.clear();
-  // When we are running several tests in the same worker, we should re-run registrations before
-  // each file. That way we erase potential fixture overrides from the previous test runs.
-  for (const registration of lookupRegistrations(file).values())
+
+  const list = lookupRegistrations(file);
+  // Register in the order of declaration to preserve define/override ordering.
+  list.sort((a, b) => a.index - b.index);
+
+  for (const registration of list) {
+    const previous = registrations.get(registration.name);
+    if (!registration.isOverride && previous) {
+      if (previous.scope !== registration.scope)
+        throw registrationError(registration, `Fixture "${registration.name}" has already been registered as a ${previous.scope} fixture. Use a different name for this ${registration.scope} fixture.`);
+      else
+        throw registrationError(registration, `Fixture "${registration.name}" has already been registered. Use ${registration.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} to override it in a specific test file.`);
+    } else if (registration.isOverride && !previous) {
+      throw registrationError(registration, `Fixture "${registration.name}" has not been registered yet. Use ${registration.scope === 'test' ? 'defineTestFixture' : 'defineWorkerFixture'} instead.`);
+    } else if (registration.isOverride && previous && previous.scope !== registration.scope) {
+      throw registrationError(registration, `Fixture "${registration.name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} instead.`);
+    }
     registrations.set(registration.name, registration);
+  }
+
+  const markers = new Map<FixtureRegistration, VisitMarker>();
+  const stack: FixtureRegistration[] = [];
+  const visit = (registration: FixtureRegistration) => {
+    markers.set(registration, 'visiting');
+    stack.push(registration);
+    const deps = fixtureParameterNames(registration.fn);
+    for (const name of deps) {
+      const dep = registrations.get(name);
+      if (!dep)
+        throw registrationError(registration, `Fixture "${registration.name}" has unknown parameter "${dep}".`);
+      if (registration.scope === 'worker' && dep.scope === 'test')
+        throw registrationError(registration, `Worker fixture "${registration.name}" cannot depend on a test fixture "${dep}".`);
+      if (!markers.has(dep)) {
+        visit(dep);
+      } else if (markers.get(dep) === 'visiting') {
+        const index = stack.indexOf(dep);
+        const names = stack.slice(index, stack.length).map(r => `"${r.name}"`);
+        throw registrationError(registration, `Fixtures ${names.join(' -> ')} -> "${dep.name}" form a dependency cycle.`);
+      }
+    }
+    markers.set(registration, 'visited');
+    stack.pop();
+  };
+  for (const registration of registrations.values())
+    visit(registration);
 }

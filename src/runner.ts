@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
+import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues, validateRegistrations } from './fixtures';
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
@@ -57,6 +57,7 @@ export class Runner {
       const revertBabelRequire = runnerSpec(suite, config.timeout);
       try {
         require(file);
+        validateRegistrations(file);
         this._suites.push(suite);
       } catch (error) {
         this._reporter.onError(serializeError(error), file);
