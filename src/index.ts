@@ -99,7 +99,7 @@ class FixturesImpl<WorkerParameters, WorkerFixtures, TestFixtures> {
     registerWorkerFixture(name as string, fn, options);
   }
 
-  overrideWorkerFixture<T extends keyof WorkerFixtures>(name: T, fn: (params: WorkerFixtures, runTest: (arg: WorkerFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
+  overrideWorkerFixture<T extends keyof WorkerFixtures>(name: T, fn: (params: WorkerParameters & WorkerFixtures, runTest: (arg: WorkerFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
     // TODO: make this throw when not overriding.
     registerWorkerFixture(name as string, fn, options);
   }
