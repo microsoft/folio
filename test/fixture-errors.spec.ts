@@ -26,11 +26,11 @@ it('should handle fixture timeout', async ({ runInlineFixturesTest }) => {
         await runTest();
         await new Promise(f => setTimeout(f, 100000));
       });
-      
+
       it('fixture timeout', async ({timeout}) => {
         expect(1).toBe(1);
       });
-      
+
       it('failing fixture timeout', async ({timeout}) => {
         expect(1).toBe(2);
       });
@@ -49,7 +49,7 @@ it('should handle worker fixture timeout', async ({ runInlineFixturesTest }) => 
 
       defineWorkerFixture('timeout', async ({}, runTest) => {
       });
-      
+
       it('fails', async ({timeout}) => {
       });
     `
@@ -66,9 +66,9 @@ it('should handle worker fixture error', async ({ runInlineFixturesTest }) => {
       defineWorkerFixture('failure', async ({}, runTest) => {
         throw new Error('Worker failed');
       });
-      
+
       it('fails', async ({failure}) => {
-      });    
+      });
     `
   });
   expect(result.exitCode).toBe(1);
@@ -85,12 +85,169 @@ it('should handle worker tear down fixture error', async ({ runInlineFixturesTes
         await runTest();
         throw new Error('Worker failed');
       });
-      
+
       it('pass', async ({failure}) => {
         expect(true).toBe(true);
-      });    
+      });
     `
   });
   expect(result.report.errors[0].error.message).toContain('Worker failed');
   expect(result.exitCode).toBe(1);
+});
+
+it('should throw when overriding non-defined worker fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, overrideWorkerFixture } = baseFixtures;
+      overrideWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `
+  });
+  expect(result.results[0].error.message).toContain('Fixture "foo" has not been registered yet. Use defineWorkerFixture instead.');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when defining worker fixture twice', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'b.spec.ts': `
+      const { it, defineWorkerFixture } = baseFixtures;
+      defineWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      defineWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `
+  });
+  expect(result.results[0].error.message).toContain('Fixture "foo" has already been registered. Use overrideWorkerFixture to override it in a specific test file.');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when overriding non-defined test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'c.spec.ts': `
+      const { it, overrideTestFixture } = baseFixtures;
+      overrideTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `
+  });
+  expect(result.results[0].error.message).toContain('Fixture "foo" has not been registered yet. Use defineTestFixture instead.');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when defining test fixture twice', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'd.spec.ts': `
+      const { it, defineTestFixture } = baseFixtures;
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `
+  });
+  expect(result.results[0].error.message).toContain('Fixture "foo" has already been registered. Use overrideTestFixture to override it in a specific test file.');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when defining test fixture with the same name as a worker fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'e.spec.ts': `
+      const { it, defineTestFixture, defineWorkerFixture } = baseFixtures;
+      defineWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.results[0].error.message).toContain('Fixture "foo" has already been registered as a worker fixture. Use a different name for this test fixture.');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when defining worker fixture with the same name as a test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'e.spec.ts': `
+      const { it, defineTestFixture, defineWorkerFixture } = baseFixtures;
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      defineWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.results[0].error.message).toContain('Fixture "foo" has already been registered as a test fixture. Use a different name for this worker fixture.');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when overriding worker fixture as a test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'f.spec.ts': `
+      const { it, overrideTestFixture, defineWorkerFixture } = baseFixtures;
+      defineWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      overrideTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.results[0].error.message).toContain('Fixture "foo" is a worker fixture. Use overrideWorkerFixture instead.');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when overriding test fixture as a worker fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'f.spec.ts': `
+      const { it, overrideWorkerFixture, defineTestFixture } = baseFixtures;
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      overrideWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.results[0].error.message).toContain('Fixture "foo" is a test fixture. Use overrideTestFixture instead.');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should define and override the same fixture in two files', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, defineWorkerFixture, overrideWorkerFixture } = baseFixtures;
+      defineWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      overrideWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `,
+    'b.spec.ts': `
+      const { it, defineWorkerFixture, overrideWorkerFixture } = baseFixtures;
+      defineWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      overrideWorkerFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(2);
 });

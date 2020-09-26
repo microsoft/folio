@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
+import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues, setValidateFixtureRegistrations } from './fixtures';
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
@@ -55,6 +55,10 @@ export class Runner {
       const suite = new RunnerSuite('');
       suite.file = file;
       const revertBabelRequire = runnerSpec(suite, config.timeout);
+      // Do not validate fixtures in the runner process, because
+      // all test files share the same fixture pool before we
+      // shard them by hash.
+      setValidateFixtureRegistrations(false);
       try {
         require(file);
         this._suites.push(suite);

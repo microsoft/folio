@@ -82,6 +82,11 @@ export function assignConfig(c: Config) {
   config = Object.assign(config, c);
 }
 
+let validateFixtureRegistrations = true;
+export function setValidateFixtureRegistrations(validate: boolean) {
+  validateFixtureRegistrations = validate;
+}
+
 class Fixture {
   pool: FixturePool;
   name: string;
@@ -299,11 +304,39 @@ function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: 
   registrationsByFile.get(file).push(registration);
 }
 
-export function registerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions) {
+export function registerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions, isOverride: boolean) {
+  if (validateFixtureRegistrations) {
+    const registration = registrations.get(name);
+    if (!isOverride) {
+      if (registration && registration.scope === 'test')
+        throw new Error(`Fixture "${name}" has already been registered. Use overrideTestFixture to override it in a specific test file.`);
+      if (registration && registration.scope === 'worker')
+        throw new Error(`Fixture "${name}" has already been registered as a worker fixture. Use a different name for this test fixture.`);
+    } else {
+      if (!registration)
+        throw new Error(`Fixture "${name}" has not been registered yet. Use defineTestFixture instead.`);
+      if (registration.scope === 'worker')
+        throw new Error(`Fixture "${name}" is a worker fixture. Use overrideWorkerFixture instead.`);
+    }
+  }
   innerRegisterFixture(name, 'test', fn, registerFixture, options);
 }
 
-export function registerWorkerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions) {
+export function registerWorkerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions, isOverride: boolean) {
+  if (validateFixtureRegistrations) {
+    const registration = registrations.get(name);
+    if (!isOverride) {
+      if (registration && registration.scope === 'worker')
+        throw new Error(`Fixture "${name}" has already been registered. Use overrideWorkerFixture to override it in a specific test file.`);
+      if (registration && registration.scope === 'test')
+        throw new Error(`Fixture "${name}" has already been registered as a test fixture. Use a different name for this worker fixture.`);
+    } else {
+      if (!registration)
+        throw new Error(`Fixture "${name}" has not been registered yet. Use defineWorkerFixture instead.`);
+      if (registration.scope === 'test')
+        throw new Error(`Fixture "${name}" is a test fixture. Use overrideTestFixture instead.`);
+    }
+  }
   innerRegisterFixture(name, 'worker', fn, registerWorkerFixture, options);
 }
 
