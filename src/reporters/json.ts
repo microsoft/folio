@@ -47,10 +47,10 @@ class JSONReporter implements Reporter {
     this.onEnd();
   }
 
-  onTestStdOut(test: Test, chunk: string | Buffer) {
+  onStdOut(chunk: string | Buffer) {
   }
 
-  onTestStdErr(test: Test, chunk: string | Buffer) {
+  onStdErr(chunk: string | Buffer) {
   }
 
   onTestBegin(test: Test): void {

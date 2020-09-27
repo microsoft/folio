@@ -32,19 +32,19 @@ class LineReporter extends BaseReporter {
     console.log();
   }
 
-  onTestStdOut(test: Test, chunk: string | Buffer) {
+  onStdOut(chunk: string | Buffer, test?: Test) {
     this._dumpToStdio(test, chunk, process.stdout);
   }
 
-  onTestStdErr(test: Test, chunk: string | Buffer) {
+  onStdErr(chunk: string | Buffer, test?: Test) {
     this._dumpToStdio(test, chunk, process.stderr);
   }
 
-  private _dumpToStdio(test: Test, chunk: string | Buffer, stream: NodeJS.WriteStream) {
+  private _dumpToStdio(test: Test | undefined, chunk: string | Buffer, stream: NodeJS.WriteStream) {
     if (this.config.quiet)
       return;
     stream.write(`\u001B[1A\u001B[2K`);
-    if (this._lastTest !== test) {
+    if (test && this._lastTest !== test) {
       // Write new header for the output.
       stream.write(colors.gray(`${path.basename(test.spec.file)} - ${test.spec.fullTitle()}\n`));
       this._lastTest = test;

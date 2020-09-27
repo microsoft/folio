@@ -18,21 +18,12 @@ import { FixturePool, validateRegistrations, assignParameters, TestInfo, paramet
 import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
-import * as util from 'util';
 import { monotonicTime, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, TestOutputPayload, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
 
 export const fixturePool = new FixturePool();
-
-function chunkToParams(chunk: Buffer | string):  { text?: string, buffer?: string } {
-  if (chunk instanceof Buffer)
-    return { buffer: chunk.toString('base64') };
-  if (typeof chunk !== 'string')
-    return { text: util.inspect(chunk) };
-  return { text: chunk };
-}
 
 export class WorkerRunner extends EventEmitter {
   private _failedTestId: string | undefined;
@@ -41,9 +32,7 @@ export class WorkerRunner extends EventEmitter {
   private _remaining: Map<string, TestEntry>;
   private _stopped: any;
   private _parsedParameters: any = {};
-  private _testId: string | null;
-  private _stdOutBuffer: (string | Buffer)[] = [];
-  private _stdErrBuffer: (string | Buffer)[] = [];
+  _testId: string | null;
   private _testInfo: TestInfo | null = null;
   private _suite: WorkerSuite;
   private _loaded = false;
@@ -80,24 +69,6 @@ export class WorkerRunner extends EventEmitter {
       this._fatalError = serializeError(error);
     }
     this._reportDone();
-  }
-
-  stdout(chunk: string | Buffer) {
-    this._stdOutBuffer.push(chunk);
-    for (const c of this._stdOutBuffer) {
-      const outPayload: TestOutputPayload = { testId: this._testId, ...chunkToParams(c) };
-      this.emit('testStdOut', outPayload);
-    }
-    this._stdOutBuffer = [];
-  }
-
-  stderr(chunk: string | Buffer) {
-    this._stdErrBuffer.push(chunk);
-    for (const c of this._stdErrBuffer) {
-      const outPayload: TestOutputPayload = { testId: this._testId, ...chunkToParams(c) };
-      this.emit('testStdErr', outPayload);
-    }
-    this._stdErrBuffer = [];
   }
 
   async run() {
