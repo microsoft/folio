@@ -6,8 +6,7 @@ Consider the tests below:
 
 ```ts
 // hello.spec.ts
-import { fixtures, expect } from './hello.fixtures';
-const { it } = fixtures;
+import { it, expect } from './hello.fixtures';
 
 it('hello world', async ({ hello, world }) => {
   expect(`${hello} ${world}!`).toBe('Hello World!');
@@ -35,7 +34,8 @@ type TestFixtures = {
   world: string;
   test: string;
 };
-export const fixtures = baseFixtures.declareTestFixtures<TestFixtures>();
+const fixtures = baseFixtures.declareTestFixtures<TestFixtures>();
+export const it = fixtures.it;
 
 // Define fixture |hello|.
 fixtures.defineTestFixture('hello', async ({}, runTest) => {
@@ -78,9 +78,8 @@ Playwright test runner uses worker processes to run test files. You can specify 
 Again, start with how the test looks:
 ```ts
 // express.spec.ts
-import { fixtures, expect } from './express.fixtures';
+import { it, expect } from './express.fixtures';
 import fetch from 'node-fetch';
-const { it } = fixtures;
 
 it('fetch 1', async ({ port }) => {
   const result = await fetch(`http://localhost:${port}/1`);
@@ -105,7 +104,8 @@ type ExpressWorkerFixtures = {
   port: number;
   express: any;
 };
-export const fixtures = baseFixtures.declareWorkerFixtures<ExpressWorkerFixtures>();
+const fixtures = baseFixtures.declareWorkerFixtures<ExpressWorkerFixtures>();
+export const it = fixtures.it;
 
 // Define |port| fixture that has unique value value of the worker process index.
 fixtures.defineWorkerFixture('port', async ({ testWorkerIndex }, runTest) => {
