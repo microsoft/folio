@@ -8,11 +8,11 @@ Consider the tests below:
 // hello.spec.ts
 import { it, expect } from './hello.fixtures';
 
-it('hello world', async ({ hello, world }) => {
+it('hello world', ({ hello, world }) => {
   expect(`${hello} ${world}!`).toBe('Hello World!');
 });
 
-it('hello test', async ({ hello, test }) => {
+it('hello test', ({ hello, test }) => {
   expect(`${hello} ${test}!`).toBe('Hello Test!');
 });
 ```
@@ -130,6 +130,6 @@ fixtures.defineWorkerFixture('express', async ({ port }, runTest) => {
   await runTest(server);
   console.log('Stopping server...');
   await new Promise(f => server.close(f));
-  console.log('Server stopped...');
+  console.log('Server stopped');
 }, { auto: true });
 ```
