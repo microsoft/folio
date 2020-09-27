@@ -95,7 +95,7 @@ it('should fail if parameters are not destructured', async ({ runInlineTest }) =
   expect(result.output).toContain('a.test.js');
 });
 
-it.skip('should fail with an unknown fixture', async ({ runInlineTest }) => {
+it('should fail with an unknown fixture', async ({ runInlineTest }) => {
   const { results } = await runInlineTest({
     'a.test.js': `
       it('should use asdf', async ({asdf}) => {
@@ -104,7 +104,7 @@ it.skip('should fail with an unknown fixture', async ({ runInlineTest }) => {
     `,
   });
   expect(results[0].status).toBe('failed');
-  expect(results[0].error.message).toBe('Error: Using undefined fixture asdf');
+  expect(results[0].error.message).toBe('Unknown fixture: asdf');
 });
 
 it('should run the fixture every time', async ({ runInlineTest }) => {
