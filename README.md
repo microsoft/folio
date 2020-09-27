@@ -9,11 +9,11 @@ Consider the tests below:
 import { it, expect } from './hello.fixtures';
 
 it('hello world', ({ hello, world }) => {
-  expect(`${hello} ${world}!`).toBe('Hello World!');
+  expect(`${hello}, ${world}!`).toBe('Hello, World!');
 });
 
 it('hello test', ({ hello, test }) => {
-  expect(`${hello} ${test}!`).toBe('Hello Test!');
+  expect(`${hello}, ${test}!`).toBe('Hello, Test!');
 });
 ```
 
@@ -28,7 +28,7 @@ Here is how these fixtures are defined:
 import { fixtures as baseFixtures } from '@playwright/test-runner';
 export { expect } from '@playwright/test-runner';
 
-// Declare test fixtures |hello| and |world|.
+// Declare test fixtures |hello|, |world| and |test|.
 type TestFixtures = {
   hello: string;
   world: string;
@@ -64,7 +64,7 @@ type TestFixtures = {
 };
 
 fixtures.defineTestFixture('helloWorld', async ({hello, world}, runTest) => {
-  await runTest(`${hello} ${world}!`);
+  await runTest(`${hello}, ${world}!`);
 });
 ```
 
@@ -98,11 +98,12 @@ And here is how fixtures are set up:
 import { fixtures as baseFixtures } from '@playwright/test-runner';
 export { expect } from '@playwright/test-runner';
 import express from 'express';
+import type { Express } from 'express';
 
 // Declare worker fixtures.
 type ExpressWorkerFixtures = {
   port: number;
-  express: any;
+  express: Express;
 };
 const fixtures = baseFixtures.declareWorkerFixtures<ExpressWorkerFixtures>();
 export const it = fixtures.it;
@@ -133,3 +134,47 @@ fixtures.defineWorkerFixture('express', async ({ port }, runTest) => {
   console.log('Server stopped');
 }, { auto: true });
 ```
+
+# Parameters
+
+It is common to run tests in different configurations, for example when running web app tests against multiple browsers or testing two different versions of api endpoint.
+
+Playwright test runner supports this via parameters. To generate parametrized tests, define a parameter, use it in a test or a fixture, and specify multiple parameter values.
+
+Consider the following test that uses an API endpoint:
+```ts
+// api.spec.ts
+import { it, expect } from './api.fixtures';
+import fetch from 'node-fetch';
+
+it('fetch 1', async ({ endpoint }) => {
+  const result = await fetch(`${endpoint}/hello`);
+  expect(await result.text()).toBe('Hello');
+});
+```
+
+Here is how to parametrize tests with two endpoints:
+```ts
+// api.fixtures.ts
+import { fixtures as baseFixtures } from '@playwright/test-runner';
+export { expect } from '@playwright/test-runner';
+
+// Declare parameter.
+const fixtures = baseFixtures.declareParameters<{ endpoint: string }>();
+export const it = fixtures.it;
+
+// Define parameter with a name, description and default value.
+fixtures.defineParameter('endpoint', 'API endpoint', 'http://localhost');
+
+// Generate two versions of each test that depends on the |endpoint| fixture.
+fixtures.generateParametrizedTests('endpoint', [
+  'http://localhost/v1',
+  'http://localhost/v2',
+]);
+```
+
+Now, all the tests that depend on |endpoint| directly or through a fixture, will run against both endpoints. You can pass the command line option to only run tests with a specific endpoint value:
+```sh
+npx test-runner tests --endpoint="http://localhost/v3"
+```
+
