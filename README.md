@@ -1,8 +1,86 @@
+# Content
+- [Fixtures](#fixtures)
+- [Test fixtures](#test-fixtures)
+- [Worker fixtures](#worker-fixtures)
+- [Parameters](#parameters)
+
+
+# Fixtures
+
+Playwright test runner is based on the concept of the test fixtures. Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else. Here is how typical test environment setup differs between traditional BDD and the fixture-based one:
+
+### Without fixtures:
+
+```ts
+describe('database', () => {
+  let database;
+  let table;
+
+  beforeAll(() => {
+    database = connect();
+  });
+
+  afterAll(() => {
+    database.dispose();
+  });
+
+  beforeEach(()=> {
+    table = database.createTable();
+  });
+
+  afterEach(()=> {
+    database.dropTable(table);
+  });
+
+  it('create user', () => {
+     table.insert();
+     // ...
+  });
+
+  it('update user', () => {
+     table.insert();
+     table.update();
+     // ...
+  });
+
+  it('delete user', () => {
+     table.insert();
+     table.delete();
+     // ...
+  });
+});
+```
+
+### With fixtures:
+
+```ts
+import { it } from './db.fixtures';
+
+it('create user', ({ table }) => {
+    table.insert();
+    // ...
+});
+
+it('update user', ({ table }) => {
+    table.insert();
+    table.update();
+    // ...
+});
+
+it('delete user', ({ table }) => {
+    table.insert();
+    table.delete();
+    // ...
+});
+```
+
+You declare exact fixtures that the test needs and the runner initializes them for each test individually. Tests can use any combinations of the fixtures to tailor precise environment they need. You no longer need to wrap tests in `describe`s that set up environment, everything is declarative and typed.
+
+There are two types of fixtures: `test` and `worker`. Test fixtures are set up for each test and worker fixtures are set up for each process that runs test files.
+
 # Test fixtures
 
-Playwright test runner is based on the concept of the [test fixtures](https://en.wikipedia.org/wiki/Test_fixture#Software). Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else.
-
-Consider the tests below:
+Test fixtures are set up for each test. Consider the following test file:
 
 ```ts
 // hello.spec.ts
@@ -17,11 +95,9 @@ it('hello test', ({ hello, test }) => {
 });
 ```
 
-Tests above use fixtures `hello`, `world` and `test` that are set up by the framework for these test runs.
+It uses fixtures `hello`, `world` and `test` that are set up by the framework for each test run.
 
-Tests can use any combinations of the fixtures. For example, you can have a `server`, `auth`, `mock` fixtures. You will then declare fixtures each test needs and they will be set up for those tests.
-
-Here is how these fixtures are defined:
+Here is how test fixtures are declared and defined:
 
 ```ts
 // hello.fixtures.ts
@@ -75,7 +151,7 @@ With fixtures, test organization becomes flexible - you can put tests that make 
 
 Playwright test runner uses worker processes to run test files. You can specify the maximum number of workers using `--jobs` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Playwright test runner will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
 
-Again, start with how the test looks:
+Here is how the test looks:
 ```ts
 // express.spec.ts
 import { it, expect } from './express.fixtures';
@@ -92,7 +168,7 @@ it('fetch 2', async ({ port }) => {
 });
 ```
 
-And here is how fixtures are set up:
+And here is how fixtures are declared and defined:
 ```ts
 // express.fixtures.ts
 import { fixtures as baseFixtures } from '@playwright/test-runner';
@@ -173,7 +249,7 @@ fixtures.generateParametrizedTests('endpoint', [
 ]);
 ```
 
-Now, all the tests that depend on |endpoint| directly or through a fixture, will run against both endpoints. You can pass the command line option to only run tests with a specific endpoint value:
+Now, all the tests that depend on `endpoint` directly or through a fixture, will run against both endpoints. You can pass the command line option to only run tests with a specific endpoint value:
 ```sh
 npx test-runner tests --endpoint="http://localhost/v3"
 ```
