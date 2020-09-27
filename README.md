@@ -17,11 +17,11 @@ it('hello test', ({ hello, test }) => {
 });
 ```
 
-Tests above use fixtures |hello|, |world| and |test| that are set up by the framework for these test runs.
+Tests above use fixtures `hello`, `world` and `test` that are set up by the framework for these test runs.
 
-Tests can use any combinations of the fixtures. For example, you can have a |server| fixture, |auth| fixture, |mock| fixture and declare the ones the test uses.
+Tests can use any combinations of the fixtures. For example, you can have a `server`, `auth`, `mock` fixtures. You will then declare fixtures each test needs and they will be set up for those tests.
 
-Here  is how these fixtures are defined:
+Here is how these fixtures are defined:
 
 ```ts
 // hello.fixtures.ts
@@ -68,7 +68,7 @@ fixtures.defineTestFixture('helloWorld', async ({hello, world}, runTest) => {
 });
 ```
 
-With fixtures, test organization becomes much more flexible - you can put tests that make sense next to each other based on what they test, not based on the environment they need.
+With fixtures, test organization becomes flexible - you can put tests that make sense next to each other based on what they test, not based on the environment they need.
 
 
 # Worker fixtures
