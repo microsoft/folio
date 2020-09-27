@@ -35,14 +35,14 @@ export class Multiplexer implements Reporter {
       reporter.onTestBegin(test);
   }
 
-  onTestStdOut(test: Test, chunk: string | Buffer) {
+  onStdOut(chunk: string | Buffer, test?: Test) {
     for (const reporter of this._reporters)
-      reporter.onTestStdOut(test, chunk);
+      reporter.onStdOut(chunk, test);
   }
 
-  onTestStdErr(test: Test, chunk: string | Buffer) {
+  onStdErr(chunk: string | Buffer, test?: Test) {
     for (const reporter of this._reporters)
-      reporter.onTestStdErr(test, chunk);
+      reporter.onStdErr(chunk, test);
   }
 
   onTestEnd(test: Test, result: TestResult) {

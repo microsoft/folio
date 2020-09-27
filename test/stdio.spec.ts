@@ -16,8 +16,17 @@
 import { fixtures } from './fixtures';
 const { it, expect } = fixtures;
 
-it('should get top level stdio', async ({runTest}) => {
-  const result = await runTest('log-something.js');
+it('should get top level stdio', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'a.spec.js': `
+      console.log('%% top level stdout');
+      console.error('%% top level stderr');
+      it('is a test', () => {
+        console.log('%% stdout in a test');
+        console.error('%% stderr in a test');
+      });
+    `
+  });
   expect(result.output.split('\n').filter(x => x.startsWith('%%'))).toEqual([
     '%% top level stdout',
     '%% top level stderr',
@@ -27,3 +36,22 @@ it('should get top level stdio', async ({runTest}) => {
     '%% stderr in a test'
   ]);
 });
+
+it('should get stdio from worker fixture teardown', async ({runInlineFixturesTest}) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.js': `
+      const { it, defineWorkerFixture } = baseFixtures;
+      defineWorkerFixture('fixture', async ({}, runTest) => {
+        console.log('\\n%% worker setup');
+        await runTest();
+        console.log('\\n%% worker teardown');
+      });
+      it('is a test', async ({fixture}) => {});
+    `
+  });
+  expect(result.output.split('\n').filter(x => x.startsWith('%%'))).toEqual([
+    '%% worker setup',
+    '%% worker teardown'
+  ]);
+});
+

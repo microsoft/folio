@@ -246,25 +246,19 @@ export class Dispatcher {
       result.status = params.status;
       this._reporter.onTestEnd(test, result);
     });
-    worker.on('testStdOut', (params: TestOutputPayload) => {
+    worker.on('stdOut', (params: TestOutputPayload) => {
       const chunk = chunkFromParams(params);
-      if (params.testId === undefined || !this._testById.has(params.testId)) {
-        process.stdout.write(chunk);
-        return;
-      }
-      const { test, result } = this._testById.get(params.testId);
-      result.stdout.push(chunk);
-      this._reporter.onTestStdOut(test, chunk);
+      const pair = this._testById.get(params.testId);
+      if (pair)
+        pair.result.stdout.push(chunk);
+      this._reporter.onStdOut(chunk, pair ? pair.test : undefined);
     });
-    worker.on('testStdErr', (params: TestOutputPayload) => {
+    worker.on('stdErr', (params: TestOutputPayload) => {
       const chunk = chunkFromParams(params);
-      if (params.testId === undefined) {
-        process.stderr.write(chunk);
-        return;
-      }
-      const { test, result } = this._testById.get(params.testId);
-      result.stderr.push(chunk);
-      this._reporter.onTestStdErr(test, chunk);
+      const pair = this._testById.get(params.testId);
+      if (pair)
+        pair.result.stderr.push(chunk);
+      this._reporter.onStdErr(chunk, pair ? pair.test : undefined);
     });
     worker.on('teardownError', ({error}) => {
       this._hasWorkerErrors = true;
@@ -321,7 +315,7 @@ class Worker extends EventEmitter {
         ...process.env
       },
       // Can't pipe since piping slows down termination for some reason.
-      stdio: process.env.PW_RUNNER_DEBUG ? ['inherit', 'inherit', 'inherit', 'ipc'] : ['ignore', 'ignore', 'ignore', 'ipc']
+      stdio: ['ignore', 'ignore', process.env.PW_RUNNER_DEBUG ? 'inherit' : 'ignore', 'ipc']
     });
     this.process.on('exit', () => this.emit('exit'));
     this.process.on('error', e => {});  // do not yell at a send to dead process.

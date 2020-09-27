@@ -55,12 +55,12 @@ export class BaseReporter implements Reporter  {
   onTestBegin(test: Test) {
   }
 
-  onTestStdOut(test: Test, chunk: string | Buffer) {
+  onStdOut(chunk: string | Buffer) {
     if (!this.config.quiet)
       process.stdout.write(chunk);
   }
 
-  onTestStdErr(test: Test, chunk: string | Buffer) {
+  onStdErr(chunk: string | Buffer) {
     if (!this.config.quiet)
       process.stderr.write(chunk);
   }

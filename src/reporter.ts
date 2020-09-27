@@ -20,8 +20,8 @@ import { Test, Suite, TestResult } from './test';
 export interface Reporter {
   onBegin(config: Config, suite: Suite): void;
   onTestBegin(test: Test): void;
-  onTestStdOut(test: Test, chunk: string | Buffer): void;
-  onTestStdErr(test: Test, chunk: string | Buffer): void;
+  onStdOut(chunk: string | Buffer, test?: Test): void;
+  onStdErr(chunk: string | Buffer, test?: Test): void;
   onTestEnd(test: Test, result: TestResult): void;
   onTimeout(timeout: number): void;
   onError(error: any, file?: string): void;

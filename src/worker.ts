@@ -14,31 +14,39 @@
  * limitations under the License.
  */
 
-import { WorkerRunner, fixturePool } from './workerRunner';
 import { Console } from 'console';
-import { serializeError } from './util';
+import * as util from 'util';
 import { debugLog, setDebugWorkerIndex } from './debug';
+import { TestOutputPayload } from './ipc';
+import { serializeError } from './util';
+import { fixturePool, WorkerRunner } from './workerRunner';
 
 let closed = false;
 
 sendMessageToParent('ready');
 
-if (!process.env.PW_RUNNER_DEBUG) {
-  global.console = new Console({
-    stdout: process.stdout,
-    stderr: process.stderr,
-    colorMode: process.env.FORCE_COLOR === '1',
-  });
+global.console = new Console({
+  stdout: process.stdout,
+  stderr: process.stderr,
+  colorMode: process.env.FORCE_COLOR === '1',
+});
 
-  process.stdout.write = chunk => {
-    if (testRunner)
-      testRunner.stdout(chunk);
-    return true;
+process.stdout.write = chunk => {
+  const outPayload: TestOutputPayload = {
+    testId: testRunner ? testRunner._testId : undefined,
+    ...chunkToParams(chunk)
   };
+  sendMessageToParent('stdOut', outPayload);
+  return true;
+};
 
+if (!process.env.PW_RUNNER_DEBUG) {
   process.stderr.write = chunk => {
-    if (testRunner)
-      testRunner.stderr(chunk);
+    const outPayload: TestOutputPayload = {
+      testId: testRunner ? testRunner._testId : undefined,
+      ...chunkToParams(chunk)
+    };
+    sendMessageToParent('stdErr', outPayload);
     return true;
   };
 }
@@ -76,7 +84,7 @@ process.on('message', async message => {
   if (message.method === 'run') {
     debugLog(`run`, message.params);
     testRunner = new WorkerRunner(message.params.entry, message.params.config, workerIndex);
-    for (const event of ['testBegin', 'testStdOut', 'testStdErr', 'testEnd', 'done'])
+    for (const event of ['testBegin', 'testEnd', 'done'])
       testRunner.on(event, sendMessageToParent.bind(null, event));
     await testRunner.run();
     testRunner = null;
@@ -101,8 +109,6 @@ async function gracefullyCloseAndExit() {
 }
 
 function sendMessageToParent(method, params = {}) {
-  if (closed)
-    return;
   try {
     if (method !== 'ready')
       debugLog(`send`, { method, params });
@@ -110,4 +116,12 @@ function sendMessageToParent(method, params = {}) {
   } catch (e) {
     // Can throw when closing.
   }
+}
+
+function chunkToParams(chunk: Buffer | string):  { text?: string, buffer?: string } {
+  if (chunk instanceof Buffer)
+    return { buffer: chunk.toString('base64') };
+  if (typeof chunk !== 'string')
+    return { text: util.inspect(chunk) };
+  return { text: chunk };
 }
