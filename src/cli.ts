@@ -98,28 +98,26 @@ function loadTests(command) {
   const runner = new Runner(config, reporter);
   const parameterRegistrations = runner.loadFiles(files).parameters;
   const runProgram = new commander.Command();
-  for (const param of parameterRegistrations) {
-    if (typeof param.defaultValue === 'boolean')
-      runProgram.option(`--${toKebabCase(param.name)}`, param.description);
-    else
-      runProgram.option(`--${toKebabCase(param.name)} <value>`, param.description + ` (default: ${JSON.stringify(param.defaultValue)})`);
-  }
+  for (const param of parameterRegistrations)
+    runProgram.option(`--p-${toKebabCase(param.name)} <value...>`, param.description + ` (default: ${JSON.stringify(param.defaultValue)})`);
   addRunnerOptions(runProgram);
   runProgram.action(command => runTests(command, runner, parameterRegistrations));
   runProgram.parse(process.argv);
 }
 
 async function runTests(command: commander.Command, runner: Runner, parameterRegistrations: ParameterRegistration[]) {
-  const parameters: any = {};
+  const parameters: { [key: string]: (string | boolean | number)[] } = {};
   for (const param of parameterRegistrations) {
-    if (command[param.name] === undefined)
+    const pName = 'p' + param.name[0].toUpperCase() + param.name.substring(1);
+    const values = command[pName];
+    if (values === undefined)
       continue;
     if (typeof param.defaultValue === 'string')
-      parameters[param.name] = command[param.name];
+      parameters[param.name] = values;
     else if (typeof param.defaultValue === 'number')
-      parameters[param.name] = parseFloat(command[param.name]);
+      parameters[param.name] = values.map(v => parseFloat(v));
     else if (typeof param.defaultValue === 'boolean')
-      parameters[param.name] = param.name in command;
+      parameters[param.name] = values.map(v => v === 'true');
   }
   runner.generateTests({ parameters });
   if (command.list) {
