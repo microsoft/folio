@@ -75,10 +75,10 @@ export class Runner {
     return { parameters: [...parameterRegistrations.values()] };
   }
 
-  generateTests(options: { parameters?: any } = {}): Suite {
+  generateTests(options: { parameters?: { [key: string]: (string | boolean | number)[] } } = {}): Suite {
     if (options.parameters) {
       for (const name of Object.keys(options.parameters))
-        setParameterValues(name, [options.parameters[name]]);
+        setParameterValues(name, options.parameters[name]);
     }
 
     // We can only generate tests after parameters have been assigned.

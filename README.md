@@ -268,19 +268,23 @@ fixtures.defineWorkerFixture('apiUrl', async ({ version }, runTest) => {
 
 ### In the command line
 
-It is now possible to run tests against the specific api version.
+Given the example above, it is possible to run tests against the specific api version.
+
+TODO: do not assume this is read top-bottom, each section should be self-contained
 
 TODO: update the npx command.
 ```sh
 # Run against the default version (v1 in our case).
 npx test-runner tests
 # Run against the specified version.
-npx test-runner tests --version=v2
+npx test-runner tests --p-version=v2
 ```
 
 ### Generating tests
 
-We can also run tests against multiple api versions.
+TODO: do not assume this is read top-bottom, each section should be self-contained
+
+It is also possible to run tests against multiple api versions.
 
 ```ts
 // api.fixtures.ts
@@ -290,7 +294,7 @@ We can also run tests against multiple api versions.
 fixtures.generateParametrizedTests('version', ['v1', 'v2', 'v3']);
 ```
 
-TODO: update the npx command, make multiple values work.
+TODO: update the npx command.
 ```sh
-npx test-runner tests --version=v1 --version=v2
+npx test-runner tests --p-version=v1 --p-version=v2
 ```

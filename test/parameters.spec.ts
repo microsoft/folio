@@ -76,7 +76,7 @@ it('should use kebab for CLI name', async ({ runInlineFixturesTest }) => {
         expect(fooCamelCase).toBe('kebab-value');
       });
     `
-  }, { 'foo-camel-case': 'kebab-value' });
+  }, { 'p-foo-camel-case': 'kebab-value' });
   expect(result.exitCode).toBe(0);
 });
 
@@ -90,7 +90,7 @@ it('should respect boolean CLI option', async ({ runInlineFixturesTest }) => {
         expect(fooCamelCase).toBeTruthy();
       });
     `
-  }, { 'foo-camel-case': true });
+  }, { 'p-foo-camel-case': true });
   expect(result.exitCode).toBe(0);
 });
 
@@ -102,9 +102,9 @@ it('should show parameters descriptions', async ({ runInlineFixturesTest }) => {
       fixtures.defineParameter('headful', 'Whether to show browser window or not', false);
     `
   }, { 'help': true });
-  expect(result.output).toContain(`--browser-name <value>`);
+  expect(result.output).toContain(`--p-browser-name <value...>`);
   expect(result.output).toContain(`Browser name (default: "chromium")`);
-  expect(result.output).toContain(`--headful  `);
+  expect(result.output).toContain(`--p-headful <value...>`);
   expect(result.output).toContain(`Whether to show browser window or not`);
 
   expect(result.exitCode).toBe(0);
@@ -120,7 +120,7 @@ it('should support integer parameter', async ({ runInlineFixturesTest }) => {
         expect(integer).toBe(6);
       });
     `
-  }, { 'integer': 6 });
+  }, { 'p-integer': 6 });
   expect(result.exitCode).toBe(0);
 });
 
@@ -134,6 +134,23 @@ it('should support boolean parameter', async ({ runInlineFixturesTest }) => {
         expect(bool).toBe(true);
       });
     `
-  }, { 'bool': true });
+  }, { 'p-bool': true });
   expect(result.exitCode).toBe(0);
+});
+
+it('should generate tests from CLI', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.ts': `
+      const fixtures = baseFixtures.declareParameters<{ bool: boolean }>();
+      fixtures.defineParameter('bool', 'Some bool', false);
+      const { it } = fixtures;
+      it('success', async ({bool}) => {
+        expect(bool).toBe(true);
+      });
+    `
+  }, { 'p-bool': [true, false] });
+  expect(result.exitCode).toBe(1);
+  expect(result.results.length).toBe(2);
+  expect(result.passed).toBe(1);
+  expect(result.failed).toBe(1);
 });
