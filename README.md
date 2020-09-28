@@ -12,8 +12,8 @@
 - [Reporters](#reporters)
   - [Reporter API](#reporter-api)
 - [Parameters](#parameters)
-  - [Command line](#adding-command-line)
-  - [Generating tests](#adding-command-line)
+  - [In the command line](#in-the-command-line)
+  - [Generating tests](#generating-tests)
 - [Parallelism and sharding](#parallelism-and-sharding)
   - [Workers](#jobs)
   - [Shards](#shards)
@@ -229,44 +229,68 @@ fixtures.defineWorkerFixture('express', async ({ port }, runTest) => {
 
 # Parameters
 
-It is common to run tests in different configurations, for example when running web app tests against multiple browsers or testing two different versions of api endpoint.
+It is common to run tests in different configurations, for example when running web app tests against multiple browsers or testing two different versions of api endpoint. Playwright test runner supports this via parameters - define the parameter and start using it in a test or a fixture.
 
-Playwright test runner supports this via parameters. To generate parametrized tests, define a parameter, use it in a test or a fixture, and specify multiple parameter values.
-
-Consider the following test that uses an API endpoint:
+Consider the following test that uses an API url endpoint:
 ```ts
 // api.spec.ts
 import { it, expect } from './api.fixtures';
 import fetch from 'node-fetch';
 
-it('fetch 1', async ({ endpoint }) => {
-  const result = await fetch(`${endpoint}/hello`);
+it('fetch 1', async ({ apiUrl }) => {
+  const result = await fetch(`${apiUrl}/hello`);
   expect(await result.text()).toBe('Hello');
 });
 ```
 
-Here is how to parametrize tests with two endpoints:
+Here is how to define the api version parameter:
 ```ts
 // api.fixtures.ts
 import { fixtures as baseFixtures } from '@playwright/test-runner';
 export { expect } from '@playwright/test-runner';
 
-// Declare parameter.
-const fixtures = baseFixtures.declareParameters<{ endpoint: string }>();
+// Declare the |version| parameter and |apiUrl| fixture.
+const fixtures = baseFixtures
+    .declareParameters<{ version: string }>()
+    .declareWorkerFixtures<{ apiUrl: string }>();
 export const it = fixtures.it;
 
 // Define parameter with a name, description and default value.
-fixtures.defineParameter('endpoint', 'API endpoint', 'http://localhost');
+fixtures.defineParameter('version', 'API version', 'v1');
 
-// Generate two versions of each test that depends on the |endpoint| fixture.
-fixtures.generateParametrizedTests('endpoint', [
-  'http://localhost/v1',
-  'http://localhost/v2',
-]);
+// Fixture can use the parameter.
+fixtures.defineWorkerFixture('apiUrl', async ({ version }, runTest) => {
+  const server = await startServer();
+  await runTest(`http://localhost/api/${version}`);
+  await server.close();
+});
 ```
 
-Now, all the tests that depend on `endpoint` directly or through a fixture, will run against both endpoints. You can pass the command line option to only run tests with a specific endpoint value:
+### In the command line
+
+It is now possible to run tests against the specific api version.
+
+TODO: update the npx command.
 ```sh
-npx test-runner tests --endpoint="http://localhost/v3"
+# Run against the default version (v1 in our case).
+npx test-runner tests
+# Run against the specified version.
+npx test-runner tests --version=v2
 ```
 
+### Generating tests
+
+We can also run tests against multiple api versions.
+
+```ts
+// api.fixtures.ts
+
+// Generate three versions of each test that directly or indirectly
+// depends on the |version| parameter.
+fixtures.generateParametrizedTests('version', ['v1', 'v2', 'v3']);
+```
+
+TODO: update the npx command, make multiple values work.
+```sh
+npx test-runner tests --version=v1 --version=v2
+```
