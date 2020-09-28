@@ -1,11 +1,27 @@
 # Content
 - [Fixtures](#fixtures)
-- [Test fixtures](#test-fixtures)
-- [Worker fixtures](#worker-fixtures)
+  - [Base concepts](#base-concepts)
+  - [Test fixtures](#test-fixtures)
+  - [Worker fixtures](#worker-fixtures)
+- [Annotations](#annotations)
+  - [Annotation API](#annotation-api)
+  - [Flaky tests](#flaky-tests)
+- [Built-in fixtures](#built-in-fixtures)
+  - [testWorkerIndex](#testworkerindex)
+  - [testInfo](#testinfo)
+- [Reporters](#reporters)
+  - [Reporter API](#reporter-api)
 - [Parameters](#parameters)
-
+  - [Command line](#adding-command-line)
+  - [Generating tests](#adding-command-line)
+- [Parallelism and sharding](#parallelism-and-sharding)
+  - [Workers](#jobs)
+  - [Shards](#shards)
+- [Command line](#command-line)
 
 # Fixtures
+
+### Base concepts
 
 Playwright test runner is based on the concept of the test fixtures. Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else. Here is how typical test environment setup differs between traditional BDD and the fixture-based one:
 
