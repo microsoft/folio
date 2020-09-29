@@ -199,6 +199,5 @@ function addRunnerOptions(program: commander.Command) {
       .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
       .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
       .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
-      .option('--list', 'Only collect all the test and report them')
-      .option('-u, --update-snapshots', 'Use this flag to re-record every snapshot that fails during this test run');
+      .option('--list', 'Only collect all the test and report them');
 }
