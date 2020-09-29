@@ -88,3 +88,20 @@ export function monotonicTime(): number {
   const [seconds, nanoseconds] = process.hrtime();
   return seconds * 1000 + (nanoseconds / 1000000 | 0);
 }
+
+export function callerFile(caller: Function, stackFrameIndex: number): string {
+  const obj = { stack: '' };
+  // disable source-map-support to match the locations seen in require.cache
+  const origPrepare = Error.prepareStackTrace;
+  Error.prepareStackTrace = null;
+  Error.captureStackTrace(obj, caller);
+  // v8 doesn't actually prepare the stack trace until we access it
+  obj.stack;
+  Error.prepareStackTrace = origPrepare;
+  let stackFrame = obj.stack.split('\n')[stackFrameIndex].trim();
+  if (stackFrame.startsWith('at '))
+    stackFrame = stackFrame.substring(3);
+  if (stackFrame.includes('('))
+    stackFrame = stackFrame.match(/\((.*)\)/)[1];
+  return stackFrame.replace(/^(.+):\d+:\d+$/, '$1');
+}

@@ -15,7 +15,7 @@
  */
 
 import { Config } from './config';
-import { raceAgainstTimeout as raceAgainstDeadline, serializeError } from './util';
+import { callerFile } from './util';
 import { TestStatus, Parameters } from './test';
 import { debugLog } from './debug';
 
@@ -208,35 +208,6 @@ export class FixturePool {
       params[n] = this.instances.get(n).value;
     return fn(params);
   }
-
-  async runTestWithFixturesAndDeadline(fn: Function, deadline: number, info: TestInfo) {
-    const { timedOut } = await raceAgainstDeadline(this._runTestWithFixtures(fn, info), deadline);
-    // Do not overwrite test failure upon timeout in fixture.
-    if (timedOut && info.status === 'passed')
-      info.status = 'timedOut';
-  }
-
-  async _runTestWithFixtures(fn: Function, info: TestInfo) {
-    try {
-      await this.resolveParametersAndRunHookOrTest(fn);
-      info.status = 'passed';
-    } catch (error) {
-      // Prefer original error to the fixture teardown error or timeout.
-      if (info.status === 'passed') {
-        info.status = 'failed';
-        info.error = serializeError(error);
-      }
-    }
-    try {
-      await this.teardownScope('test');
-    } catch (error) {
-      // Prefer original error to the fixture teardown error or timeout.
-      if (info.status === 'passed') {
-        info.status = 'failed';
-        info.error = serializeError(error);
-      }
-    }
-  }
 }
 
 export function fixturesForCallback(callback: Function): string[] {
@@ -283,21 +254,10 @@ function innerFixtureParameterNames(fn: Function): string[] {
   return signature.split(',').map((t: string) => t.trim().split(':')[0].trim());
 }
 
-function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: Function, options: FixtureDefinitionOptions, isOverride: boolean) {
-  const obj = {stack: ''};
-  // disable source-map-support to match the locations seen in require.cache
-  const origPrepare = Error.prepareStackTrace;
-  Error.prepareStackTrace = null;
-  Error.captureStackTrace(obj, caller);
-  // v8 doesn't actually prepare the stack trace until we access it
-  obj.stack;
-  Error.prepareStackTrace = origPrepare;
-  const stackFrame = obj.stack.split('\n')[2];
-  const location = stackFrame.replace(/.*at Object.<anonymous> \((.*)\)/, '$1');
-  const file = location.replace(/^(.+):\d+:\d+$/, '$1');
-
-  // Now capture with source maps for a nice error stack.
-  Error.captureStackTrace(obj, caller);
+function innerRegisterFixture(name: string, scope: Scope, fn: Function, options: FixtureDefinitionOptions, isOverride: boolean) {
+  const file = callerFile(innerRegisterFixture, 3);
+  const obj = { stack: '' };
+  Error.captureStackTrace(obj);
   const stack = obj.stack.substring('Error:\n'.length);
   const registration: FixtureRegistration = { index: registrationCount++, name, scope, fn, file, stack, auto: options.auto, isOverride };
   if (!registrationsByFile.has(file))
@@ -306,11 +266,11 @@ function innerRegisterFixture(name: string, scope: Scope, fn: Function, caller: 
 }
 
 export function registerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions, isOverride: boolean) {
-  innerRegisterFixture(name, 'test', fn, registerFixture, options, isOverride);
+  innerRegisterFixture(name, 'test', fn, options, isOverride);
 }
 
 export function registerWorkerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions, isOverride: boolean) {
-  innerRegisterFixture(name, 'worker', fn, registerWorkerFixture, options, isOverride);
+  innerRegisterFixture(name, 'worker', fn, options, isOverride);
 }
 
 export function registerWorkerParameter(parameter: ParameterRegistration) {
@@ -389,7 +349,7 @@ export function validateRegistrations(file: string) {
     for (const name of deps) {
       const dep = registrations.get(name);
       if (!dep)
-        throw registrationError(registration, `Fixture "${registration.name}" has unknown parameter "${dep}".`);
+        throw registrationError(registration, `Fixture "${registration.name}" has unknown parameter "${name}".`);
       if (registration.scope === 'worker' && dep.scope === 'test')
         throw registrationError(registration, `Worker fixture "${registration.name}" cannot depend on a test fixture "${dep}".`);
       if (!markers.has(dep)) {
