@@ -19,15 +19,13 @@ const { it } = fixtures;
 
 it('should work and remove empty dir', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'my-test!.spec.js': `
-      let dir;
-      it('test 1', async ({testOutputDir, testInfo}) => {
-        dir = testOutputDir;
+    'my-test.spec.js': `
+      it('test 1', async ({testOutputPath, testInfo}) => {
         if (testInfo.retry)
-          expect(testOutputDir).toContain(require('path').join('my-test!', 'test_1_retry1'));
+          expect(testOutputPath('')).toContain(require('path').join('my-test', 'test-1-retry1'));
         else
-          expect(testOutputDir).toContain(require('path').join('my-test!', 'test_1'));
-        expect(require('fs').existsSync(testOutputDir)).toBe(true);
+          expect(testOutputPath('')).toContain(require('path').join('my-test', 'test-1'));
+        expect(require('fs').existsSync(testOutputPath(''))).toBe(true);
         expect(testInfo.retry).toBe(1);
       });
     `,
