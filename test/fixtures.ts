@@ -41,12 +41,8 @@ export type RunResult = {
 async function runTest(reportFile: string, outputDir: string, filePath: string, params: any = {}): Promise<RunResult> {
   const paramList = [];
   for (const key of Object.keys(params)) {
-    if (!key.startsWith('p-')) {
-      paramList.push(params[key] === true ? `--${key}` : `--${key}=${params[key]}`);
-      continue;
-    }
     for (const value of  Array.isArray(params[key]) ? params[key] : [params[key]])
-      paramList.push(`--${key}=${value}`);
+      paramList.push(params[key] === true ? `--${key}` : `--${key}=${value}`);
   }
   const testProcess = spawn('node', [
     path.join(__dirname, '..', 'cli.js'),
