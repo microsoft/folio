@@ -19,15 +19,14 @@ const { it, expect } = fixtures;
 
 it('should allow custom parameters', async ({ runTest }) => {
   const result = await runTest('register-parameter.ts', {
-    'p-param1': 'value1',
+    'param': 'param1=value1',
   });
   expect(result.exitCode).toBe(0);
 });
 
 it('should fail on unknown parameters', async ({ runTest }) => {
   const result = await runTest('register-parameter.ts', {
-    'p-param1': 'value1',
-    'p-param3': 'value3'
+    'param': ['param1=value1', 'param3=value3']
   }).catch(e => e);
-  expect(result.output).toContain(`unknown option '--p-param3=value3'`);
+  expect(result.output).toContain(`unknown parameter 'param3'`);
 });

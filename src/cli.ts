@@ -37,26 +37,18 @@ export const reporters = {
 const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
 
 const loadProgram = new commander.Command();
-addRunnerOptions(loadProgram);
-loadProgram.allowUnknownOption(true);
+addRunnerOptions(loadProgram, true);
 loadProgram.helpOption(false);
-loadProgram.action(command => loadTests(command));
+loadProgram.action(command => runTests(command));
 loadProgram.parse(process.argv);
 
-function loadTests(command) {
-  const filteredArguments = [];
-  for (const arg of command.args) {
-    if (arg.startsWith('-'))
-      break;
-    filteredArguments.push(arg);
-  }
-
+async function runTests(command) {
   let shard: { total: number, current: number } | undefined;
   if (command.shard) {
     const pair = command.shard.split('/').map((t: string) => parseInt(t, 10));
     shard = { current: pair[0] - 1, total: pair[1] };
   }
-  const testDir = path.resolve(process.cwd(), filteredArguments[0] || '.');
+  const testDir = path.resolve(process.cwd(), command.args[0] || '.');
   const config: Config = {
     forbidOnly: command.forbidOnly,
     quiet: command.quiet,
@@ -69,9 +61,7 @@ function loadTests(command) {
     testDir,
     timeout: parseInt(command.timeout, 10),
     globalTimeout: parseInt(command.globalTimeout, 10),
-
   };
-
   const reporterList = command.reporter.split(',');
   const reporterObjects: Reporter[] = reporterList.map(c => {
     if (reporters[c])
@@ -86,7 +76,7 @@ function loadTests(command) {
   });
   let files = [];
   try {
-    files = collectFiles(testDir, '', filteredArguments.slice(1), command.testMatch, command.testIgnore);
+    files = collectFiles(testDir, '', command.args.slice(1), command.testMatch, command.testIgnore);
   } catch (e) {
     // FIXME: figure out where to report fatal errors such as no file / folder.
     // Collecting files failure is a CLI-level error, report it into the console.
@@ -97,28 +87,32 @@ function loadTests(command) {
   const reporter = new Multiplexer(reporterObjects);
   const runner = new Runner(config, reporter);
   const parameterRegistrations = runner.loadFiles(files).parameters;
-  const runProgram = new commander.Command();
-  for (const param of parameterRegistrations)
-    runProgram.option(`--p-${toKebabCase(param.name)} <value...>`, param.description + ` (default: ${JSON.stringify(param.defaultValue)})`);
-  addRunnerOptions(runProgram);
-  runProgram.action(command => runTests(command, runner, parameterRegistrations));
-  runProgram.parse(process.argv);
-}
-
-async function runTests(command: commander.Command, runner: Runner, parameterRegistrations: ParameterRegistration[]) {
   const parameters: { [key: string]: (string | boolean | number)[] } = {};
-  for (const param of parameterRegistrations) {
-    const pName = 'p' + param.name[0].toUpperCase() + param.name.substring(1);
-    const values = command[pName];
-    if (values === undefined)
-      continue;
-    if (typeof param.defaultValue === 'string')
-      parameters[param.name] = values;
-    else if (typeof param.defaultValue === 'number')
-      parameters[param.name] = values.map(v => parseFloat(v));
-    else if (typeof param.defaultValue === 'boolean')
-      parameters[param.name] = values.map(v => v === 'true');
+  for (const param of command.param || []) {
+    const [_, name, value] = param.match(/([^=]+)=(.*)/);
+    if (!parameterRegistrations.has(name)) {
+      console.error(`unknown parameter '${name}'`);
+      process.exit(1);
+    }
+    const registration = parameterRegistrations.get(name);
+    let list = parameters[name];
+    if (!list) {
+      list = [];
+      parameters[name] = list;
+    }
+    if (typeof registration.defaultValue === 'string')
+      list.push(value);
+    else if (typeof registration.defaultValue === 'number')
+      list.push(parseFloat(value));
+    else if (typeof registration.defaultValue === 'boolean')
+      list.push(value === 'true');
   }
+
+  if (command.help === undefined) {
+    printParametersHelp([...parameterRegistrations.values()]);
+    process.exit(0);
+  }
+
   runner.generateTests({ parameters });
   if (command.list) {
     runner.list();
@@ -178,20 +172,17 @@ function collectFiles(testDir: string, dir: string, filters: string[], testMatch
   return files;
 }
 
-function toKebabCase(name: string): string {
-  return name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-}
-
-
-function addRunnerOptions(program: commander.Command) {
-  program
+function addRunnerOptions(program: commander.Command, param: boolean) {
+  program = program
       .version('Version ' + /** @type {any} */ (require)('../package.json').version)
       .option('--forbid-only', 'Fail if exclusive test(s) encountered', false)
       .option('-g, --grep <grep>', 'Only run tests matching this string or regexp', '.*')
       .option('--global-timeout <timeout>', 'Specify maximum time this test suite can run (in milliseconds), default: 0 for unlimited', '0')
-      .option('-j, --jobs <jobs>', 'Number of concurrent jobs for --parallel; use 1 to run in serial, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
-      .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'))
-      .option('--quiet', 'Suppress stdio', false)
+      .option('-j, --jobs <jobs>', 'Number of concurrent jobs, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
+      .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'));
+  if (param)
+    program = program.option('-p, --param <name=value...>', 'Specify fixture parameter value');
+  program.option('--quiet', 'Suppress stdio', false)
       .option('--repeat-each <repeat-each>', 'Specify how many times to run the tests', '1')
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
       .option('--retries <retries>', 'Specify retry count', '0')
@@ -199,5 +190,18 @@ function addRunnerOptions(program: commander.Command) {
       .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
       .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
       .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
-      .option('--list', 'Only collect all the test and report them');
+      .option('--list', 'Only collect all the test and report them')
+      .option('-h, --help', 'display help for command');
+}
+
+function printParametersHelp(parameterRegistrations: ParameterRegistration[]) {
+  const program = new commander.Command();
+  for (const registration of parameterRegistrations) {
+    if (typeof registration.defaultValue === 'boolean')
+      program.option(`-p, --param*${registration.name}`, registration.description, registration.defaultValue);
+    else
+      program.option(`-p, --param*${registration.name}=<value>`, registration.description, String(registration.defaultValue));
+  }
+  addRunnerOptions(program, false);
+  console.log(program.helpInformation().replace(/--param\*/g, '--param '));
 }

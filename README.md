@@ -277,7 +277,7 @@ TODO: update the npx command.
 # Run against the default version (v1 in our case).
 npx test-runner tests
 # Run against the specified version.
-npx test-runner tests --p-version=v2
+npx test-runner tests -p version=v2
 ```
 
 ### Generating tests
@@ -296,5 +296,5 @@ fixtures.generateParametrizedTests('version', ['v1', 'v2', 'v3']);
 
 TODO: update the npx command.
 ```sh
-npx test-runner tests --p-version=v1 --p-version=v2
+npx test-runner tests -p version=v1 -p version=v2
 ```

@@ -48,7 +48,7 @@ export class Runner {
     this._reporter = reporter;
   }
 
-  loadFiles(files: string[]): { parameters: ParameterRegistration[] } {
+  loadFiles(files: string[]): { parameters: Map<string, ParameterRegistration> } {
     debugLog(`loadFiles`, files);
     // First traverse tests.
     for (const file of files) {
@@ -72,7 +72,7 @@ export class Runner {
       if (!(param.name in matrix))
         setParameterValues(param.name, [param.defaultValue]);
     }
-    return { parameters: [...parameterRegistrations.values()] };
+    return { parameters: parameterRegistrations };
   }
 
   generateTests(options: { parameters?: { [key: string]: (string | boolean | number)[] } } = {}): Suite {
