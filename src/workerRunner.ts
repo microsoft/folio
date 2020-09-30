@@ -30,7 +30,7 @@ export class WorkerRunner extends EventEmitter {
   private _fatalError: any | undefined;
   private _entries: Map<string, TestEntry>;
   private _remaining: Map<string, TestEntry>;
-  private _stopped: any;
+  private _isStopped: any;
   private _parsedParameters: any = {};
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
@@ -53,22 +53,24 @@ export class WorkerRunner extends EventEmitter {
   }
 
   stop() {
-    this._stopped = true;
+    this._isStopped = true;
+    this._testId = null;
+    this._testInfo = null;
   }
 
   unhandledError(error: Error | any) {
+    if (this._isStopped)
+      return;
     if (this._testInfo) {
       this._testInfo.status = 'failed';
       this._testInfo.error = serializeError(error);
       this._failedTestId = this._testId;
-      this._stopped = true;
       this.emit('testEnd', buildTestEndPayload(this._testId, this._testInfo));
-      this._testInfo = null;
     } else if (!this._loaded) {
       // No current test - fatal error.
       this._fatalError = serializeError(error);
     }
-    this._reportDone();
+    this._reportDoneAndStop();
   }
 
   async run() {
@@ -86,15 +88,17 @@ export class WorkerRunner extends EventEmitter {
 
     validateRegistrations(this._suite.file);
     await this._runSuite(this._suite);
-    this._reportDone();
+    this._reportDoneAndStop();
   }
 
   private async _runSuite(suite: WorkerSuite) {
+    if (this._isStopped)
+      return;
     try {
       await this._runHooks(suite, 'beforeAll', 'before');
     } catch (e) {
       this._fatalError = serializeError(e);
-      this._reportDone();
+      this._reportDoneAndStop();
     }
     for (const entry of suite._entries) {
       if (entry instanceof WorkerSuite)
@@ -106,12 +110,12 @@ export class WorkerRunner extends EventEmitter {
       await this._runHooks(suite, 'afterAll', 'after');
     } catch (e) {
       this._fatalError = serializeError(e);
-      this._reportDone();
+      this._reportDoneAndStop();
     }
   }
 
   private async _runTest(test: WorkerSpec) {
-    if (this._stopped)
+    if (this._isStopped)
       return;
     if (!this._entries.has(test._id))
       return;
@@ -122,7 +126,7 @@ export class WorkerRunner extends EventEmitter {
     const testId = test._id;
     this._testId = testId;
 
-    const testInfo: TestInfo = {
+    this._testInfo = {
       title: test.title,
       file: test.file,
       location: test.location,
@@ -138,31 +142,32 @@ export class WorkerRunner extends EventEmitter {
       stderr: [],
       data: {},
     };
-    this._testInfo = testInfo;
-    assignParameters({ 'testInfo': testInfo });
+    assignParameters({ 'testInfo': this._testInfo });
 
-    this.emit('testBegin', buildTestBeginPayload(testId, testInfo));
+    this.emit('testBegin', buildTestBeginPayload(testId, this._testInfo));
 
     if (skipped) {
       // TODO: don't even send those to the worker.
-      testInfo.status = 'skipped';
-      this.emit('testEnd', buildTestEndPayload(testId, testInfo));
+      this._testInfo.status = 'skipped';
+      this.emit('testEnd', buildTestEndPayload(testId, this._testInfo));
       return;
     }
 
     const startTime = monotonicTime();
-    const { timedOut } = await raceAgainstDeadline(this._runTestWithFixturesAndHooks(test, testInfo), deadline);
+    const { timedOut } = await raceAgainstDeadline(this._runTestWithFixturesAndHooks(test, this._testInfo), deadline);
+
+    // Async hop above, we could have stopped.
+    if (!this._testInfo)
+      return;
+
     // Do not overwrite test failure upon timeout in fixture or hook.
-    if (timedOut && testInfo.status === 'passed')
-      testInfo.status = 'timedOut';
-    testInfo.duration = monotonicTime() - startTime;
-    if (this._testInfo) {
-      // We could have reported end due to an unhandled exception.
-      this.emit('testEnd', buildTestEndPayload(testId, testInfo));
-    }
-    if (!this._stopped && testInfo.status !== 'passed') {
+    if (timedOut && this._testInfo.status === 'passed')
+      this._testInfo.status = 'timedOut';
+    this._testInfo.duration = monotonicTime() - startTime;
+    this.emit('testEnd', buildTestEndPayload(testId, this._testInfo));
+    if (this._testInfo.status !== 'passed') {
       this._failedTestId = this._testId;
-      this._stopped = true;
+      this._reportDoneAndStop();
     }
     this._testInfo = null;
     this._testId = null;
@@ -176,12 +181,10 @@ export class WorkerRunner extends EventEmitter {
       testInfo.error = serializeError(error);
       // Continue running afterEach hooks even after the failure.
     }
-    if (this._stopped)
-      return;
     debugLog(`running test "${test.fullTitle()}"`);
     try {
       // Do not run the test when beforeEach hook fails.
-      if (testInfo.status !== 'failed') {
+      if (!this._isStopped && testInfo.status !== 'failed') {
         await fixturePool.resolveParametersAndRunHookOrTest(test.fn);
         testInfo.status = 'passed';
       }
@@ -201,7 +204,8 @@ export class WorkerRunner extends EventEmitter {
         // Continue running fixtures teardown even after the failure.
       }
     }
-    if (this._stopped)
+    // Worker will tear down test scope if we are stopped.
+    if (this._isStopped)
       return;
     try {
       await fixturePool.teardownScope('test');
@@ -213,9 +217,8 @@ export class WorkerRunner extends EventEmitter {
       }
     }
   }
-
   private async _runHooks(suite: WorkerSuite, type: string, dir: 'before' | 'after') {
-    if (this._stopped)
+    if (this._isStopped)
       return;
     debugLog(`running hooks "${type}" for suite "${suite.fullTitle()}"`);
     if (!this._hasTestsToRun(suite))
@@ -241,13 +244,16 @@ export class WorkerRunner extends EventEmitter {
       throw error;
   }
 
-  private _reportDone() {
+  private _reportDoneAndStop() {
+    if (this._isStopped)
+      return;
     const donePayload: DonePayload = {
       failedTestId: this._failedTestId,
       fatalError: this._fatalError,
       remaining: [...this._remaining.values()],
     };
     this.emit('done', donePayload);
+    this.stop();
   }
 
   private _hasTestsToRun(suite: WorkerSuite): boolean {

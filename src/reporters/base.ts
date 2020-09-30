@@ -40,10 +40,6 @@ export class BaseReporter implements Reporter  {
   monotonicStartTime: number;
 
   constructor() {
-    process.on('SIGINT', async () => {
-      this.onEnd();
-      process.exit(130);
-    });
   }
 
   onBegin(config: Config, suite: Suite) {
