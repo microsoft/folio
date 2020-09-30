@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-export async function raceAgainstTimeout<T>(promise: Promise<T>, deadline: number): Promise<{ result?: T, timedOut?: boolean }> {
+export async function raceAgainstDeadline<T>(promise: Promise<T>, deadline: number): Promise<{ result?: T, timedOut?: boolean }> {
   if (!deadline)
     return { result: await promise };
 
