@@ -18,7 +18,7 @@ import { FixturePool, validateRegistrations, assignParameters, TestInfo, paramet
 import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
-import { monotonicTime, serializeError } from './util';
+import { monotonicTime, raceAgainstTimeout, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, TestOutputPayload, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
@@ -151,19 +151,10 @@ export class WorkerRunner extends EventEmitter {
     }
 
     const startTime = monotonicTime();
-    try {
-      await this._runHooks(test.parent as WorkerSuite, 'beforeEach', 'before');
-      debugLog(`running test "${test.fullTitle()}"`);
-      if (this._stopped)
-        return;
-      await fixturePool.runTestWithFixturesAndDeadline(test.fn, deadline, testInfo);
-      debugLog(`done running test "${test.fullTitle()}"`);
-      await this._runHooks(test.parent as WorkerSuite, 'afterEach', 'after');
-    } catch (error) {
-      // Error in the test fixture teardown.
-      testInfo.status = 'failed';
-      testInfo.error = serializeError(error);
-    }
+    const { timedOut } = await raceAgainstTimeout(this._runTestWithFixturesAndHooks(test, testInfo), deadline);
+    // Do not overwrite test failure upon timeout in fixture or hook.
+    if (timedOut && testInfo.status === 'passed')
+      testInfo.status = 'timedOut';
     testInfo.duration = monotonicTime() - startTime;
     if (this._testInfo) {
       // We could have reported end due to an unhandled exception.
@@ -175,6 +166,52 @@ export class WorkerRunner extends EventEmitter {
     }
     this._testInfo = null;
     this._testId = null;
+  }
+
+  private async _runTestWithFixturesAndHooks(test: WorkerSpec, testInfo: TestInfo) {
+    try {
+      await this._runHooks(test.parent as WorkerSuite, 'beforeEach', 'before');
+    } catch (error) {
+      testInfo.status = 'failed';
+      testInfo.error = serializeError(error);
+      // Continue running afterEach hooks even after the failure.
+    }
+    if (this._stopped)
+      return;
+    debugLog(`running test "${test.fullTitle()}"`);
+    try {
+      // Do not run the test when beforeEach hook fails.
+      if (testInfo.status !== 'failed') {
+        await fixturePool.resolveParametersAndRunHookOrTest(test.fn);
+        testInfo.status = 'passed';
+      }
+    } catch (error) {
+      testInfo.status = 'failed';
+      testInfo.error = serializeError(error);
+      // Continue running afterEach hooks and fixtures teardown even after the failure.
+    }
+    debugLog(`done running test "${test.fullTitle()}"`);
+    try {
+      await this._runHooks(test.parent as WorkerSuite, 'afterEach', 'after');
+    } catch (error) {
+      // Do not overwrite test failure error.
+      if (testInfo.status === 'passed') {
+        testInfo.status = 'failed';
+        testInfo.error = serializeError(error);
+        // Continue running fixtures teardown even after the failure.
+      }
+    }
+    if (this._stopped)
+      return;
+    try {
+      await fixturePool.teardownScope('test');
+    } catch (error) {
+      // Do not overwrite test failure or hook error.
+      if (testInfo.status === 'passed') {
+        testInfo.status = 'failed';
+        testInfo.error = serializeError(error);
+      }
+    }
   }
 
   private async _runHooks(suite: WorkerSuite, type: string, dir: 'before' | 'after') {
@@ -190,9 +227,18 @@ export class WorkerRunner extends EventEmitter {
     }
     if (dir === 'before')
       all.reverse();
-    for (const hook of all)
-      await fixturePool.resolveParametersAndRunHookOrTest(hook);
+    let error: Error | undefined;
+    for (const hook of all) {
+      try {
+        await fixturePool.resolveParametersAndRunHookOrTest(hook);
+      } catch (e) {
+        // Always run all the hooks, and capture the first error.
+        error = error || e;
+      }
+    }
     debugLog(`done running hooks "${type}" for suite "${suite.fullTitle()}"`);
+    if (error)
+      throw error;
   }
 
   private _reportDone() {

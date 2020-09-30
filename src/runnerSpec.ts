@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
+import * as fs from 'fs';
 import { installTransform } from './transform';
 import { RunnerSuite, RunnerSpec } from './runnerTest';
-import { extractLocation } from './util';
+import { callerFile, extractLocation } from './util';
 import { setImplementation } from './spec';
 import { TestModifier } from './testModifier';
 
-export function runnerSpec(suite: RunnerSuite, timeout: number): () => void {
+export function runnerSpec(suite: RunnerSuite, timeout: number, file: string): () => void {
+  const resolvedFile = fs.realpathSync(file);
   const suites = [suite];
 
   const it = (spec: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
@@ -71,13 +73,23 @@ export function runnerSpec(suite: RunnerSuite, timeout: number): () => void {
     suites.shift();
   };
 
+  const hook = (hookName: string) => {
+    const hookFile = callerFile(hook, 3);
+    if (hookFile !== resolvedFile) {
+      throw new Error(`${hookName} hook should be called from the test file.\n` +
+          `Do you need a shared hook for multiple test files?\n` +
+          `  - Use {auto: true} option in defineWorkerFixture instead of beforeAll/afterAll.\n` +
+          `  - Use {auto: true} option in defineTestFixture instead of beforeEach/afterEach.`);
+    }
+  };
+
   setImplementation({
     it,
     describe,
-    beforeEach: () => {},
-    afterEach: () => {},
-    beforeAll: () => {},
-    afterAll: () => {},
+    beforeEach: () => hook('beforeEach'),
+    afterEach: () => hook('afterEach'),
+    beforeAll: () => hook('beforeAll'),
+    afterAll: () => hook('afterAll'),
   });
 
   return installTransform();

@@ -54,7 +54,7 @@ export class Runner {
     for (const file of files) {
       const suite = new RunnerSuite('');
       suite.file = file;
-      const revertBabelRequire = runnerSpec(suite, config.timeout);
+      const revertBabelRequire = runnerSpec(suite, config.timeout, file);
       try {
         require(file);
         validateRegistrations(file);
