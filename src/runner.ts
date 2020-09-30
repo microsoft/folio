@@ -23,7 +23,7 @@ import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrat
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
-import { raceAgainstTimeout, serializeError } from './util';
+import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { RunnerSuite } from './runnerTest';
 import { runnerSpec } from './runnerSpec';
 import { debugLog } from './debug';
@@ -104,7 +104,8 @@ export class Runner {
     const total = this._rootSuite.total;
     if (!total && !this._hasBadFiles)
       return 'no-tests';
-    const { result, timedOut } = await raceAgainstTimeout(this._runTests(this._rootSuite), config.globalTimeout);
+    const globalDeadline = config.globalTimeout ? config.globalTimeout + monotonicTime() : 0;
+    const { result, timedOut } = await raceAgainstDeadline(this._runTests(this._rootSuite), globalDeadline);
     if (timedOut) {
       this._reporter.onTimeout(config.globalTimeout);
       process.exit(1);

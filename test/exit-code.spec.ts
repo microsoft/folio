@@ -18,6 +18,11 @@ import path from 'path';
 import { fixtures } from './fixtures';
 const { it, expect } = fixtures;
 
+function monotonicTime(): number {
+  const [seconds, nanoseconds] = process.hrtime();
+  return seconds * 1000 + (nanoseconds / 1000000 | 0);
+}
+
 it('should collect stdio', async ({ runTest }) => {
   const { exitCode, report } = await runTest('stdio.js');
   expect(exitCode).toBe(0);
@@ -64,9 +69,11 @@ it('should fail on unexpected pass', async ({ runTest }) => {
 });
 
 it('should respect global timeout', async ({ runTest }) => {
-  const { exitCode, output } = await runTest('one-timeout.js', { 'timeout': 100000, 'global-timeout': 500 });
+  const now = monotonicTime();
+  const { exitCode, output } = await runTest('one-timeout.js', { 'timeout': 100000, 'global-timeout': 3000 });
   expect(exitCode).toBe(1);
-  expect(output).toContain('Timed out waiting 0.5s for the entire test run');
+  expect(output).toContain('Timed out waiting 3s for the entire test run');
+  expect(monotonicTime() - now).toBeGreaterThan(2900);
 });
 
 it('should exit with code 1 if the specified folder/file does not exist', async ({runTest}) => {

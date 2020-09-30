@@ -18,7 +18,7 @@ import { FixturePool, validateRegistrations, assignParameters, TestInfo, paramet
 import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
-import { monotonicTime, raceAgainstTimeout, serializeError } from './util';
+import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, TestOutputPayload, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
@@ -151,7 +151,7 @@ export class WorkerRunner extends EventEmitter {
     }
 
     const startTime = monotonicTime();
-    const { timedOut } = await raceAgainstTimeout(this._runTestWithFixturesAndHooks(test, testInfo), deadline);
+    const { timedOut } = await raceAgainstDeadline(this._runTestWithFixturesAndHooks(test, testInfo), deadline);
     // Do not overwrite test failure upon timeout in fixture or hook.
     if (timedOut && testInfo.status === 'passed')
       testInfo.status = 'timedOut';
