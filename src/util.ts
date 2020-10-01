@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+import * as path from 'path';
+import StackUtils from 'stack-utils';
+
+const stackUtils = new StackUtils();
+
 export async function raceAgainstDeadline<T>(promise: Promise<T>, deadline: number): Promise<{ result?: T, timedOut?: boolean }> {
   if (!deadline)
     return { result: await promise };
@@ -73,15 +78,8 @@ function trimCycles(obj: any): any {
 }
 
 export function extractLocation(error: Error): string {
-  let location = error.stack.split('\n')[3].trim();
-  if (!location.startsWith('at '))
-    return location;
-  location = location.substr(3);
-  if (location.endsWith(')')) {
-    const from = location.indexOf('(');
-    location = location.substring(from + 1, location.length - 1);
-  }
-  return location;
+  const location = stackUtils.parseLine(error.stack.split('\n')[3]);
+  return `${path.resolve(process.cwd(), location.file)}:${location.line}:${location.column}`;
 }
 
 export function monotonicTime(): number {

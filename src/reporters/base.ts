@@ -234,6 +234,8 @@ function indent(lines: string, tab: string) {
 }
 
 function positionInFile(stack: string, file: string): { column: number; line: number; } {
+  // Stack will have /private/var/folders instead of /var/folders on Mac.
+  file = fs.realpathSync(file);
   for (const line of stack.split('\n')) {
     const parsed = stackUtils.parseLine(line);
     if (!parsed)
