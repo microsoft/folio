@@ -115,7 +115,7 @@ export class Runner {
 
   private async _runTests(suite: RunnerSuite): Promise<RunResult> {
     // Trial run does not need many workers, use one.
-    const runner = new Dispatcher(suite, { ...config, jobs: config.jobs }, this._reporter);
+    const runner = new Dispatcher(suite, { ...config, workers: config.workers }, this._reporter);
     try {
       for (const f of this._beforeFunctions)
         await f();

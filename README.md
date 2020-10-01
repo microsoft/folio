@@ -165,7 +165,7 @@ With fixtures, test organization becomes flexible - you can put tests that make 
 
 # Worker fixtures
 
-Playwright test runner uses worker processes to run test files. You can specify the maximum number of workers using `--jobs` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Playwright test runner will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
+Playwright test runner uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Playwright test runner will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
 
 Here is how the test looks:
 ```ts

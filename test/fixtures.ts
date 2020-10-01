@@ -49,7 +49,7 @@ async function runTest(reportFile: string, outputDir: string, filePath: string, 
     path.resolve(__dirname, 'assets', filePath),
     '--output=' + outputDir,
     '--reporter=dot,json',
-    '--jobs=2',
+    '--workers=2',
     ...paramList
   ], {
     env: {

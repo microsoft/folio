@@ -18,7 +18,7 @@ export type Config = {
   forbidOnly?: boolean;
   globalTimeout: number;
   grep?: string;
-  jobs: number;
+  workers: number;
   outputDir: string;
   quiet?: boolean;
   repeatEach: number;
