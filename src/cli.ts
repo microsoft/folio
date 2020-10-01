@@ -53,7 +53,7 @@ async function runTests(command) {
     forbidOnly: command.forbidOnly,
     quiet: command.quiet,
     grep: command.grep,
-    jobs: parseInt(command.jobs, 10),
+    workers: parseInt(command.workers, 10),
     outputDir: command.output,
     repeatEach: parseInt(command.repeatEach, 10),
     retries: parseInt(command.retries, 10),
@@ -178,7 +178,7 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--forbid-only', 'Fail if exclusive test(s) encountered', false)
       .option('-g, --grep <grep>', 'Only run tests matching this string or regexp', '.*')
       .option('--global-timeout <timeout>', 'Specify maximum time this test suite can run (in milliseconds), default: 0 for unlimited', '0')
-      .option('-j, --jobs <jobs>', 'Number of concurrent jobs, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
+      .option('-j, --workers <workers>', 'Number of concurrent workers, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
       .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'));
   if (param)
     program = program.option('-p, --param <name=value...>', 'Specify fixture parameter value');

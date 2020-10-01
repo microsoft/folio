@@ -80,7 +80,7 @@ export class Dispatcher {
           workers.add(test.file + variant._workerHash);
       });
       console.log();
-      const jobs = Math.min(config.jobs, workers.size);
+      const jobs = Math.min(config.workers, workers.size);
       console.log(`Running ${total} test${total > 1 ? 's' : ''} using ${jobs} worker${jobs > 1 ? 's' : ''}${shardDetails}`);
     }
   }
@@ -216,7 +216,7 @@ export class Dispatcher {
     if (this._freeWorkers.length)
       return this._freeWorkers.pop();
     // If we can create worker, create it.
-    if (this._workers.size < this._config.jobs)
+    if (this._workers.size < this._config.workers)
       this._createWorker();
     // Wait for the next available worker.
     await new Promise(f => this._workerClaimers.push(f));
