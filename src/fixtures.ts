@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+import crypto from 'crypto';
 import { Config } from './config';
 import { callerFile } from './util';
 import { TestStatus, Parameters } from './test';
 import { debugLog } from './debug';
-import { name } from 'commander';
 
 type Scope = 'test' | 'worker';
 
@@ -27,7 +27,7 @@ export type FixtureDefinitionOptions = {
 };
 
 type FixtureRegistration = {
-  index: number;
+  id: number;
   name: string;
   scope: Scope;
   fn: Function;
@@ -269,7 +269,7 @@ function innerRegisterFixture(name: string, scope: Scope, fn: Function, options:
   const obj = { stack: '' };
   Error.captureStackTrace(obj);
   const stack = obj.stack.substring('Error:\n'.length);
-  const registration: FixtureRegistration = { index: registrationCount++, name, scope, fn, file, stack, auto: options.auto, isOverride };
+  const registration: FixtureRegistration = { id: registrationCount++, name, scope, fn, file, stack, auto: options.auto, isOverride };
   if (!registrationsByFile.has(file))
     registrationsByFile.set(file, []);
   registrationsByFile.get(file).push(registration);
@@ -293,25 +293,28 @@ export function setParameterValues(name: string, values: any[]) {
   matrix[name] = values;
 }
 
-function collectRequires(file: string, result: Set<string>) {
-  file = require.resolve(file);
-  if (result.has(file))
-    return;
-  result.add(file);
-  const cache = require.cache[file];
-  if (!cache)
-    return;
-  const deps = cache.children.map((m: { id: any; }) => m.id).slice().reverse();
-  for (const dep of deps)
-    collectRequires(dep, result);
+function topSortRequires(file: string): string[] {
+  const visited = new Set<string>();
+  const result: string[] = [];
+  const visit = (file: string) => {
+    file = require.resolve(file);
+    if (visited.has(file))
+      return;
+    visited.add(file);
+    const cache = require.cache[file];
+    const deps = cache ? cache.children.map((m: { id: any; }) => m.id) : [];
+    for (const dep of deps)
+      visit(dep);
+    result.push(file);
+  };
+  visit(file);
+  return result;
 }
 
 function lookupRegistrations(file: string): FixtureRegistration[] {
-  const deps = new Set<string>();
-  collectRequires(file, deps);
-  const allDeps = [...deps].reverse();
+  const deps = topSortRequires(file);
   const result = [];
-  for (const dep of allDeps) {
+  for (const dep of deps) {
     const registrationList = registrationsByFile.get(dep) || [];
     result.push(...registrationList);
   }
@@ -325,15 +328,13 @@ function errorWithStack(stack: string, message: string): Error {
 }
 
 type VisitMarker = 'visiting' | 'visited';
-export function validateRegistrations(file: string) {
+export function validateRegistrations(file: string): string {
   // When we are running several tests in the same worker, we should cherry pick
   // registrations specific to each file. That way we erase potential fixtures
   // from previous test files.
   registrations.clear();
-
+  const hash = crypto.createHash('sha1');
   const list = lookupRegistrations(file);
-  // Register in the order of declaration to preserve define/override ordering.
-  list.sort((a, b) => a.index - b.index);
 
   for (const registration of list) {
     const previous = registrations.get(registration.name);
@@ -348,6 +349,8 @@ export function validateRegistrations(file: string) {
       throw errorWithStack(registration.stack, `Fixture "${registration.name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} instead.`);
     }
     registrations.set(registration.name, registration);
+    if (registration.scope === 'worker')
+      hash.update('#' + registration.id);
   }
 
   const markers = new Map<FixtureRegistration, VisitMarker>();
@@ -375,6 +378,7 @@ export function validateRegistrations(file: string) {
   };
   for (const registration of registrations.values())
     visit(registration);
+  return hash.digest('hex');
 }
 
 export function validateFixturesForFunction(fn: Function, stack: string, fnName: string, allowTestFixtures: boolean) {

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import crypto from 'crypto';
 import { registrations, fixturesForCallback, validateRegistrations, matrix } from './fixtures';
 import { Configuration } from './ipc';
 import { Config } from './config';
@@ -31,7 +30,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
 
   for (const suite of suites) {
     // Leave only those fixtures that are relevant for this file.
-    validateRegistrations(suite.file);
+    const registrationsHash = validateRegistrations(suite.file);
 
     // Name each test.
     suite._renumber();
@@ -47,9 +46,6 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
         // It is totally fine if the test can't parse it's fixtures, worker will report
         // this test as failing, not need to quit on the suite.
       }
-      // For worker fixtures, trace them to their registrations to make sure
-      // they are compatible.
-      const registrationsHash = computeWorkerRegistrationHash(fixtures);
 
       const generatorConfigurations: Configuration[] = [];
       // For generator fixtures, collect all variants of the fixture values
@@ -119,21 +115,6 @@ function filterOnly(suite: RunnerSuite) {
     return true;
   }
   return false;
-}
-
-function computeWorkerRegistrationHash(fixtures: string[]): string {
-  // Build worker hash - indices of all worker fixtures as seen by this file.
-  // Note that tests that share fixture by requiring them from a single fixtures
-  // file will share the fixture registration instance and therefore will
-  // get the same hash.
-  const hash = crypto.createHash('sha1');
-  for (const fixture of fixtures) {
-    const registration = registrations.get(fixture);
-    if (registration.scope !== 'worker')
-      continue;
-    hash.update('@' + registration.index);
-  }
-  return hash.digest('hex');
 }
 
 function serializeParameters(parameters: Configuration): string {
