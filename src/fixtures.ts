@@ -18,6 +18,7 @@ import { Config } from './config';
 import { callerFile } from './util';
 import { TestStatus, Parameters } from './test';
 import { debugLog } from './debug';
+import { name } from 'commander';
 
 type Scope = 'test' | 'worker';
 
@@ -224,6 +225,15 @@ export function fixturesForCallback(callback: Function): string[] {
       visit(fn);
     }
   };
+
+  // Account for automatic fixtures.
+  for (const registration of registrations.values()) {
+    if (registration.auto) {
+      names.add(registration.name);
+      visit(registration.fn);
+    }
+  }
+
   visit(callback);
   const result = [...names];
   result.sort();

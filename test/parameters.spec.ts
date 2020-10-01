@@ -154,3 +154,19 @@ it('should generate tests from CLI', async ({ runInlineFixturesTest }) => {
   expect(result.passed).toBe(1);
   expect(result.failed).toBe(1);
 });
+
+it('tests respect automatic fixture parameters', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      fixtures.defineParameter('param', 'Some param', 'value');
+      fixtures.defineTestFixture('automaticTestFixture', async ({param}, runTest) => {
+        await runTest(param);
+      }, { auto: true  });
+      it('test 1', async ({}) => {
+        expect(1).toBe(1);
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.report.suites[0].specs[0].tests[0].parameters).toEqual({ param: 'value' });
+});

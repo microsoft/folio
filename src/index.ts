@@ -161,9 +161,9 @@ fixtures.defineTestFixture('testRelativeArtifactsPath', async ({ testInfo, testP
 
 fixtures.defineTestFixture('testOutputPath', async ({  testRelativeArtifactsPath }, runTest) => {
   const outputPath = path.join(config.outputDir, testRelativeArtifactsPath);
-  const testOutputFile = (name: string): string => {
+  const testOutputPath = (name: string): string => {
     fs.mkdirSync(outputPath, { recursive: true });
     return path.join(outputPath, name);
   };
-  await runTest(testOutputFile);
+  await runTest(testOutputPath);
 });
