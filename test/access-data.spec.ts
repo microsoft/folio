@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { fixtures } from './fixtures';
 const { it, expect } = fixtures;
 
-it('should access error in fixture', async ({ runTest, outputDir }) => {
-  const textFile = path.join(outputDir, 'test-error-visible-in-fixture.txt');
+it('should access error in fixture', async ({ runTest }) => {
   const result = await runTest('test-error-visible-in-fixture.ts', {});
   expect(result.exitCode).toBe(1);
-  const data = JSON.parse(fs.readFileSync(textFile).toString());
+  const start = result.output.indexOf('ERROR[[[') + 8;
+  const end = result.output.indexOf(']]]');
+  const data = JSON.parse(result.output.substring(start, end));
   expect(data.message).toContain('Object.is equality');
 });
 

@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { fixtures as baseFixtures } from '@playwright/test-runner';
+import { config, fixtures as baseFixtures } from '@playwright/test-runner';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
-import { tmpdir } from 'os';
 import * as path from 'path';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import type { ReportFormat } from '../src/reporters/json';
+export { config } from '@playwright/test-runner';
 
 const removeFolderAsync = promisify(rimraf);
 
@@ -38,7 +38,7 @@ export type RunResult = {
   results: any[],
 };
 
-async function runTest(reportFile: string, outputDir: string, filePath: string, params: any = {}): Promise<RunResult> {
+async function innerRunTest(baseDir: string, filePath: string, outputDir: string, params: any = {}): Promise<RunResult> {
   const paramList = [];
   for (const key of Object.keys(params)) {
     for (const value of  Array.isArray(params[key]) ? params[key] : [params[key]]) {
@@ -46,9 +46,10 @@ async function runTest(reportFile: string, outputDir: string, filePath: string, 
       paramList.push(params[key] === true ? `${k}` : `${k}=${value}`);
     }
   }
+  const reportFile = path.join(outputDir, 'report.json');
   const testProcess = spawn('node', [
     path.join(__dirname, '..', 'cli.js'),
-    path.resolve(__dirname, 'assets', filePath),
+    filePath,
     '--output=' + outputDir,
     '--reporter=dot,json',
     '--workers=2',
@@ -58,7 +59,8 @@ async function runTest(reportFile: string, outputDir: string, filePath: string, 
       ...process.env,
       PW_OUTPUT_DIR: outputDir,
       PWRUNNER_JSON_REPORT: reportFile,
-    }
+    },
+    cwd: baseDir
   });
   let output = '';
   testProcess.stderr.on('data', chunk => {
@@ -115,7 +117,6 @@ async function runTest(reportFile: string, outputDir: string, filePath: string, 
 }
 
 type TestState = {
-  outputDir: string;
   runTest: (filePath: string, options?: any) => Promise<RunResult>;
   runInlineTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
   runInlineFixturesTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
@@ -123,45 +124,53 @@ type TestState = {
 
 export const fixtures = baseFixtures.declareTestFixtures<TestState>();
 
-fixtures.defineTestFixture('outputDir', async ({ testWorkerIndex }, testRun) => {
-  await testRun(path.join(__dirname, 'test-results', String(testWorkerIndex)));
-});
-
-fixtures.defineTestFixture('runTest', async ({ outputDir, testInfo }, testRun) => {
-  const reportFile = path.join(outputDir, `results.json`);
-  await removeFolderAsync(outputDir).catch(e => { });
+fixtures.defineTestFixture('runTest', async ({ testOutputPath, testInfo }, testRun) => {
   // Print output on failure.
   let result: RunResult;
   await testRun(async (filePath, options) => {
-    result = await runTest(reportFile, outputDir, filePath, options);
+    const target = path.join(config.testDir, 'assets', filePath);
+    let isDir = false;
+    try {
+      isDir = fs.statSync(target).isDirectory();
+    } catch (e) {
+    }
+    if (isDir)
+      result = await innerRunTest(path.join(config.testDir, 'assets', filePath), '.', testOutputPath('output'), options);
+    else
+      result = await innerRunTest(path.join(config.testDir, 'assets'), filePath, testOutputPath('output'), options);
     return result;
   });
   if (testInfo.status !== testInfo.expectedStatus)
     console.log(result.output);
 });
 
-fixtures.defineTestFixture('runInlineTest', async ({ runTest }, testRun) => {
-  await runInlineTest(`
+fixtures.defineTestFixture('runInlineTest', async ({ testOutputPath, testInfo }, runTest) => {
+  await runInlineTest(testOutputPath, `
     const { fixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
     const { it, describe } = fixtures;
-  `, runTest, testRun);
+  `, testInfo, runTest);
 });
 
 
-fixtures.defineTestFixture('runInlineFixturesTest', async ({ runTest }, testRun) => {
-  await runInlineTest(`
+fixtures.defineTestFixture('runInlineFixturesTest', async ({ testOutputPath, testInfo }, runTest) => {
+  await runInlineTest(testOutputPath, `
     const { fixtures: baseFixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
-  `, runTest, testRun);
+  `, testInfo, runTest);
 });
 
-async function runInlineTest(header: string, runTest, testRun) {
-  await testRun(async (files, options) => {
-    const dir = await fs.promises.mkdtemp(path.join(tmpdir(), 'playwright-test-runInlineTest'));
+async function runInlineTest(testOutputPath: (...name: string[]) => string, header: string, testInfo, runTest) {
+  const baseDir = testOutputPath();
+  let result: RunResult;
+  await runTest(async (files: string[], options) => {
     await Promise.all(Object.keys(files).map(async name => {
-      await fs.promises.writeFile(path.join(dir, name), header + files[name]);
+      const fullName = path.join(baseDir, name);
+      const actualHeader = fullName.endsWith('.js') || fullName.endsWith('.ts') ? header : '';
+      await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
+      await fs.promises.writeFile(fullName, actualHeader + files[name]);
     }));
-    const result = await runTest(dir, options);
-    await removeFolderAsync(dir);
+    result = await innerRunTest(baseDir, '.', path.join(baseDir, 'test-results'), options);
     return result;
   });
+  if (testInfo.status !== testInfo.expectedStatus)
+    console.log(result.output);
 }

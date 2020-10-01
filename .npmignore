@@ -4,4 +4,5 @@
 
 !/out/**/*.js
 !/out/**/*.d.ts
+!/third_party/**/*.js
 !/cli.js

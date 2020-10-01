@@ -22,7 +22,7 @@ const { it, expect, defineTestFixture } = fixtures.declareTestFixtures<{ postPro
 
 defineTestFixture('postProcess', async ({testInfo}, runTest) => {
   await runTest('');
-  fs.writeFileSync(path.join(process.env.PW_OUTPUT_DIR, 'test-error-visible-in-fixture.txt'), JSON.stringify(testInfo.error, undefined, 2));
+  console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
 });
 
 it('ensure fixture handles test error', async ({ postProcess }) => {
