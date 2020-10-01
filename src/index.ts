@@ -133,7 +133,7 @@ type BuiltinTestFixtures = {
   // Relative path to the test snapshots or results.
   testRelativeArtifactsPath: string;
   // Absolute path to the test output.
-  testOutputPath: (name: string) => string;
+  testOutputPath: (...pathSegments: string[]) => string;
 };
 
 export const fixtures = new FixturesImpl<BuiltinWorkerParameters, BuiltinWorkerFixtures, BuiltinTestFixtures>();
@@ -161,9 +161,9 @@ fixtures.defineTestFixture('testRelativeArtifactsPath', async ({ testInfo, testP
 
 fixtures.defineTestFixture('testOutputPath', async ({  testRelativeArtifactsPath }, runTest) => {
   const outputPath = path.join(config.outputDir, testRelativeArtifactsPath);
-  const testOutputPath = (name: string): string => {
+  const testOutputPath = (...pathSegments: string[]): string => {
     fs.mkdirSync(outputPath, { recursive: true });
-    return path.join(outputPath, name);
+    return path.join(outputPath, ...pathSegments);
   };
   await runTest(testOutputPath);
 });
