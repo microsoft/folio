@@ -30,15 +30,14 @@ import { debugLog } from './debug';
 import { Suite } from './test';
 export { Reporter } from './reporter';
 export { Config } from './config';
+export { Test, TestResult, Suite, TestStatus } from './test';
 
 const removeFolderAsync = promisify(rimraf);
 
-type RunResult = 'passed' | 'failed' | 'forbid-only' | 'no-tests';
+type RunResult = 'passed' | 'failed' | 'sigint' | 'forbid-only' | 'no-tests';
 
 export class Runner {
   private _reporter: Reporter;
-  private _beforeFunctions: Function[] = [];
-  private _afterFunctions: Function[] = [];
   private _rootSuite: RunnerSuite;
   private _hasBadFiles = false;
   private _suites: RunnerSuite[] = [];
@@ -120,17 +119,21 @@ export class Runner {
   private async _runTests(suite: RunnerSuite): Promise<RunResult> {
     // Trial run does not need many workers, use one.
     const runner = new Dispatcher(suite, { ...config, workers: config.workers }, this._reporter);
-    try {
-      for (const f of this._beforeFunctions)
-        await f();
-      this._reporter.onBegin(config, suite);
-      await runner.run();
-      await runner.stop();
-      this._reporter.onEnd();
-    } finally {
-      for (const f of this._afterFunctions)
-        await f();
-    }
+    let sigint = false;
+    let sigintCallback: () => void;
+    const sigIntPromise = new Promise(f => sigintCallback = f);
+    const sigintHandler = () => {
+      process.off('SIGINT', sigintHandler);
+      sigint = true;
+      sigintCallback();
+    };
+    process.on('SIGINT', sigintHandler);
+    this._reporter.onBegin(config, suite);
+    await Promise.race([runner.run(), sigIntPromise]);
+    await runner.stop();
+    this._reporter.onEnd();
+    if (sigint)
+      return 'sigint';
     return this._hasBadFiles || runner.hasWorkerErrors() || suite.findSpec(spec => !spec._ok()) ? 'failed' : 'passed';
   }
 }

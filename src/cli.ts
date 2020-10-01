@@ -18,7 +18,7 @@ import * as commander from 'commander';
 import * as fs from 'fs';
 import { isMatch } from 'micromatch';
 import * as path from 'path';
-import { Reporter } from './reporter';
+import { Reporter, EmptyReporter } from './reporter';
 import DotReporter from './reporters/dot';
 import JSONReporter from './reporters/json';
 import LineReporter from './reporters/line';
@@ -32,6 +32,7 @@ export const reporters = {
   'json': JSONReporter,
   'line': LineReporter,
   'list': ListReporter,
+  'null': EmptyReporter,
 };
 
 const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
@@ -51,16 +52,17 @@ async function runTests(command) {
   const testDir = path.resolve(process.cwd(), command.args[0] || '.');
   const config: Config = {
     forbidOnly: command.forbidOnly,
-    quiet: command.quiet,
+    globalTimeout: parseInt(command.globalTimeout, 10),
     grep: command.grep,
-    workers: parseInt(command.workers, 10),
+    maxFailures: command.x ? 1 : parseInt(command.maxFailures, 10),
     outputDir: command.output,
+    quiet: command.quiet,
     repeatEach: parseInt(command.repeatEach, 10),
     retries: parseInt(command.retries, 10),
     shard,
     testDir,
     timeout: parseInt(command.timeout, 10),
-    globalTimeout: parseInt(command.globalTimeout, 10),
+    workers: parseInt(command.workers, 10),
   };
   const reporterList = command.reporter.split(',');
   const reporterObjects: Reporter[] = reporterList.map(c => {
@@ -121,6 +123,9 @@ async function runTests(command) {
 
   try {
     const result = await runner.run();
+    if (result === 'sigint')
+      process.exit(130);
+
     if (result === 'forbid-only') {
       console.error('=====================================');
       console.error(' --forbid-only found a focused test.');
@@ -179,6 +184,9 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('-g, --grep <grep>', 'Only run tests matching this string or regexp', '.*')
       .option('--global-timeout <timeout>', 'Specify maximum time this test suite can run (in milliseconds), default: 0 for unlimited', '0')
       .option('-j, --workers <workers>', 'Number of concurrent workers, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
+      .option('-j, --jobs <jobs>', 'Number of concurrent jobs, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
+      .option('--list', 'Only collect all the test and report them')
+      .option('--max-failures <N>', 'Stop after the first N failures', '0')
       .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'));
   if (param)
     program = program.option('-p, --param <name=value...>', 'Specify fixture parameter value');
@@ -190,8 +198,8 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
       .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
       .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
-      .option('--list', 'Only collect all the test and report them')
-      .option('-h, --help', 'display help for command');
+      .option('-h, --help', 'display help for command')
+      .option('-x', 'Stop after the first failure');
 }
 
 function printParametersHelp(parameterRegistrations: ParameterRegistration[]) {

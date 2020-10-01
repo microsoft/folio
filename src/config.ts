@@ -18,7 +18,7 @@ export type Config = {
   forbidOnly?: boolean;
   globalTimeout: number;
   grep?: string;
-  workers: number;
+  maxFailures: number;
   outputDir: string;
   quiet?: boolean;
   repeatEach: number;
@@ -26,4 +26,5 @@ export type Config = {
   shard: { total: number, current: number } | undefined,
   testDir: string;
   timeout: number;
+  workers: number;
 };
