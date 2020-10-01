@@ -19,6 +19,8 @@ import { BaseReporter } from './base';
 import { Test, TestResult } from '../test';
 
 class DotReporter extends BaseReporter {
+  private _counter = 0;
+
   onTestEnd(test: Test, result: TestResult) {
     super.onTestEnd(test, result);
     switch (result.status) {
@@ -27,6 +29,8 @@ class DotReporter extends BaseReporter {
       case 'failed': process.stdout.write(result.status === test.expectedStatus ? colors.green('f') : colors.red('F')); break;
       case 'timedOut': process.stdout.write(colors.red('T')); break;
     }
+    if (++this._counter === 80)
+      process.stdout.write('\n');
   }
 
   onTimeout(timeout) {
