@@ -73,7 +73,7 @@ export function runnerSpec(suite: RunnerSuite, timeout: number, file: string): (
     suites.shift();
   };
 
-  const hook = (hookName: string) => {
+  const hook = (hookName: string, fn: Function) => {
     const hookFile = callerFile(hook, 3);
     if (hookFile !== resolvedFile) {
       throw new Error(`${hookName} hook should be called from the test file.\n` +
@@ -81,15 +81,19 @@ export function runnerSpec(suite: RunnerSuite, timeout: number, file: string): (
           `  - Use {auto: true} option in defineWorkerFixture instead of beforeAll/afterAll.\n` +
           `  - Use {auto: true} option in defineTestFixture instead of beforeEach/afterEach.`);
     }
+    const obj = { stack: '' };
+    Error.captureStackTrace(obj);
+    const stack = obj.stack.substring('Error:\n'.length);
+    suites[0]._addHook(hookName, fn, stack);
   };
 
   setImplementation({
     it,
     describe,
-    beforeEach: () => hook('beforeEach'),
-    afterEach: () => hook('afterEach'),
-    beforeAll: () => hook('beforeAll'),
-    afterAll: () => hook('afterAll'),
+    beforeEach: fn => hook('beforeEach', fn),
+    afterEach: fn => hook('afterEach', fn),
+    beforeAll: fn => hook('beforeAll', fn),
+    afterAll: fn => hook('afterAll', fn),
   });
 
   return installTransform();

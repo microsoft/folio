@@ -29,6 +29,7 @@ export class RunnerSpec extends Spec {
 
 export class RunnerSuite extends Suite {
   _modifierFn: ModifierFn | null;
+  _hooks: { type: string, fn: Function, stack: string } [] = [];
 
   constructor(title: string, parent?: RunnerSuite) {
     super(title, parent);
@@ -39,6 +40,10 @@ export class RunnerSuite extends Suite {
       for (const run of test.tests as RunnerTest[])
         run._id = `${test._ordinal}@${run.spec.file}::[${run._parametersString}]`;
     });
+  }
+
+  _addHook(type: string, fn: any, stack: string) {
+    this._hooks.push({ type, fn, stack });
   }
 }
 
