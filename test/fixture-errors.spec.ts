@@ -226,6 +226,23 @@ it('should throw when overriding test fixture as a worker fixture', async ({ run
   expect(result.exitCode).toBe(1);
 });
 
+it('should throw when worker fixture depends on a test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'f.spec.ts': `
+      const { it, defineWorkerFixture, defineTestFixture } = baseFixtures;
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      defineWorkerFixture('bar', async ({foo}, runTest) => {
+        await runTest();
+      });
+      it('works', async ({bar}) => {});
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('Worker fixture "bar" cannot depend on a test fixture "foo".');
+  expect(result.exitCode).toBe(1);
+});
+
 it('should define and override the same fixture in two files', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `

@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues, validateRegistrations } from './fixtures';
+import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues, validateRegistrations, validateFixturesForFunction } from './fixtures';
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
@@ -58,6 +58,10 @@ export class Runner {
       try {
         require(file);
         validateRegistrations(file);
+        suite.findSuite(s => {
+          for (const hook of (s as RunnerSuite)._hooks)
+            validateFixturesForFunction(hook.fn, hook.stack, hook.type + ' hook', hook.type === 'beforeEach' || hook.type === 'afterEach');
+        });
         this._suites.push(suite);
       } catch (error) {
         this._reporter.onError(serializeError(error), file);

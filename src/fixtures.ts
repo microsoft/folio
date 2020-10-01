@@ -318,9 +318,9 @@ function lookupRegistrations(file: string): FixtureRegistration[] {
   return result;
 }
 
-function registrationError(registration: FixtureRegistration, message: string): Error {
+function errorWithStack(stack: string, message: string): Error {
   const e = new Error(message);
-  e.stack = 'Error: ' + message + registration.stack;
+  e.stack = 'Error: ' + message + stack;
   return e;
 }
 
@@ -339,13 +339,13 @@ export function validateRegistrations(file: string) {
     const previous = registrations.get(registration.name);
     if (!registration.isOverride && previous) {
       if (previous.scope !== registration.scope)
-        throw registrationError(registration, `Fixture "${registration.name}" has already been registered as a ${previous.scope} fixture. Use a different name for this ${registration.scope} fixture.`);
+        throw errorWithStack(registration.stack, `Fixture "${registration.name}" has already been registered as a ${previous.scope} fixture. Use a different name for this ${registration.scope} fixture.`);
       else
-        throw registrationError(registration, `Fixture "${registration.name}" has already been registered. Use ${registration.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} to override it in a specific test file.`);
+        throw errorWithStack(registration.stack, `Fixture "${registration.name}" has already been registered. Use ${registration.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} to override it in a specific test file.`);
     } else if (registration.isOverride && !previous) {
-      throw registrationError(registration, `Fixture "${registration.name}" has not been registered yet. Use ${registration.scope === 'test' ? 'defineTestFixture' : 'defineWorkerFixture'} instead.`);
+      throw errorWithStack(registration.stack, `Fixture "${registration.name}" has not been registered yet. Use ${registration.scope === 'test' ? 'defineTestFixture' : 'defineWorkerFixture'} instead.`);
     } else if (registration.isOverride && previous && previous.scope !== registration.scope) {
-      throw registrationError(registration, `Fixture "${registration.name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} instead.`);
+      throw errorWithStack(registration.stack, `Fixture "${registration.name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} instead.`);
     }
     registrations.set(registration.name, registration);
   }
@@ -359,15 +359,15 @@ export function validateRegistrations(file: string) {
     for (const name of deps) {
       const dep = registrations.get(name);
       if (!dep)
-        throw registrationError(registration, `Fixture "${registration.name}" has unknown parameter "${name}".`);
+        throw errorWithStack(registration.stack, `Fixture "${registration.name}" has unknown parameter "${name}".`);
       if (registration.scope === 'worker' && dep.scope === 'test')
-        throw registrationError(registration, `Worker fixture "${registration.name}" cannot depend on a test fixture "${dep}".`);
+        throw errorWithStack(registration.stack, `Worker fixture "${registration.name}" cannot depend on a test fixture "${name}".`);
       if (!markers.has(dep)) {
         visit(dep);
       } else if (markers.get(dep) === 'visiting') {
         const index = stack.indexOf(dep);
         const names = stack.slice(index, stack.length).map(r => `"${r.name}"`);
-        throw registrationError(registration, `Fixtures ${names.join(' -> ')} -> "${dep.name}" form a dependency cycle.`);
+        throw errorWithStack(registration.stack, `Fixtures ${names.join(' -> ')} -> "${dep.name}" form a dependency cycle.`);
       }
     }
     markers.set(registration, 'visited');
@@ -375,4 +375,15 @@ export function validateRegistrations(file: string) {
   };
   for (const registration of registrations.values())
     visit(registration);
+}
+
+export function validateFixturesForFunction(fn: Function, stack: string, fnName: string, allowTestFixtures: boolean) {
+  const deps = fixtureParameterNames(fn);
+  for (const name of deps) {
+    const dep = registrations.get(name);
+    if (!dep)
+      throw errorWithStack(stack, `${fnName} has unknown parameter "${name}".`);
+    if (!allowTestFixtures && dep.scope === 'test')
+      throw errorWithStack(stack, `${fnName} cannot depend on a test fixture "${name}".`);
+  }
 }

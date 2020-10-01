@@ -131,3 +131,48 @@ it('should throw when hook is called in fixutres file', async ({ runInlineTest }
   });
   expect(report.report.errors[0].error.message).toContain('beforeEach hook should be called from the test file.');
 });
+
+it('should throw when hook depends on unknown fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, beforeEach } = baseFixtures;
+      beforeEach(async ({foo}) => {});
+      it('works', async ({}) => {});
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('beforeEach hook has unknown parameter "foo".');
+  expect(result.report.errors[0].error.stack).toContain('a.spec.ts:5');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when beforeAll hook depends on test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, beforeAll, defineTestFixture } = baseFixtures;
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      beforeAll(async ({foo}) => {});
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('beforeAll hook cannot depend on a test fixture "foo".');
+  expect(result.report.errors[0].error.stack).toContain('a.spec.ts:8');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when afterAll hook depends on test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, afterAll, defineTestFixture } = baseFixtures;
+      defineTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+      });
+      afterAll(async ({foo}) => {});
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('afterAll hook cannot depend on a test fixture "foo".');
+  expect(result.report.errors[0].error.stack).toContain('a.spec.ts:8');
+  expect(result.exitCode).toBe(1);
+});
