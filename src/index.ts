@@ -15,15 +15,16 @@
  * limitations under the License.
  */
 
+import expectFunction from 'expect';
 import * as fs from 'fs';
 import * as path from 'path';
-import expectFunction from 'expect';
-import { config, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo, FixtureDefinitionOptions } from './fixtures';
+import { config, FixtureDefinitionOptions, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
+import { compare } from './golden';
 import * as spec from './spec';
 import { TestModifier } from './testModifier';
 export { Config } from './config';
-export { TestInfo } from './fixtures';
-export { config } from './fixtures';
+export { config, TestInfo } from './fixtures';
+import prettyFormat from 'pretty-format';
 
 interface DescribeHelper<WorkerParameters> {
   describe(name: string, inner: () => void): void;
@@ -134,6 +135,8 @@ type BuiltinTestFixtures = {
   testRelativeArtifactsPath: string;
   // Absolute path to the test output.
   testOutputPath: (...pathSegments: string[]) => string;
+  // Add to the snapshot that is compared against golden in the end.
+  testPrint: (val: any, options?: prettyFormat.OptionsReceived) => void;
 };
 
 export const fixtures = new FixturesImpl<BuiltinWorkerParameters, BuiltinWorkerFixtures, BuiltinTestFixtures>();
@@ -166,4 +169,15 @@ fixtures.defineTestFixture('testOutputPath', async ({  testRelativeArtifactsPath
     return path.join(outputPath, ...pathSegments);
   };
   await runTest(testOutputPath);
+});
+
+fixtures.defineTestFixture('testPrint', async ({ testRelativeArtifactsPath, testOutputPath }, runTest) => {
+  const snapshot: string[] = [];
+  await runTest((val, options: prettyFormat.OptionsReceived) => {
+    snapshot.push(prettyFormat(val, options));
+  });
+  const snapshotPath = path.join(config.testDir, config.snapshotDir, testRelativeArtifactsPath);
+  const { pass, message } = compare(snapshot.join('\n'), 'snapshot.txt', snapshotPath, testOutputPath, config.updateSnapshots);
+  if (!pass)
+    throw new Error(message);
 });

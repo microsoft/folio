@@ -60,8 +60,10 @@ async function runTests(command) {
     repeatEach: parseInt(command.repeatEach, 10),
     retries: parseInt(command.retries, 10),
     shard,
+    snapshotDir: command.snapshotDir,
     testDir,
     timeout: parseInt(command.timeout, 10),
+    updateSnapshots: !!command.updateSnapshots,
     workers: parseInt(command.workers, 10),
   };
   const reporterList = command.reporter.split(',');
@@ -195,9 +197,11 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
       .option('--retries <retries>', 'Specify retry count', '0')
       .option('--shard <shard>', 'Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"', '')
+      .option('--snapshot-dir <dir>', 'Snapshot directory, relative to tests directory', '__snapshots__')
       .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
       .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
       .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
+      .option('--update-snapshots', 'Whether to update snapshots with actual results', false)
       .option('-h, --help', 'display help for command')
       .option('-x', 'Stop after the first failure');
 }
