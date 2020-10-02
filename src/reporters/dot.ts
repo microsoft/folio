@@ -23,11 +23,16 @@ class DotReporter extends BaseReporter {
 
   onTestEnd(test: Test, result: TestResult) {
     super.onTestEnd(test, result);
-    switch (result.status) {
-      case 'skipped': process.stdout.write(colors.yellow('∘')); break;
-      case 'passed': process.stdout.write(result.status === test.expectedStatus ? colors.green('·') : colors.red('P')); break;
-      case 'failed': process.stdout.write(result.status === test.expectedStatus ? colors.green('f') : colors.red('F')); break;
-      case 'timedOut': process.stdout.write(colors.red('T')); break;
+    if (result.status === 'skipped') {
+      process.stdout.write(colors.yellow('∘'));
+    } else if (result.status !== test.expectedStatus && result.status !== 'passed' && test.results.length <= this.config.retries) {
+      process.stdout.write(colors.red('◍'));
+    } else if (result.status === 'timedOut') {
+      process.stdout.write(colors.red('T'));
+    } else if (result.status === 'failed') {
+      process.stdout.write(result.status === test.expectedStatus ? colors.green('f') : colors.red('F'));
+    } else if (result.status === 'passed') {
+      process.stdout.write(result.status === test.expectedStatus ? (test.results.length > 1 ? colors.yellow('Ⓟ') : colors.green('·')) : colors.red('P'));
     }
     if (++this._counter === 80)
       process.stdout.write('\n');

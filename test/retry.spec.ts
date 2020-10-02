@@ -30,6 +30,7 @@ it('should retry failures', async ({ runTest }) => {
   expect(result.results[1].workerIndex).toBe(1);
   expect(result.results[1].retry).toBe(1);
   expect(result.results[1].status).toBe('passed');
+  expect(result.output.split('\n')[0]).toBe(colors.red('◍') + colors.yellow('Ⓟ'));
 });
 
 it('should retry timeout', async ({ runTest }) => {
@@ -38,7 +39,7 @@ it('should retry timeout', async ({ runTest }) => {
   expect(passed).toBe(0);
   expect(failed).toBe(0);
   expect(timedOut).toBe(1);
-  expect(output.split('\n')[0]).toBe(colors.red('T').repeat(3));
+  expect(output.split('\n')[0]).toBe(colors.red('◍') + colors.red('◍') + colors.red('T'));
 });
 
 it('should fail on unexpected pass with retries', async ({ runTest }) => {
@@ -69,6 +70,6 @@ it('should retry unhandled rejection', async ({ runTest }) => {
   expect(result.exitCode).toBe(1);
   expect(result.passed).toBe(0);
   expect(result.failed).toBe(1);
-  expect(result.output.split('\n')[0]).toBe(colors.red('F').repeat(3));
+  expect(result.output.split('\n')[0]).toBe(colors.red('◍') + colors.red('◍') + colors.red('F'));
   expect(result.output).toContain('Unhandled rejection');
 });
