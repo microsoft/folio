@@ -23,14 +23,24 @@ class DotReporter extends BaseReporter {
 
   onTestEnd(test: Test, result: TestResult) {
     super.onTestEnd(test, result);
-    switch (result.status) {
-      case 'skipped': process.stdout.write(colors.yellow('∘')); break;
-      case 'passed': process.stdout.write(result.status === test.expectedStatus ? colors.green('·') : colors.red('P')); break;
-      case 'failed': process.stdout.write(result.status === test.expectedStatus ? colors.green('f') : colors.red('F')); break;
-      case 'timedOut': process.stdout.write(colors.red('T')); break;
-    }
-    if (++this._counter === 80)
+    if (++this._counter === 81) {
       process.stdout.write('\n');
+      return;
+    }
+    if (result.status === 'skipped') {
+      process.stdout.write(colors.yellow('°'));
+      return;
+    }
+    if (this.willRetry(test, result)) {
+      process.stdout.write(colors.gray('×'));
+      return;
+    }
+    switch (test.status()) {
+      case 'expected': process.stdout.write(colors.green('·')); break;
+      case 'unexpected': process.stdout.write(colors.red(test.results[test.results.length - 1].status === 'timedOut' ? 'T' : 'F')); break;
+      case 'expected-flaky': process.stdout.write(colors.yellow('±')); break;
+      case 'unexpected-flaky': process.stdout.write(colors.red('±')); break;
+    }
   }
 
   onTimeout(timeout) {

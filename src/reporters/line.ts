@@ -60,7 +60,7 @@ class LineReporter extends BaseReporter {
     const baseName = path.basename(spec.file);
     const title = `${baseName} - ${spec.fullTitle()}`;
     process.stdout.write(`\u001B[1A\u001B[2K[${++this._current}/${this._total}] ${title}\n`);
-    if (!test.ok()) {
+    if (!this.willRetry(test, result) && !test.ok()) {
       process.stdout.write(`\u001B[1A\u001B[2K`);
       console.log(super.formatFailure(test, ++this._failures));
       console.log();

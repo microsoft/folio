@@ -17,7 +17,7 @@
 import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, Parameters } from './ipc';
+import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, Parameters, TestStatus } from './ipc';
 import { Config } from './config';
 import { Reporter } from './reporter';
 import { RunnerSuite, RunnerTest } from './runnerTest';
@@ -179,9 +179,8 @@ export class Dispatcher {
         for (const { testId } of runPayload.entries) {
           const { test, result } = this._testById.get(testId);
           this._reporter.onTestBegin(test);
-          result.status = 'failed';
           result.error = params.fatalError;
-          this._reportTestEnd(test, result);
+          this._reportTestEnd(test, result, 'failed');
         }
         doneCallback();
         return;
@@ -245,8 +244,7 @@ export class Dispatcher {
       result.data = params.data;
       result.duration = params.duration;
       result.error = params.error;
-      result.status = params.status;
-      this._reportTestEnd(test, result);
+      this._reportTestEnd(test, result, params.status);
     });
     worker.on('stdOut', (params: TestOutputPayload) => {
       const chunk = chunkFromParams(params);
@@ -292,7 +290,10 @@ export class Dispatcher {
     await result;
   }
 
-  private _reportTestEnd(test: Test, result: TestResult) {
+  private _reportTestEnd(test: Test, result: TestResult, status: TestStatus) {
+    if (this._isStopped)
+      return;
+    result.status = status;
     if (result.status !== 'skipped' && result.status !== test.expectedStatus)
       ++this._failureCount;
     if (!this._config.maxFailures || this._failureCount <= this._config.maxFailures)
