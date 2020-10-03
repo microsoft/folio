@@ -54,7 +54,7 @@ export class Spec extends Base {
     suite._addSpec(this);
   }
 
-  _ok(): boolean {
+  ok(): boolean {
     return !this.tests.find(r => !r.ok());
   }
 }
@@ -83,13 +83,27 @@ export class Suite extends Base {
     this._entries.push(suite);
   }
 
-  findSpec(fn: (test: Spec) => boolean | void): boolean {
+  findTest(fn: (test: Test) => boolean | void): boolean {
+    for (const suite of this.suites) {
+      if (suite.findTest(fn))
+        return true;
+    }
+    for (const spec of this.specs) {
+      for (const test of spec.tests) {
+        if (fn(test))
+          return true;
+      }
+    }
+    return false;
+  }
+
+  findSpec(fn: (spec: Spec) => boolean | void): boolean {
     for (const suite of this.suites) {
       if (suite.findSpec(fn))
         return true;
     }
-    for (const test of this.specs) {
-      if (fn(test))
+    for (const spec of this.specs) {
+      if (fn(spec))
         return true;
     }
     return false;
@@ -146,18 +160,30 @@ export class Test {
     this.spec = spec;
   }
 
-  ok(): boolean {
+  status(): 'skipped' | 'expected' | 'unexpected' | 'expected-flaky' | 'unexpected-flaky' {
+    if (this.skipped)
+      return 'skipped';
+    // List mode bail out.
+    if (!this.results.length)
+      return 'skipped';
+    if (this.results.length === 1 && this.expectedStatus === this.results[0].status)
+      return 'expected';
     let hasPassedResults = false;
     for (const result of this.results) {
       // Missing status is Ok when running in shards mode.
-      if (result.status === 'skipped' || !result.status)
-        return true;
-      if (!this.flaky && result.status !== this.expectedStatus)
-        return false;
+      if (!result.status)
+        return 'skipped';
       if (result.status === this.expectedStatus)
         hasPassedResults = true;
     }
-    return hasPassedResults;
+    if (hasPassedResults)
+      return this.flaky ? 'expected-flaky' : 'unexpected-flaky';
+    return 'unexpected';
+  }
+
+  ok(): boolean {
+    const status = this.status();
+    return status === 'expected' || status === 'expected-flaky' || status === 'skipped';
   }
 }
 

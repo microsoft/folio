@@ -134,6 +134,6 @@ export class Runner {
     this._reporter.onEnd();
     if (sigint)
       return 'sigint';
-    return this._hasBadFiles || runner.hasWorkerErrors() || suite.findSpec(spec => !spec._ok()) ? 'failed' : 'passed';
+    return this._hasBadFiles || runner.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
   }
 }

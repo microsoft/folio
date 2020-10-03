@@ -30,7 +30,6 @@ export type RunResult = {
   output: string,
   passed: number,
   failed: number,
-  timedOut: number,
   expectedFlaky: number,
   unexpectedFlaky: number,
   skipped: number,
@@ -74,12 +73,11 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
       process.stdout.write(String(chunk));
   });
   const status = await new Promise<number>(x => testProcess.on('close', x));
-  const passed = (/(\d+) passed/.exec(output.toString()) || [])[1];
-  const failed = (/(\d+) failed/.exec(output.toString()) || [])[1];
-  const timedOut = (/(\d+) timed out/.exec(output.toString()) || [])[1];
-  const expectedFlaky = (/(\d+) expected flaky/.exec(output.toString()) || [])[1];
-  const unexpectedFlaky = (/(\d+) unexpected flaky/.exec(output.toString()) || [])[1];
-  const skipped = (/(\d+) skipped/.exec(output.toString()) || [])[1];
+  const passed = (/(\d+) passed/.exec(output.toString()) || [])[1] || '0';
+  const failed = (/(\d+) failed/.exec(output.toString()) || [])[1] || '0';
+  const expectedFlaky = (/(\d+) expected flaky/.exec(output.toString()) || [])[1] || '0';
+  const unexpectedFlaky = (/(\d+) unexpected flaky/.exec(output.toString()) || [])[1] || '0';
+  const skipped = (/(\d+) skipped/.exec(output.toString()) || [])[1] || '0';
   let report;
   try {
     report = JSON.parse(fs.readFileSync(reportFile).toString());
@@ -106,11 +104,10 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
     exitCode: status,
     output,
     passed: parseInt(passed, 10),
-    failed: parseInt(failed || '0', 10),
-    timedOut: parseInt(timedOut || '0', 10),
-    expectedFlaky: parseInt(expectedFlaky || '0', 10),
-    unexpectedFlaky: parseInt(unexpectedFlaky || '0', 10),
-    skipped: parseInt(skipped || '0', 10),
+    failed: parseInt(failed, 10),
+    expectedFlaky: parseInt(expectedFlaky, 10),
+    unexpectedFlaky: parseInt(unexpectedFlaky, 10),
+    skipped: parseInt(skipped, 10),
     report,
     results,
   };
@@ -173,4 +170,9 @@ async function runInlineTest(testOutputPath: (...name: string[]) => string, head
   });
   if (testInfo.status !== testInfo.expectedStatus)
     console.log(result.output);
+}
+
+const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
+export function stripAscii(str: string): string {
+  return str.replace(asciiRegex, '');
 }

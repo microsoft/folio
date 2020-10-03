@@ -38,8 +38,7 @@ it('should handle fixture timeout', async ({ runInlineFixturesTest }) => {
   }, { timeout: 500 });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('Timeout of 500ms');
-  expect(result.failed).toBe(1);
-  expect(result.timedOut).toBe(1);
+  expect(result.failed).toBe(2);
 });
 
 it('should handle worker fixture timeout', async ({ runInlineFixturesTest }) => {
