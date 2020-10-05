@@ -313,8 +313,8 @@ it('should not reuse fixtures from one file in another one', async ({ runInlineF
   expect(result.exitCode).toBe(1);
 });
 
-it('should teardown fixtures after timeout', async ({ runInlineFixturesTest, testOutputPath }) => {
-  const file = testOutputPath('log.txt');
+it('should teardown fixtures after timeout', async ({ runInlineFixturesTest, testInfo }) => {
+  const file = testInfo.outputPath('log.txt');
   require('fs').writeFileSync(file, '', 'utf8');
   const result = await runInlineFixturesTest({
     'a.spec.ts': `

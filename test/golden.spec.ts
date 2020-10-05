@@ -63,7 +63,7 @@ Hello world line1"
   expect(result.output).toContain('Object {');
 });
 
-it('should write missing expectations', async ({runInlineTest, testOutputPath}) => {
+it('should write missing expectations', async ({runInlineTest, testInfo}) => {
   const result = await runInlineTest({
     'a.spec.js': `
       it('is a test', ({testPrint}) => {
@@ -73,11 +73,11 @@ it('should write missing expectations', async ({runInlineTest, testOutputPath}) 
   });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('snapshot.txt is missing in golden results, writing actual');
-  const data = fs.readFileSync(testOutputPath('__snapshots__/a/is-a-test/snapshot.txt'));
+  const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
   expect(data.toString()).toBe('"Hello world"');
 });
 
-it('should update expectations', async ({runInlineTest, testOutputPath}) => {
+it('should update expectations', async ({runInlineTest, testInfo}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `"Hello world"`,
     'a.spec.js': `
@@ -89,6 +89,6 @@ it('should update expectations', async ({runInlineTest, testOutputPath}) => {
   expect(result.exitCode).toBe(0);
   expect(result.output).toContain('Updating snapshot at');
   expect(result.output).toContain('snapshot.txt');
-  const data = fs.readFileSync(testOutputPath('__snapshots__/a/is-a-test/snapshot.txt'));
+  const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
   expect(data.toString()).toBe('"Hello world updated"');
 });
