@@ -17,47 +17,56 @@
 import { fixtures } from './fixtures';
 const { it, expect } = fixtures;
 
-it('should respect require order', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
+it('should respect require order', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
     'fixture.js': `
-      fixtures.defineWorkerFixture('fixture', ({}, runTest) => runTest('base'));
+      exports.fixtures = baseFixtures.defineWorkerFixtures({
+        fixture: ({}, runTest) => runTest('base')
+      });
     `,
     'override1.js': `
-      require('./fixture.js');
-      fixtures.overrideWorkerFixture('fixture', ({}, runTest) => runTest('override1'));
+      exports.fixtures = require('./fixture.js').fixtures.overrideWorkerFixtures({
+        fixture: ({}, runTest) => runTest('override1')
+      });
     `,
     'override2.js': `
-      require('./fixture.js');
-      fixtures.overrideWorkerFixture('fixture', ({}, runTest) => runTest('override2'));
+      exports.fixtures = require('./fixture.js').fixtures.overrideWorkerFixtures({
+        fixture: ({}, runTest) => runTest('override2')
+      });
     `,
     'a.test.js': `
-      require('./fixture.js');
+      const { fixtures } = require('./fixture.js');
+      const { it } = fixtures;
       it('should pass', ({fixture}) => {
         expect(fixture).toBe('base');
       })
     `,
     'b.test.js': `
-      require('./override1.js');
+      const { fixtures } = require('./override1.js');
+      const { it } = fixtures;
       it('should pass', ({fixture}) => {
         expect(fixture).toBe('override1');
       })
     `,
     'c.test.js': `
-      require('./override2.js');
+      const { fixtures } = require('./override2.js');
+      const { it } = fixtures;
       it('should pass', ({fixture}) => {
         expect(fixture).toBe('override2');
       })
     `,
     'd.test.js': `
       require('./override1.js');
-      require('./override2.js');
+      const { fixtures } = require('./override2.js');
+      const { it } = fixtures;
       it('should pass', ({fixture}) => {
         expect(fixture).toBe('override2');
       })
     `,
     'e.test.js': `
       require('./override2.js');
-      require('./override1.js');
+      const { fixtures } = require('./override1.js');
+      const { it } = fixtures;
       it('should pass', ({fixture}) => {
         expect(fixture).toBe('override1');
       })

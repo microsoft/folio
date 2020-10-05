@@ -342,11 +342,11 @@ export function validateRegistrations(file: string): string {
       if (previous.scope !== registration.scope)
         throw errorWithStack(registration.stack, `Fixture "${registration.name}" has already been registered as a ${previous.scope} fixture. Use a different name for this ${registration.scope} fixture.`);
       else
-        throw errorWithStack(registration.stack, `Fixture "${registration.name}" has already been registered. Use ${registration.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} to override it in a specific test file.`);
+        throw errorWithStack(registration.stack, `Fixture "${registration.name}" has already been registered. Use ${registration.scope === 'test' ? 'overrideTestFixtures' : 'overrideWorkerFixtures'} to override it in a specific test file.`);
     } else if (registration.isOverride && !previous) {
-      throw errorWithStack(registration.stack, `Fixture "${registration.name}" has not been registered yet. Use ${registration.scope === 'test' ? 'defineTestFixture' : 'defineWorkerFixture'} instead.`);
+      throw errorWithStack(registration.stack, `Fixture "${registration.name}" has not been registered yet. Use ${registration.scope === 'test' ? 'defineTestFixtures' : 'defineWorkerFixtures'} instead.`);
     } else if (registration.isOverride && previous && previous.scope !== registration.scope) {
-      throw errorWithStack(registration.stack, `Fixture "${registration.name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} instead.`);
+      throw errorWithStack(registration.stack, `Fixture "${registration.name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixtures' : 'overrideWorkerFixtures'} instead.`);
     }
     registrations.set(registration.name, registration);
     if (registration.scope === 'worker')

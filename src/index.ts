@@ -18,7 +18,7 @@
 import expectFunction from 'expect';
 import * as fs from 'fs';
 import * as path from 'path';
-import { config, FixtureDefinitionOptions, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
+import { config, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
 import { compare } from './golden';
 import * as spec from './spec';
 import { TestModifier } from './testModifier';
@@ -73,41 +73,38 @@ class FixturesImpl<WorkerParameters, WorkerFixtures, TestFixtures> {
     return this;
   }
 
-  declareTestFixtures<T>(): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures & T> {
+  defineTestFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & TestFixtures & T, runTest: (value: T[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures & T> {
+    for (const [ name, fixture ] of Object.entries(o))
+      registerFixture(name, fixture as any, { auto: name.startsWith('auto') }, false);
     return this as any;
   }
 
-  defineTestFixture<T extends keyof TestFixtures>(name: T | '*', fn: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (arg: TestFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
-    registerFixture(name as string, fn, options, false);
+  overrideTestFixtures(o: { [ key in keyof TestFixtures ]?: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
+    for (const [ name, fixture ] of Object.entries(o))
+      registerFixture(name, fixture as any, { auto: name.startsWith('auto') }, true);
+    return this;
   }
 
-  overrideTestFixture<T extends keyof TestFixtures>(name: T, fn: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (arg: TestFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
-    registerFixture(name as string, fn, options, true);
-  }
-
-  declareWorkerFixtures<W>(): Fixtures<WorkerParameters, WorkerFixtures & W, TestFixtures> {
+  defineWorkerFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & T, runTest: (value: T[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures & T, TestFixtures> {
+    for (const [ name, fixture ] of Object.entries(o))
+      registerWorkerFixture(name, fixture as any, { auto: name.startsWith('auto') }, false);
     return this as any;
   }
 
-  defineWorkerFixture<T extends keyof WorkerFixtures>(name: T | '*', fn: (params: WorkerParameters & WorkerFixtures, runTest: (arg: WorkerFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
-    registerWorkerFixture(name as string, fn, options, false);
+  overrideWorkerFixtures(o: { [ key in keyof WorkerFixtures ]?: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
+    for (const [ name, fixture ] of Object.entries(o))
+      registerWorkerFixture(name, fixture as any, { auto: name.startsWith('auto') }, true);
+    return this;
   }
 
-  overrideWorkerFixture<T extends keyof WorkerFixtures>(name: T, fn: (params: WorkerParameters & WorkerFixtures, runTest: (arg: WorkerFixtures[T]) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions = {}) {
-    registerWorkerFixture(name as string, fn, options, true);
-  }
-
-  declareParameters<P>(): Fixtures<WorkerParameters & P, WorkerFixtures, TestFixtures> {
-    return this as any;
-  }
-
-  defineParameter<T extends keyof WorkerParameters>(name: T, description: string, defaultValue: WorkerParameters[T]) {
+  defineParameter<N extends string, P>(name: N, description: string, defaultValue: P): Fixtures<WorkerParameters & { [key in N] : P }, WorkerFixtures, TestFixtures> {
     registerWorkerParameter({
       name: name as string,
       description,
       defaultValue: defaultValue as any,
     });
     registerWorkerFixture(name as string, async ({}, runTest) => runTest(defaultValue), {}, false);
+    return this as any;
   }
 
   generateParametrizedTests<T extends keyof WorkerParameters>(name: T, values: WorkerParameters[T][]) {
@@ -117,9 +114,6 @@ class FixturesImpl<WorkerParameters, WorkerFixtures, TestFixtures> {
 
 export interface Fixtures<P, W, T> extends FixturesImpl<P, W, T> {
 }
-
-type BuiltinWorkerParameters = {
-};
 
 type BuiltinWorkerFixtures = {
   // Worker index that runs this test.
@@ -139,45 +133,46 @@ type BuiltinTestFixtures = {
   testPrint: (val: any, options?: prettyFormat.OptionsReceived) => void;
 };
 
-export const fixtures = new FixturesImpl<BuiltinWorkerParameters, BuiltinWorkerFixtures, BuiltinTestFixtures>();
 export const expect = expectFunction;
 
-fixtures.defineWorkerFixture('testWorkerIndex', async ({}, runTest) => {
-  // Worker injects the value for this one.
-  await runTest(undefined as any);
-});
+export const fixtures = new FixturesImpl<{}, {}, {}>().defineWorkerFixtures<BuiltinWorkerFixtures>({
+  testWorkerIndex: async ({}, runTest) => {
+    // Worker injects the value for this one.
+    await runTest(undefined as any);
+  }
+}).defineTestFixtures<BuiltinTestFixtures>({
+  testInfo: async ({}, runTest) => {
+    // Worker injects the value for this one.
+    await runTest(undefined as any);
+  },
 
-fixtures.defineTestFixture('testInfo', async ({}, runTest) => {
-  // Worker injects the value for this one.
-  await runTest(undefined as any);
-});
+  testParametersArtifactsPath: async ({}, runTest) => {
+    await runTest('');
+  },
 
-fixtures.defineTestFixture('testParametersArtifactsPath', async ({}, runTest) => {
-  await runTest('');
-});
+  testRelativeArtifactsPath: async ({ testInfo, testParametersArtifactsPath }, runTest) => {
+    const relativePath = path.relative(config.testDir, testInfo.file.replace(/\.(spec|test)\.(js|ts)/, ''));
+    const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-') + (testInfo.retry ? '-retry' + testInfo.retry : '');
+    await runTest(path.join(relativePath, sanitizedTitle, testParametersArtifactsPath));
+  },
 
-fixtures.defineTestFixture('testRelativeArtifactsPath', async ({ testInfo, testParametersArtifactsPath }, runTest) => {
-  const relativePath = path.relative(config.testDir, testInfo.file.replace(/\.(spec|test)\.(js|ts)/, ''));
-  const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-') + (testInfo.retry ? '-retry' + testInfo.retry : '');
-  await runTest(path.join(relativePath, sanitizedTitle, testParametersArtifactsPath));
-});
+  testOutputPath: async ({  testRelativeArtifactsPath }, runTest) => {
+    const outputPath = path.join(config.outputDir, testRelativeArtifactsPath);
+    const testOutputPath = (...pathSegments: string[]): string => {
+      fs.mkdirSync(outputPath, { recursive: true });
+      return path.join(outputPath, ...pathSegments);
+    };
+    await runTest(testOutputPath);
+  },
 
-fixtures.defineTestFixture('testOutputPath', async ({  testRelativeArtifactsPath }, runTest) => {
-  const outputPath = path.join(config.outputDir, testRelativeArtifactsPath);
-  const testOutputPath = (...pathSegments: string[]): string => {
-    fs.mkdirSync(outputPath, { recursive: true });
-    return path.join(outputPath, ...pathSegments);
-  };
-  await runTest(testOutputPath);
-});
-
-fixtures.defineTestFixture('testPrint', async ({ testRelativeArtifactsPath, testOutputPath }, runTest) => {
-  const snapshot: string[] = [];
-  await runTest((val, options: prettyFormat.OptionsReceived) => {
-    snapshot.push(prettyFormat(val, options));
-  });
-  const snapshotPath = path.join(config.testDir, config.snapshotDir, testRelativeArtifactsPath);
-  const { pass, message } = compare(snapshot.join('\n'), 'snapshot.txt', snapshotPath, testOutputPath, config.updateSnapshots);
-  if (!pass)
-    throw new Error(message);
+  testPrint: async ({ testRelativeArtifactsPath, testOutputPath }, runTest) => {
+    const snapshot: string[] = [];
+    await runTest((val, options: prettyFormat.OptionsReceived) => {
+      snapshot.push(prettyFormat(val, options));
+    });
+    const snapshotPath = path.join(config.testDir, config.snapshotDir, testRelativeArtifactsPath);
+    const { pass, message } = compare(snapshot.join('\n'), 'snapshot.txt', snapshotPath, testOutputPath, config.updateSnapshots);
+    if (!pass)
+      throw new Error(message);
+  }
 });
