@@ -60,7 +60,22 @@ export type TestInfo = {
   stdout: (string | Buffer)[];
   stderr: (string | Buffer)[];
   data: any;
+
+  // Paths
+  relativeArtifactsPath: string;
+  snapshotPath: (...pathSegments: string[]) => string;
+  outputPath: (...pathSegments: string[]) => string;
 };
+
+let currentTestInfoValue: TestInfo | null = null;
+
+export function setCurrentTestInfo(testInfo: TestInfo | null) {
+  currentTestInfoValue = testInfo;
+}
+
+export function currentTestInfo(): TestInfo | null {
+  return currentTestInfoValue;
+}
 
 export const registrations = new Map<string, FixtureRegistration>();
 const registrationsByFile = new Map<string, FixtureRegistration[]>();
@@ -172,7 +187,7 @@ export class FixturePool {
     this.instances = new Map();
   }
 
-  async setupFixture(name: string) {
+  async setupFixture(name: string): Promise<Fixture> {
     let fixture = this.instances.get(name);
     if (fixture)
       return fixture;

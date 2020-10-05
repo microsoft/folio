@@ -20,14 +20,14 @@ const { it } = fixtures;
 it('should work and remove empty dir', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my-test.spec.js': `
-      it('test 1', async ({testOutputPath, testInfo}) => {
+      it('test 1', async ({testInfo}) => {
         if (testInfo.retry) {
-          expect(testOutputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1-retry1', 'foo', 'bar'));
+          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1-retry1', 'foo', 'bar'));
         } else {
-          expect(testOutputPath()).toContain(require('path').join('my-test', 'test-1'));
-          expect(testOutputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'foo', 'bar'));
+          expect(testInfo.outputPath()).toContain(require('path').join('my-test', 'test-1'));
+          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'foo', 'bar'));
         }
-        expect(require('fs').existsSync(testOutputPath())).toBe(true);
+        expect(require('fs').existsSync(testInfo.outputPath())).toBe(true);
         if (testInfo.retry !== 1)
           throw new Error('Give me a retry');
       });

@@ -66,8 +66,8 @@ function compareText(actual: Buffer | string, expectedBuffer: Buffer): { diff?: 
   };
 }
 
-export function compare(actual: Buffer | string, name: string, snapshotPath: string, testOutputPath: (name: string) => string, updateSnapshots: boolean, options?: { threshold?: number }): { pass: boolean; message?: string; } {
-  const snapshotFile = path.join(snapshotPath, name);
+export function compare(actual: Buffer | string, name: string, snapshotPath: (name: string) => string, outputPath: (name: string) => string, updateSnapshots: boolean, options?: { threshold?: number }): { pass: boolean; message?: string; } {
+  const snapshotFile = snapshotPath(name);
   if (!fs.existsSync(snapshotFile)) {
     fs.mkdirSync(path.dirname(snapshotFile), { recursive: true });
     fs.writeFileSync(snapshotFile, actual);
@@ -100,7 +100,7 @@ export function compare(actual: Buffer | string, name: string, snapshotPath: str
       message: snapshotFile + ' running with --p-update-snapshots, writing actual.'
     };
   }
-  const outputFile = testOutputPath(name);
+  const outputFile = outputPath(name);
   const expectedPath = addSuffix(outputFile, '-expected');
   const actualPath = addSuffix(outputFile, '-actual');
   const diffPath = addSuffix(outputFile, '-diff');

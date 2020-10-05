@@ -16,14 +16,12 @@
  */
 
 import expectFunction from 'expect';
-import * as fs from 'fs';
-import * as path from 'path';
 import { config, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
 import { compare } from './golden';
 import * as spec from './spec';
 import { TestModifier } from './testModifier';
 export { Config } from './config';
-export { config, TestInfo } from './fixtures';
+export { config, TestInfo, currentTestInfo } from './fixtures';
 import prettyFormat from 'pretty-format';
 
 interface DescribeHelper<WorkerParameters> {
@@ -124,11 +122,7 @@ type BuiltinTestFixtures = {
   // Information about the test being run.
   testInfo: TestInfo;
   // Parameter-based relative path to be overridden, empty by default.
-  testParametersArtifactsPath: string;
-  // Relative path to the test snapshots or results.
-  testRelativeArtifactsPath: string;
-  // Absolute path to the test output.
-  testOutputPath: (...pathSegments: string[]) => string;
+  testParametersPathSegment: string;
   // Add to the snapshot that is compared against golden in the end.
   testPrint: (val: any, options?: prettyFormat.OptionsReceived) => void;
 };
@@ -146,32 +140,16 @@ export const fixtures = new FixturesImpl<{}, {}, {}>().defineWorkerFixtures<Buil
     await runTest(undefined as any);
   },
 
-  testParametersArtifactsPath: async ({}, runTest) => {
+  testParametersPathSegment: async ({}, runTest) => {
     await runTest('');
   },
 
-  testRelativeArtifactsPath: async ({ testInfo, testParametersArtifactsPath }, runTest) => {
-    const relativePath = path.relative(config.testDir, testInfo.file.replace(/\.(spec|test)\.(js|ts)/, ''));
-    const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-') + (testInfo.retry ? '-retry' + testInfo.retry : '');
-    await runTest(path.join(relativePath, sanitizedTitle, testParametersArtifactsPath));
-  },
-
-  testOutputPath: async ({  testRelativeArtifactsPath }, runTest) => {
-    const outputPath = path.join(config.outputDir, testRelativeArtifactsPath);
-    const testOutputPath = (...pathSegments: string[]): string => {
-      fs.mkdirSync(outputPath, { recursive: true });
-      return path.join(outputPath, ...pathSegments);
-    };
-    await runTest(testOutputPath);
-  },
-
-  testPrint: async ({ testRelativeArtifactsPath, testOutputPath }, runTest) => {
+  testPrint: async ({ testInfo }, runTest) => {
     const snapshot: string[] = [];
     await runTest((val, options: prettyFormat.OptionsReceived) => {
       snapshot.push(prettyFormat(val, options));
     });
-    const snapshotPath = path.join(config.testDir, config.snapshotDir, testRelativeArtifactsPath);
-    const { pass, message } = compare(snapshot.join('\n'), 'snapshot.txt', snapshotPath, testOutputPath, config.updateSnapshots);
+    const { pass, message } = compare(snapshot.join('\n'), 'snapshot.txt', testInfo.snapshotPath, testInfo.outputPath, config.updateSnapshots);
     if (!pass)
       throw new Error(message);
   }

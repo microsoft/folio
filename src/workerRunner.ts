@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-import { FixturePool, validateRegistrations, assignParameters, TestInfo, parameters, assignConfig, config } from './fixtures';
+import fs from 'fs';
+import path from 'path';
+import { FixturePool, validateRegistrations, assignParameters, TestInfo, parameters, assignConfig, config, setCurrentTestInfo } from './fixtures';
 import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
 import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
-import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, TestOutputPayload, DonePayload } from './ipc';
+import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
 
@@ -55,7 +57,7 @@ export class WorkerRunner extends EventEmitter {
   stop() {
     this._isStopped = true;
     this._testId = null;
-    this._testInfo = null;
+    this._setCurrentTestInfo(null);
   }
 
   unhandledError(error: Error | any) {
@@ -126,7 +128,7 @@ export class WorkerRunner extends EventEmitter {
     const testId = test._id;
     this._testId = testId;
 
-    this._testInfo = {
+    this._setCurrentTestInfo({
       title: test.title,
       file: test.file,
       location: test.location,
@@ -141,7 +143,10 @@ export class WorkerRunner extends EventEmitter {
       stdout: [],
       stderr: [],
       data: {},
-    };
+      relativeArtifactsPath: '',
+      outputPath: () => '',
+      snapshotPath: () => ''
+    });
     assignParameters({ 'testInfo': this._testInfo });
 
     this.emit('testBegin', buildTestBeginPayload(testId, this._testInfo));
@@ -169,8 +174,13 @@ export class WorkerRunner extends EventEmitter {
       this._failedTestId = this._testId;
       this._reportDoneAndStop();
     }
-    this._testInfo = null;
+    this._setCurrentTestInfo(null);
     this._testId = null;
+  }
+
+  private _setCurrentTestInfo(testInfo: TestInfo | null) {
+    this._testInfo = testInfo;
+    setCurrentTestInfo(testInfo);
   }
 
   private async _runTestWithFixturesAndHooks(test: WorkerSpec, testInfo: TestInfo) {
@@ -181,10 +191,16 @@ export class WorkerRunner extends EventEmitter {
       testInfo.error = serializeError(error);
       // Continue running afterEach hooks even after the failure.
     }
+
     debugLog(`running test "${test.fullTitle()}"`);
     try {
       // Do not run the test when beforeEach hook fails.
       if (!this._isStopped && testInfo.status !== 'failed') {
+        // Run internal fixtures to resolve artifacts and output paths
+        const parametersPathSegment = (await fixturePool.setupFixture('testParametersPathSegment')).value;
+        testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, parametersPathSegment);
+        testInfo.outputPath = outputPath(testInfo.relativeArtifactsPath);
+        testInfo.snapshotPath = snapshotPath(testInfo.relativeArtifactsPath);
         await fixturePool.resolveParametersAndRunHookOrTest(test.fn);
         testInfo.status = 'passed';
       }
@@ -281,5 +297,26 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
     status: testInfo.status,
     error: testInfo.error,
     data: testInfo.data,
+  };
+}
+
+function relativeArtifactsPath(testInfo: TestInfo, parametersPathSegment: string) {
+  const relativePath = path.relative(config.testDir, testInfo.file.replace(/\.(spec|test)\.(js|ts)/, ''));
+  const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-') + (testInfo.retry ? '-retry' + testInfo.retry : '');
+  return path.join(relativePath, sanitizedTitle, parametersPathSegment);
+}
+
+function outputPath(relativeArtifactsPath: string): (...pathSegments: string[]) => string {
+  const basePath = path.join(config.outputDir, relativeArtifactsPath);
+  return (...pathSegments: string[]): string => {
+    fs.mkdirSync(basePath, { recursive: true });
+    return path.join(basePath, ...pathSegments);
+  };
+}
+
+function snapshotPath(relativeArtifactsPath: string): (...pathSegments: string[]) => string {
+  const basePath = path.join(config.testDir, config.snapshotDir, relativeArtifactsPath);
+  return (...pathSegments: string[]): string => {
+    return path.join(basePath, ...pathSegments);
   };
 }
