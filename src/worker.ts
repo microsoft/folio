@@ -101,6 +101,7 @@ async function gracefullyCloseAndExit() {
   if (testRunner)
     testRunner.stop();
   try {
+    await fixturePool.teardownScope('test');
     await fixturePool.teardownScope('worker');
   } catch (e) {
     process.send({ method: 'teardownError', params: { error: serializeError(e) } });

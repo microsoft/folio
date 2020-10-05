@@ -278,3 +278,31 @@ it('should not reuse fixtures from one file in another one', async ({ runInlineF
   expect(result.results[2].error.message).toContain('Unknown fixture: foo');
   expect(result.exitCode).toBe(1);
 });
+
+it('should teardown fixtures after timeout', async ({ runInlineFixturesTest, testOutputPath }) => {
+  const file = testOutputPath('log.txt');
+  require('fs').writeFileSync(file, '', 'utf8');
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, defineTestFixture, defineWorkerFixture, defineParameter } = baseFixtures;
+      defineParameter('file', 'File', '');
+      defineTestFixture('t', async ({ file }, runTest) => {
+        await runTest('t');
+        require('fs').appendFileSync(file, 'test fixture teardown\\n', 'utf8');
+      });
+      defineWorkerFixture('w', async ({ file }, runTest) => {
+        await runTest('w');
+        require('fs').appendFileSync(file, 'worker fixture teardown\\n', 'utf8');
+      });
+      it('test', async ({t, w}) => {
+        expect(t).toBe('t');
+        expect(w).toBe('w');
+        await new Promise(() => {});
+      });
+    `,
+  }, { timeout: 1000, param: 'file=' + file });
+  expect(result.results[0].status).toBe('timedOut');
+  const content = require('fs').readFileSync(file, 'utf8');
+  expect(content).toContain('worker fixture teardown');
+  expect(content).toContain('test fixture teardown');
+});
