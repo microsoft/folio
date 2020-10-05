@@ -318,15 +318,17 @@ it('should teardown fixtures after timeout', async ({ runInlineFixturesTest, tes
   require('fs').writeFileSync(file, '', 'utf8');
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const { it, defineTestFixture, defineWorkerFixture, defineParameter } = baseFixtures;
-      defineParameter('file', 'File', '');
-      defineTestFixture('t', async ({ file }, runTest) => {
-        await runTest('t');
-        require('fs').appendFileSync(file, 'test fixture teardown\\n', 'utf8');
-      });
-      defineWorkerFixture('w', async ({ file }, runTest) => {
-        await runTest('w');
-        require('fs').appendFileSync(file, 'worker fixture teardown\\n', 'utf8');
+      baseFixtures.defineParameter('file', 'File', '');
+      const { it } = baseFixtures.defineTestFixtures({
+        t: async ({ file }, runTest) => {
+          await runTest('t');
+          require('fs').appendFileSync(file, 'test fixture teardown\\n', 'utf8');
+        }
+      }).defineWorkerFixtures({
+        w: async ({ file }, runTest) => {
+          await runTest('w');
+          require('fs').appendFileSync(file, 'worker fixture teardown\\n', 'utf8');
+        }
       });
       it('test', async ({t, w}) => {
         expect(t).toBe('t');
