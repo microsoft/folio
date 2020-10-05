@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-import expectFunction from 'expect';
+import { expect } from './expect';
+export { expect } from './expect';
 import { config, registerFixture, registerWorkerFixture, registerWorkerParameter, setParameterValues, TestInfo } from './fixtures';
 import { compare } from './golden';
 import * as spec from './spec';
@@ -62,7 +63,7 @@ class FixturesImpl<WorkerParameters, WorkerFixtures, TestFixtures> {
   afterEach: AfterEach<WorkerParameters, WorkerFixtures, TestFixtures> = spec.afterEach;
   beforeAll: BeforeAll<WorkerFixtures> = spec.beforeAll;
   afterAll: AfterAll<WorkerFixtures> = spec.afterAll;
-  expect: typeof expectFunction = expectFunction;
+  expect: typeof expect = expect;
 
   union<P1, W1, T1>(other1: Fixtures<P1, W1, T1>): Fixtures<WorkerParameters & P1, WorkerFixtures & W1, TestFixtures & T1>;
   union<P1, W1, T1, P2, W2, T2>(other1: Fixtures<P1, W1, T1>, other2: Fixtures<P2, W2, T2>): Fixtures<WorkerParameters & P1 & P2, WorkerFixtures & W1 & W2, TestFixtures & T1 & T2>;
@@ -126,8 +127,6 @@ type BuiltinTestFixtures = {
   // Add to the snapshot that is compared against golden in the end.
   testPrint: (val: any, options?: prettyFormat.OptionsReceived) => void;
 };
-
-export const expect = expectFunction;
 
 export const fixtures = new FixturesImpl<{}, {}, {}>().defineWorkerFixtures<BuiltinWorkerFixtures>({
   testWorkerIndex: async ({}, runTest) => {
