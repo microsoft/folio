@@ -1,6 +1,6 @@
 {
   "private": true,
   "dependencies": {
-    "@playwright/test-runner": "0.9.17"
+    "@playwright/test-runner": "0.9.18"
   }
 }
