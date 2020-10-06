@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+import type { Expect } from './expectType';
 import expectLibrary from 'expect';
 import { config, currentTestInfo } from '.';
 import { compare } from './golden';
 
-export const expect = expectLibrary;
+export const expect: Expect = expectLibrary;
 
 declare module 'expect/build/types' {
   interface Matchers<R> {
