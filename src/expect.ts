@@ -58,4 +58,4 @@ function toMatchSnapshot(received: Buffer | string, options?: string | { name?: 
   return { pass, message: () => message };
 }
 
-expect.extend({ toMatchSnapshot });
+expectLibrary.extend({ toMatchSnapshot });
