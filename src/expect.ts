@@ -22,13 +22,39 @@ export const expect = expectLibrary;
 
 declare module 'expect/build/types' {
   interface Matchers<R> {
-    toMatchImage(path: string, options?: { threshold?: number  }): R;
+    toMatchSnapshot(options?: string | {
+      name?: string,
+      threshold?: number
+    }): R;
   }
 }
 
-function toMatchImage(received: Buffer, name: string, options?: { threshold?: number }) {
+const snapshotOrdinalSymbol = Symbol('snapshotOrdinalSymbol');
+
+function toMatchSnapshot(received: Buffer | string, options?: string | { name?: string, threshold?: number }) {
   const testInfo = currentTestInfo();
-  const { pass, message } = compare(received, name, testInfo.snapshotPath, testInfo.outputPath, config.updateSnapshots, options);
+  if (typeof options === 'string')
+    options = { name: options };
+  else
+    options = { ...options || {} };
+
+  let name = options.name;
+  if (!name) {
+    const ordinal = (testInfo as any)[snapshotOrdinalSymbol] || 0;
+    (testInfo as any)[snapshotOrdinalSymbol] = ordinal + 1;
+    let extension: string;
+    if (typeof received === 'string')
+      extension = '.txt';
+    else if (received[0] === 0x89 && received[1] === 0x50 && received[2] === 0x4E && received[3] === 0x47)
+      extension = '.png';
+    else if (received[0] === 0xFF && received[1] === 0xD8 && received[2] === 0xFF)
+      extension = '.jpeg';
+    else
+      extension = '.dat';
+    name = 'snapshot' + (ordinal ? '_' + ordinal : '') + extension;
+  }
+  const { pass, message } = compare(received, name, testInfo.snapshotPath, testInfo.outputPath, config.updateSnapshots);
   return { pass, message: () => message };
 }
-expect.extend({ toMatchImage });
+
+expect.extend({ toMatchSnapshot });

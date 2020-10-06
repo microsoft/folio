@@ -24,6 +24,7 @@ import { PNG } from 'pngjs';
 import { diff_match_patch, DIFF_INSERT, DIFF_DELETE, DIFF_EQUAL } from '../third_party/diff_match_patch';
 
 const extensionToMimeType: { [key: string]: string } = {
+  'dat': 'application/octet-string',
   'jpeg': 'image/jpeg',
   'jpg': 'image/jpeg',
   'png': 'image/png',
@@ -31,10 +32,19 @@ const extensionToMimeType: { [key: string]: string } = {
 };
 
 const GoldenComparators: { [key: string]: any } = {
+  'application/octet-string': compareBuffers,
   'image/png': compareImages,
   'image/jpeg': compareImages,
   'text/plain': compareText,
 };
+
+function compareBuffers(actualBuffer: Buffer | string, expectedBuffer: Buffer, mimeType: string): { diff?: object; errorMessage?: string; } | null {
+  if (!actualBuffer || !(actualBuffer instanceof Buffer))
+    return { errorMessage: 'Actual result should be Buffer.' };
+  if (Buffer.compare(actualBuffer, expectedBuffer))
+    return { errorMessage: 'Buffers differ' };
+  return null;
+}
 
 function compareImages(actualBuffer: Buffer | string, expectedBuffer: Buffer, mimeType: string, options = {}): { diff?: object; errorMessage?: string; } | null {
   if (!actualBuffer || !(actualBuffer instanceof Buffer))
@@ -78,7 +88,7 @@ export function compare(actual: Buffer | string, name: string, snapshotPath: (na
   }
   const expected = fs.readFileSync(snapshotFile);
   const extension = path.extname(snapshotFile).substring(1);
-  const mimeType = extensionToMimeType[extension];
+  const mimeType = extensionToMimeType[extension] || 'application/octet-string';
   const comparator = GoldenComparators[mimeType];
   if (!comparator) {
     return {

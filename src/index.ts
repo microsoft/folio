@@ -124,8 +124,6 @@ type BuiltinTestFixtures = {
   testInfo: TestInfo;
   // Parameter-based relative path to be overridden, empty by default.
   testParametersPathSegment: string;
-  // Add to the snapshot that is compared against golden in the end.
-  testPrint: (val: any, options?: prettyFormat.OptionsReceived) => void;
 };
 
 export const fixtures = new FixturesImpl<{}, {}, {}>().defineWorkerFixtures<BuiltinWorkerFixtures>({
@@ -142,14 +140,4 @@ export const fixtures = new FixturesImpl<{}, {}, {}>().defineWorkerFixtures<Buil
   testParametersPathSegment: async ({}, runTest) => {
     await runTest('');
   },
-
-  testPrint: async ({ testInfo }, runTest) => {
-    const snapshot: string[] = [];
-    await runTest((val, options: prettyFormat.OptionsReceived) => {
-      snapshot.push(prettyFormat(val, options));
-    });
-    const { pass, message } = compare(snapshot.join('\n'), 'snapshot.txt', testInfo.snapshotPath, testInfo.outputPath, config.updateSnapshots);
-    if (!pass)
-      throw new Error(message);
-  }
 });

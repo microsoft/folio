@@ -111,8 +111,8 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
 
 type TestState = {
   runTest: (filePath: string, options?: any) => Promise<RunResult>;
-  runInlineTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
-  runInlineFixturesTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
+  runInlineTest: (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
+  runInlineFixturesTest: (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
 };
 
 export const fixtures = baseFixtures.defineTestFixtures<TestState>({
@@ -157,9 +157,11 @@ async function runInlineTest(testInfo: TestInfo, header: string, runTest) {
   await runTest(async (files: string[], options) => {
     await Promise.all(Object.keys(files).map(async name => {
       const fullName = path.join(baseDir, name);
-      const actualHeader = fullName.endsWith('.js') || fullName.endsWith('.ts') ? header : '';
       await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
-      await fs.promises.writeFile(fullName, actualHeader + files[name]);
+      if (fullName.endsWith('.js') || fullName.endsWith('.ts'))
+        await fs.promises.writeFile(fullName, header + files[name]);
+      else
+        await fs.promises.writeFile(fullName, files[name]);
     }));
     result = await innerRunTest(baseDir, '.', path.join(baseDir, 'test-results'), options);
     return result;
