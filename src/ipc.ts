@@ -45,6 +45,7 @@ export type RunPayload = {
   parametersString: string;
   parameters: Parameters;
   hash: string;
+  repeatEachIndex: number;
 };
 
 export type DonePayload = {
