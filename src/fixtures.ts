@@ -35,6 +35,7 @@ type FixtureRegistration = {
   stack: string;
   auto: boolean;
   isOverride: boolean;
+  deps: string[];
 };
 
 export type TestInfo = {
@@ -104,10 +105,7 @@ export function assignConfig(c: Config) {
 
 class Fixture {
   pool: FixturePool;
-  name: string;
-  scope: Scope;
-  fn: Function;
-  deps: string[];
+  registration: FixtureRegistration;
   usages: Set<string>;
   hasGeneratorValue: boolean;
   value: any;
@@ -116,34 +114,31 @@ class Fixture {
   _setup = false;
   _teardown = false;
 
-  constructor(pool: FixturePool, name: string, scope: Scope, fn: any) {
+  constructor(pool: FixturePool, registration: FixtureRegistration) {
     this.pool = pool;
-    this.name = name;
-    this.scope = scope;
-    this.fn = fn;
-    this.deps = fixtureParameterNames(this.fn);
+    this.registration = registration;
     this.usages = new Set();
-    this.hasGeneratorValue = name in parameters;
-    this.value = this.hasGeneratorValue ? parameters[name] : null;
+    this.hasGeneratorValue = registration.name in parameters;
+    this.value = this.hasGeneratorValue ? parameters[registration.name] : null;
   }
 
   async setup() {
     if (this.hasGeneratorValue)
       return;
-    for (const name of this.deps) {
+    for (const name of this.registration.deps) {
       await this.pool.setupFixture(name);
-      this.pool.instances.get(name).usages.add(this.name);
+      this.pool.instances.get(name).usages.add(this.registration.name);
     }
 
     const params = {};
-    for (const n of this.deps)
+    for (const n of this.registration.deps)
       params[n] = this.pool.instances.get(n).value;
     let setupFenceFulfill: { (): void; (value?: unknown): void; };
     let setupFenceReject: { (arg0: any): any; (reason?: any): void; };
     const setupFence = new Promise((f, r) => { setupFenceFulfill = f; setupFenceReject = r; });
     const teardownFence = new Promise(f => this._teardownFenceCallback = f);
-    debugLog(`setup fixture "${this.name}"`);
-    this._tearDownComplete = this.fn(params, async (value: any) => {
+    debugLog(`setup fixture "${this.registration.name}"`);
+    this._tearDownComplete = this.registration.fn(params, async (value: any) => {
       this.value = value;
       setupFenceFulfill();
       return await teardownFence;
@@ -160,7 +155,7 @@ class Fixture {
 
   async teardown() {
     if (this.hasGeneratorValue) {
-      this.pool.instances.delete(this.name);
+      this.pool.instances.delete(this.registration.name);
       return;
     }
     if (this._teardown)
@@ -173,11 +168,11 @@ class Fixture {
       await fixture.teardown();
     }
     if (this._setup) {
-      debugLog(`teardown fixture "${this.name}"`);
+      debugLog(`teardown fixture "${this.registration.name}"`);
       this._teardownFenceCallback();
       await this._tearDownComplete;
     }
-    this.pool.instances.delete(this.name);
+    this.pool.instances.delete(this.registration.name);
   }
 }
 
@@ -194,8 +189,8 @@ export class FixturePool {
 
     if (!registrations.has(name))
       throw new Error('Unknown fixture: ' + name);
-    const { scope, fn } = registrations.get(name);
-    fixture = new Fixture(this, name, scope, fn);
+    const registration = registrations.get(name);
+    fixture = new Fixture(this, registration);
     this.instances.set(name, fixture);
     await fixture.setup();
     return fixture;
@@ -203,7 +198,7 @@ export class FixturePool {
 
   async teardownScope(scope: string) {
     for (const [, fixture] of this.instances) {
-      if (fixture.scope === scope)
+      if (fixture.registration.scope === scope)
         await fixture.teardown();
     }
   }
@@ -284,7 +279,8 @@ function innerRegisterFixture(name: string, scope: Scope, fn: Function, options:
   const obj = { stack: '' };
   Error.captureStackTrace(obj);
   const stack = obj.stack.substring('Error:\n'.length);
-  const registration: FixtureRegistration = { id: registrationCount++, name, scope, fn, file, stack, auto: options.auto, isOverride };
+  const deps = fixtureParameterNames(fn);
+  const registration: FixtureRegistration = { id: registrationCount++, name, scope, fn, file, stack, auto: options.auto, isOverride, deps };
   if (!registrationsByFile.has(file))
     registrationsByFile.set(file, []);
   registrationsByFile.get(file).push(registration);
