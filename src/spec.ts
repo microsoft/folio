@@ -32,6 +32,7 @@ export const it = (...args) => {
 };
 it.skip = (...args) => implementation.it('skip', ...args);
 it.only = (...args) => implementation.it('only', ...args);
+export const test = it;
 
 export const describe = (...args) => {
   implementation.describe('default', ...args);

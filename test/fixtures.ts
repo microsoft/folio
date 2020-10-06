@@ -140,7 +140,7 @@ export const fixtures = baseFixtures.defineTestFixtures<TestState>({
   runInlineTest: async ({ testInfo }, runTest) => {
     await runInlineTest(testInfo, `
       const { fixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
-      const { it, describe } = fixtures;
+      const { it, test, describe } = fixtures;
     `, runTest);
   },
 
