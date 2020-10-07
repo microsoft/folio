@@ -16,7 +16,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import { FixturePool, validateRegistrations, assignParameters, TestInfo, parameters, assignConfig, config, setCurrentTestInfo } from './fixtures';
 import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
@@ -24,8 +23,11 @@ import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
+import { rootFixtures } from './spec';
+import { assignConfig, assignParameters, config, FixturePool, setCurrentTestInfo, TestInfo, parameters } from './fixtures';
 
-export const fixturePool = new FixturePool();
+// We rely on the fact that worker only receives tests with the same FixturePool.
+export let fixturePool: FixturePool = rootFixtures._pool;
 
 export class WorkerRunner extends EventEmitter {
   private _failedTestId: string | undefined;
@@ -45,7 +47,7 @@ export class WorkerRunner extends EventEmitter {
   constructor(runPayload: RunPayload, config: Config, workerIndex: number) {
     super();
     assignConfig(config);
-    this._suite = new WorkerSuite('');
+    this._suite = new WorkerSuite(rootFixtures, '');
     this._suite.file = runPayload.file;
     this._workerIndex = workerIndex;
     this._repeatEachIndex = runPayload.repeatEachIndex;
@@ -90,7 +92,6 @@ export class WorkerRunner extends EventEmitter {
     this._suite._assignIds(this._parametersString);
     this._loaded = true;
 
-    validateRegistrations(this._suite.file);
     await this._runSuite(this._suite);
     this._reportDoneAndStop();
   }
@@ -98,6 +99,7 @@ export class WorkerRunner extends EventEmitter {
   private async _runSuite(suite: WorkerSuite) {
     if (this._isStopped)
       return;
+    fixturePool = suite._fixtures._pool;
     try {
       await this._runHooks(suite, 'beforeAll', 'before');
     } catch (e) {
@@ -129,6 +131,7 @@ export class WorkerRunner extends EventEmitter {
 
     const testId = test._id;
     this._testId = testId;
+    fixturePool = test._fixtures._pool;
 
     this._setCurrentTestInfo({
       title: test.title,

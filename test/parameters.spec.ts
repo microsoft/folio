@@ -64,6 +64,22 @@ it('should fail on invalid parameters', async ({ runInlineTest }) => {
   expect(result.output).toContain(`Unregistered parameter 'invalid' was set.`);
 });
 
+it('should throw on duplicate parameters globally', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+      const f1 = fixtures.defineParameter('foo', 'Foo', '');
+      const f2 = fixtures.defineParameter('foo', 'Bar', '123');
+      f1.it('success', async ({}) => {
+      });
+      f2.it('success', async ({}) => {
+      });
+    `
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('a.spec.ts:6');
+  expect(result.output).toContain(`Parameter "foo" has been already registered`);
+});
+
 it('should use kebab for CLI name', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `

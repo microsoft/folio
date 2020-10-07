@@ -16,6 +16,7 @@
 
 import { Parameters, TestStatus } from './ipc';
 export { Parameters, TestStatus } from './ipc';
+import type { FixturesImpl } from './spec';
 
 class Base {
   title: string;
@@ -25,10 +26,15 @@ class Base {
 
   _only = false;
   _ordinal: number;
+  _fixtures: FixturesImpl;
 
-  constructor(title: string, parent?: Suite) {
+  constructor(fixtures: FixturesImpl, title: string, parent?: Suite) {
+    this._fixtures = fixtures;
     this.title = title;
     this.parent = parent;
+    // Root suite has default fixtures that do not match all others.
+    if (parent && parent.parent && parent._fixtures !== fixtures)
+      throw new Error(`Mixing different fixture sets in the same suite.\nAre you using it and describe from different fixture files?`);
   }
 
   titlePath(): string[] {
@@ -48,8 +54,8 @@ export class Spec extends Base {
   fn: Function;
   tests: Test[] = [];
 
-  constructor(title: string, fn: Function, suite: Suite) {
-    super(title, suite);
+  constructor(fixtures: FixturesImpl, title: string, fn: Function, suite: Suite) {
+    super(fixtures, title, suite);
     this.fn = fn;
     suite._addSpec(this);
   }
@@ -65,8 +71,8 @@ export class Suite extends Base {
   _entries: (Suite | Spec)[] = [];
   total = 0;
 
-  constructor(title: string, parent?: Suite) {
-    super(title, parent);
+  constructor(fixtures: FixturesImpl, title: string, parent?: Suite) {
+    super(fixtures, title, parent);
     if (parent)
       parent._addSuite(this);
   }
