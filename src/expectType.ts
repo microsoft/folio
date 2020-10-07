@@ -10,7 +10,6 @@
 export declare type AsymmetricMatcher = Record<string, any>;
 export declare type Expect = {
     <T = unknown>(actual: T): Matchers<T>;
-    extend(arg0: any): void;
     [id: string]: AsymmetricMatcher;
     not: {
         [id: string]: AsymmetricMatcher;
