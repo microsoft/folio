@@ -7,6 +7,22 @@ on:
 env:
   FORCE_COLOR: 1
 jobs:
+  lint:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-node@v1
+      with:
+        node-version: '10.x'
+    - name: preinstall
+      run: npm run roll-stable
+    - name: install
+      run: npm i
+    - name: build
+      run: npm run build
+    - name: lint
+      run: npm run lint
   build:
     timeout-minutes: 30
     strategy:
@@ -22,10 +38,8 @@ jobs:
     - name: preinstall
       run: npm run roll-stable
     - name: install
-      run: npm ci
+      run: npm i
     - name: build
       run: npm run build
-    - name: lint
-      run: npm run lint
     - name: test
       run: npm run test
