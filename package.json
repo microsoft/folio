@@ -41,11 +41,13 @@
     "@playwright/test-runner": "./stable-test-runner/node_modules/@playwright/test-runner",
     "@types/babel__core": "^7.1.9",
     "@types/micromatch": "^4.0.1",
+    "@types/xml2js": "^0.4.5",
     "@typescript-eslint/eslint-plugin": "^4.2.0",
     "@typescript-eslint/parser": "^4.2.0",
     "eslint": "^7.8.1",
     "eslint-plugin-notice": "^0.9.10",
-    "typescript": "^4.0.2"
+    "typescript": "^4.0.2",
+    "xml2js": "^0.4.23"
   },
   "license": "Apache-2.0",
   "author": {

@@ -21,6 +21,7 @@ import * as path from 'path';
 import { Reporter, EmptyReporter } from './reporter';
 import DotReporter from './reporters/dot';
 import JSONReporter from './reporters/json';
+import JUnitReporter from './reporters/junit';
 import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
 import { Multiplexer } from './reporters/multiplexer';
@@ -30,6 +31,7 @@ import { ParameterRegistration } from './fixtures';
 export const reporters = {
   'dot': DotReporter,
   'json': JSONReporter,
+  'junit': JUnitReporter,
   'line': LineReporter,
   'list': ListReporter,
   'null': EmptyReporter,

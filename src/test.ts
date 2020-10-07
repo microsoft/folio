@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Parameters, TestStatus } from './ipc';
-export { Parameters, TestStatus } from './ipc';
+import { Parameters, TestError, TestStatus } from './ipc';
+export { Parameters, TestStatus, TestError } from './ipc';
 import type { FixturesImpl } from './spec';
 
 class Base {
@@ -198,7 +198,7 @@ export type TestResult = {
   workerIndex: number,
   duration: number;
   status?: TestStatus;
-  error?: any;
+  error?: TestError;
   stdout: (string | Buffer)[];
   stderr: (string | Buffer)[];
   data: any;

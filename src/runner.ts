@@ -31,7 +31,7 @@ import { Suite } from './test';
 import { rootFixtures } from './spec';
 export { Reporter } from './reporter';
 export { Config } from './config';
-export { Test, TestResult, Suite, TestStatus } from './test';
+export { Test, TestResult, Suite, TestStatus, TestError } from './test';
 
 const removeFolderAsync = promisify(rimraf);
 

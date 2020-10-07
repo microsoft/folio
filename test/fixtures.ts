@@ -53,7 +53,7 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
     env: {
       ...process.env,
       PW_OUTPUT_DIR: outputDir,
-      PWRUNNER_JSON_REPORT: reportFile,
+      PTR_JSON_OUTPUT_NAME: reportFile,
     },
     cwd: baseDir
   });
