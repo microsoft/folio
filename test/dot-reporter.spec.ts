@@ -25,7 +25,7 @@ it('render expected', async ({ runInlineTest }) => {
         expect(1).toBe(1);
       });
     `,
-  }, { retries: 3 });
+  });
   expect(result.output).toContain(colors.green('·'));
   expect(result.exitCode).toBe(0);
 });

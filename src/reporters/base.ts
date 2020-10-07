@@ -20,11 +20,13 @@ import fs from 'fs';
 import milliseconds from 'ms';
 import path from 'path';
 import StackUtils from 'stack-utils';
-import { TestStatus } from '../ipc';
+import { TestError, TestStatus } from '../ipc';
 import { Reporter, Config } from '../runner';
-import { Test, Suite, TestResult, Parameters, Spec } from '../test';
+import { Test, Suite, TestResult, Parameters } from '../test';
 
 const stackUtils = new StackUtils();
+
+export const ENV_PREFIX = 'PTR';
 
 export class BaseReporter implements Reporter  {
   duration = 0;
@@ -63,7 +65,7 @@ export class BaseReporter implements Reporter  {
     this.fileDurations.set(spec.file, duration);
   }
 
-  onError(error: any, file?: string) {
+  onError(error: TestError, file?: string) {
     console.log(formatError(error, file));
   }
 
@@ -132,49 +134,8 @@ export class BaseReporter implements Reporter  {
 
   private _printFailures(failures: Test[]) {
     failures.forEach((test, index) => {
-      console.log(this.formatFailure(test, index + 1));
+      console.log(formatFailure(this.config, test, index + 1));
     });
-  }
-
-  formatFailure(test: Test, index?: number): string {
-    const tokens: string[] = [];
-    tokens.push(this._formatTestHeader(test, index));
-    for (const result of test.results) {
-      if (result.status === 'passed')
-        continue;
-      tokens.push(this._formatResult(test, result));
-    }
-    tokens.push('');
-    return tokens.join('\n');
-  }
-
-  private _formatTestHeader(test: Test, index?: number): string {
-    const tokens: string[] = [];
-    const spec = test.spec;
-    let relativePath = path.relative(this.config.testDir, spec.file) || path.basename(spec.file);
-    if (spec.location.includes(spec.file))
-      relativePath += spec.location.substring(spec.file.length);
-    const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
-    const header = `  ${index ? index + ')' : ''} ${relativePath} › ${spec.fullTitle()}${passedUnexpectedlySuffix}`;
-    tokens.push(colors.bold(colors.red(pad(header, '='))));
-
-    // Print parameters.
-    if (Object.keys(test.parameters).length)
-      tokens.push('    ' + ' '.repeat(String(index).length) + colors.gray(serializeParameters(test.parameters)));
-    return tokens.join('\n');
-  }
-
-  private _formatResult(test: Test, result: TestResult): string {
-    const tokens: string[] = [];
-    if (result.retry)
-      tokens.push(colors.gray(pad(`\n    Retry #${result.retry}`, '-')));
-    if (result.status === 'timedOut') {
-      tokens.push('');
-      tokens.push(indent(colors.red(`Timeout of ${test.timeout}ms exceeded.`), '    '));
-    } else {
-      tokens.push(indent(formatError(result.error, test.spec.file), '    '));
-    }
-    return tokens.join('\n');
   }
 
   hasResultWithStatus(test: Test, status: TestStatus): boolean {
@@ -186,7 +147,48 @@ export class BaseReporter implements Reporter  {
   }
 }
 
-function formatError(error: any, file?: string) {
+export function formatFailure(config: Config, test: Test, index?: number): string {
+  const tokens: string[] = [];
+  tokens.push(formatTestHeader(config, test, index));
+  for (const result of test.results) {
+    if (result.status === 'passed')
+      continue;
+    tokens.push(formatResult(test, result));
+  }
+  tokens.push('');
+  return tokens.join('\n');
+}
+
+function formatTestHeader(config: Config, test: Test, index?: number): string {
+  const tokens: string[] = [];
+  const spec = test.spec;
+  let relativePath = path.relative(config.testDir, spec.file) || path.basename(spec.file);
+  if (spec.location.includes(spec.file))
+    relativePath += spec.location.substring(spec.file.length);
+  const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
+  const header = `  ${index ? index + ')' : ''} ${relativePath} › ${spec.fullTitle()}${passedUnexpectedlySuffix}`;
+  tokens.push(colors.bold(colors.red(pad(header, '='))));
+
+  // Print parameters.
+  if (Object.keys(test.parameters).length)
+    tokens.push('    ' + ' '.repeat(String(index).length) + colors.gray(serializeParameters(test.parameters)));
+  return tokens.join('\n');
+}
+
+function formatResult(test: Test, result: TestResult): string {
+  const tokens: string[] = [];
+  if (result.retry)
+    tokens.push(colors.gray(pad(`\n    Retry #${result.retry}`, '-')));
+  if (result.status === 'timedOut') {
+    tokens.push('');
+    tokens.push(indent(colors.red(`Timeout of ${test.timeout}ms exceeded.`), '    '));
+  } else {
+    tokens.push(indent(formatError(result.error, test.spec.file), '    '));
+  }
+  return tokens.join('\n');
+}
+
+function formatError(error: TestError, file?: string) {
   const stack = error.stack;
   const tokens = [];
   if (stack) {
@@ -208,7 +210,7 @@ function formatError(error: any, file?: string) {
     tokens.push(colors.dim(stack.substring(preamble.length + 1)));
   } else {
     tokens.push('');
-    tokens.push(String(error));
+    tokens.push(error.value);
   }
   return tokens.join('\n');
 }
@@ -244,4 +246,9 @@ function serializeParameters(parameters: Parameters): string {
 function monotonicTime(): number {
   const [seconds, nanoseconds] = process.hrtime();
   return seconds * 1000 + (nanoseconds / 1000000 | 0);
+}
+
+const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
+export function stripAscii(str: string): string {
+  return str.replace(asciiRegex, '');
 }

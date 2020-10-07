@@ -15,7 +15,7 @@
  */
 
 import { Config } from './config';
-import { Test, Suite, TestResult } from './test';
+import { Test, Suite, TestResult, TestError } from './test';
 
 export interface Reporter {
   onBegin(config: Config, suite: Suite): void;
@@ -24,7 +24,7 @@ export interface Reporter {
   onStdErr(chunk: string | Buffer, test?: Test): void;
   onTestEnd(test: Test, result: TestResult): void;
   onTimeout(timeout: number): void;
-  onError(error: any, file?: string): void;
+  onError(error: TestError, file?: string): void;
   onEnd(): void;
 }
 

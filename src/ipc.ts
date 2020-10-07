@@ -23,11 +23,17 @@ export type TestBeginPayload = {
   workerIndex: number,
 };
 
+export type TestError = {
+  message?: string;
+  stack?: string;
+  value?: string;
+}
+
 export type TestEndPayload = {
   testId: string;
   duration: number;
   status?: TestStatus;
-  error?: any;
+  error?: TestError;
   data: any;
 };
 

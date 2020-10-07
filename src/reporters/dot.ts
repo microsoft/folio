@@ -43,7 +43,7 @@ class DotReporter extends BaseReporter {
     }
   }
 
-  onTimeout(timeout) {
+  onTimeout(timeout: number) {
     super.onTimeout(timeout);
     this.onEnd();
   }

@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-import * as path from 'path';
+import path from 'path';
+import util from 'util';
 import StackUtils from 'stack-utils';
+import { TestError } from './ipc';
 
 const stackUtils = new StackUtils();
 
@@ -53,28 +55,16 @@ export async function raceAgainstDeadline<T>(promise: Promise<T>, deadline: numb
   return result;
 }
 
-export function serializeError(error: Error | any): any {
+export function serializeError(error: Error | any): TestError {
   if (error instanceof Error) {
     return {
       message: error.message,
       stack: error.stack
     };
   }
-  return trimCycles(error);
-}
-
-function trimCycles(obj: any): any {
-  const cache = new Set();
-  return JSON.parse(
-      JSON.stringify(obj, function(key, value) {
-        if (typeof value === 'object' && value !== null) {
-          if (cache.has(value))
-            return '' + value;
-          cache.add(value);
-        }
-        return value;
-      })
-  );
+  return {
+    value: util.inspect(error)
+  };
 }
 
 export function extractLocation(error: Error): string {
