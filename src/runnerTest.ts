@@ -51,6 +51,7 @@ export class RunnerTest extends Test {
   _parametersString: string;
   _workerHash: string;
   _id: string;
+  _repeatEachIndex: number;
 
   constructor(spec: RunnerSpec) {
     super(spec);

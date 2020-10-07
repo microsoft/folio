@@ -91,7 +91,8 @@ export class Dispatcher {
       const testsByWorkerHash = new Map<string, {
         tests: RunnerTest[],
         parameters: Parameters,
-        parametersString: string
+        parametersString: string,
+        repeatEachIndex: number,
       }>();
       for (const spec of suite._allSpecs()) {
         for (const test of spec.tests as RunnerTest[]) {
@@ -100,7 +101,8 @@ export class Dispatcher {
             entry = {
               tests: [],
               parameters: test.parameters,
-              parametersString: test._parametersString
+              parametersString: test._parametersString,
+              repeatEachIndex: test._repeatEachIndex,
             };
             testsByWorkerHash.set(test._workerHash, entry);
           }
@@ -124,6 +126,7 @@ export class Dispatcher {
           file: suite.file,
           parameters: entry.parameters,
           parametersString: entry.parametersString,
+          repeatEachIndex: entry.repeatEachIndex,
           hash,
         });
       }

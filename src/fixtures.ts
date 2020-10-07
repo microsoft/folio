@@ -48,6 +48,7 @@ export type TestInfo = {
   // Parameters
   parameters: Parameters;
   workerIndex: number;
+  repeatEachIndex: number;
   retry: number;
 
   // Modifiers

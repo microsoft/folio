@@ -40,6 +40,7 @@ export class WorkerRunner extends EventEmitter {
   private _loaded = false;
   private _parametersString: string;
   private _workerIndex: number;
+  private _repeatEachIndex: number;
 
   constructor(runPayload: RunPayload, config: Config, workerIndex: number) {
     super();
@@ -47,6 +48,7 @@ export class WorkerRunner extends EventEmitter {
     this._suite = new WorkerSuite('');
     this._suite.file = runPayload.file;
     this._workerIndex = workerIndex;
+    this._repeatEachIndex = runPayload.repeatEachIndex;
     this._parametersString = runPayload.parametersString;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
@@ -134,6 +136,7 @@ export class WorkerRunner extends EventEmitter {
       location: test.location,
       fn: test.fn,
       parameters,
+      repeatEachIndex: this._repeatEachIndex,
       workerIndex: this._workerIndex,
       deadline,
       retry,
@@ -199,8 +202,8 @@ export class WorkerRunner extends EventEmitter {
         // Run internal fixtures to resolve artifacts and output paths
         const parametersPathSegment = (await fixturePool.setupFixture('testParametersPathSegment')).value;
         testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, parametersPathSegment);
-        testInfo.outputPath = outputPath(testInfo.relativeArtifactsPath);
-        testInfo.snapshotPath = snapshotPath(testInfo.relativeArtifactsPath);
+        testInfo.outputPath = outputPath(testInfo);
+        testInfo.snapshotPath = snapshotPath(testInfo);
         await fixturePool.resolveParametersAndRunHookOrTest(test.fn);
         testInfo.status = 'passed';
       }
@@ -302,20 +305,22 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
 
 function relativeArtifactsPath(testInfo: TestInfo, parametersPathSegment: string) {
   const relativePath = path.relative(config.testDir, testInfo.file.replace(/\.(spec|test)\.(js|ts)/, ''));
-  const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-') + (testInfo.retry ? '-retry' + testInfo.retry : '');
+  const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-');
   return path.join(relativePath, sanitizedTitle, parametersPathSegment);
 }
 
-function outputPath(relativeArtifactsPath: string): (...pathSegments: string[]) => string {
-  const basePath = path.join(config.outputDir, relativeArtifactsPath);
+function outputPath(testInfo: TestInfo): (...pathSegments: string[]) => string {
+  const retrySuffix = testInfo.retry ? '-retry' + testInfo.retry : '';
+  const repeatEachSuffix = testInfo.repeatEachIndex ? '-repeat' + testInfo.repeatEachIndex : '';
+  const basePath = path.join(config.outputDir, testInfo.relativeArtifactsPath) + retrySuffix + repeatEachSuffix;
   return (...pathSegments: string[]): string => {
     fs.mkdirSync(basePath, { recursive: true });
     return path.join(basePath, ...pathSegments);
   };
 }
 
-function snapshotPath(relativeArtifactsPath: string): (...pathSegments: string[]) => string {
-  const basePath = path.join(config.testDir, config.snapshotDir, relativeArtifactsPath);
+function snapshotPath(testInfo: TestInfo): (...pathSegments: string[]) => string {
+  const basePath = path.join(config.testDir, config.snapshotDir, testInfo.relativeArtifactsPath);
   return (...pathSegments: string[]): string => {
     return path.join(basePath, ...pathSegments);
   };

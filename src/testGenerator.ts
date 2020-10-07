@@ -94,6 +94,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
 
           test._parametersString = parametersString;
           test._workerHash = workerHash;
+          test._repeatEachIndex = i;
           spec.tests.push(test);
         }
       }
