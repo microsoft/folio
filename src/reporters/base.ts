@@ -214,7 +214,7 @@ function formatError(error: any, file?: string) {
 }
 
 function pad(line: string, char: string): string {
-  return line + ' ' + colors.gray(char.repeat(100 - line.length - 1));
+  return line + ' ' + colors.gray(char.repeat(Math.max(0, 100 - line.length - 1)));
 }
 
 function indent(lines: string, tab: string) {
