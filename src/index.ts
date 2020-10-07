@@ -56,6 +56,7 @@ class FixturesImpl<WorkerParameters, WorkerFixtures, TestFixtures> {
   it: It<WorkerParameters, WorkerFixtures, TestFixtures> = spec.it;
   fit: Fit<WorkerParameters, WorkerFixtures, TestFixtures> = spec.it.only;
   xit: Xit<WorkerParameters, WorkerFixtures, TestFixtures> = spec.it.skip;
+  test: It<WorkerParameters, WorkerFixtures, TestFixtures> = spec.it;
   describe: Describe<WorkerParameters> = spec.describe;
   fdescribe: FDescribe<WorkerParameters> = spec.describe.only;
   xdescribe: XDescribe<WorkerParameters> = spec.describe.skip;
