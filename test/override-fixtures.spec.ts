@@ -75,3 +75,70 @@ it('should respect require order', async ({ runInlineFixturesTest }) => {
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(5);
 });
+
+it('should respect override order 2', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'fixture.js': `
+      module.exports = baseFixtures.defineWorkerFixtures({
+        fixture: ({}, runTest) => runTest('base')
+      });
+    `,
+    'override1.js': `
+      module.exports = fixtures => fixtures.overrideWorkerFixtures({
+        fixture: ({}, runTest) => runTest('override1')
+      });
+    `,
+    'override2.js': `
+      module.exports = fixtures => fixtures.overrideWorkerFixtures({
+        fixture: ({}, runTest) => runTest('override2')
+      });
+    `,
+    'a.test.js': `
+      const base = require('./fixture.js');
+      const wrap1 = require('./override1.js');
+      const wrap2 = require('./override2.js');
+      const { it } = wrap2(wrap1(base));
+      it('should pass', ({fixture}) => {
+        expect(fixture).toBe('override2');
+      });
+    `,
+    'b.test.js': `
+      const base = require('./fixture.js');
+      const wrap1 = require('./override1.js');
+      const wrap2 = require('./override2.js');
+      const { it } = wrap1(wrap2(base));
+      it('should pass', ({fixture}) => {
+        expect(fixture).toBe('override1');
+      });
+    `,
+    'c.test.js': `
+      const base = require('./fixture.js');
+      const wrap1 = require('./override1.js');
+      const wrap2 = require('./override2.js');
+      const { it } = base;
+      it('should pass', ({fixture}) => {
+        expect(fixture).toBe('base');
+      });
+    `,
+    'd.test.js': `
+      const base = require('./fixture.js');
+      const wrap1 = require('./override1.js');
+      const wrap2 = require('./override2.js');
+      const { it } = wrap1(base);
+      it('should pass', ({fixture}) => {
+        expect(fixture).toBe('override1');
+      });
+    `,
+    'e.test.js': `
+      const base = require('./fixture.js');
+      const wrap1 = require('./override1.js');
+      const wrap2 = require('./override2.js');
+      const { it } = wrap2(base);
+      it('should pass', ({fixture}) => {
+        expect(fixture).toBe('override2');
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(5);
+});

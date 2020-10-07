@@ -17,7 +17,7 @@
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { installTransform } from './transform';
 import { extractLocation } from './util';
-import { setImplementation } from './spec';
+import { FixturesImpl, setImplementation } from './spec';
 import { TestModifier } from './testModifier';
 
 let currentRunSuites: WorkerSuite[];
@@ -26,17 +26,17 @@ export function workerSpec(suite: WorkerSuite): () => void {
   const suites = [suite];
   currentRunSuites = suites;
 
-  const it = (spec: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const it = (spec: 'default' | 'skip' | 'only', fixtures: FixturesImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     fn = fn || modifierFn;
-    const test = new WorkerSpec(title, fn, suites[0]);
+    const test = new WorkerSpec(fixtures, title, fn, suites[0]);
     test.file = suite.file;
     test.location = extractLocation(new Error());
     return test;
   };
 
-  const describe = (spec: 'describe' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const describe = (spec: 'default' | 'skip' | 'only', fixtures: FixturesImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     fn = fn || modifierFn;
-    const child = new WorkerSuite(title, suites[0]);
+    const child = new WorkerSuite(fixtures, title, suites[0]);
     child.file = suite.file;
     child.location = extractLocation(new Error());
     suites.unshift(child);
@@ -47,10 +47,10 @@ export function workerSpec(suite: WorkerSuite): () => void {
   setImplementation({
     it,
     describe,
-    beforeEach: fn => currentRunSuites[0]._addHook('beforeEach', fn),
-    afterEach: fn => currentRunSuites[0]._addHook('afterEach', fn),
-    beforeAll: fn => currentRunSuites[0]._addHook('beforeAll', fn),
-    afterAll: fn => currentRunSuites[0]._addHook('afterAll', fn),
+    beforeEach: (fixtures, fn) => currentRunSuites[0]._addHook('beforeEach', fn),
+    afterEach: (fixtures, fn) => currentRunSuites[0]._addHook('afterEach', fn),
+    beforeAll: (fixtures, fn) => currentRunSuites[0]._addHook('beforeAll', fn),
+    afterAll: (fixtures, fn) => currentRunSuites[0]._addHook('afterAll', fn),
   });
 
   return installTransform();

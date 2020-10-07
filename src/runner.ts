@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues, validateRegistrations, validateFixturesForFunction } from './fixtures';
+import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
@@ -28,6 +28,7 @@ import { RunnerSuite } from './runnerTest';
 import { runnerSpec } from './runnerSpec';
 import { debugLog } from './debug';
 import { Suite } from './test';
+import { rootFixtures } from './spec';
 export { Reporter } from './reporter';
 export { Config } from './config';
 export { Test, TestResult, Suite, TestStatus } from './test';
@@ -51,16 +52,11 @@ export class Runner {
     debugLog(`loadFiles`, files);
     // First traverse tests.
     for (const file of files) {
-      const suite = new RunnerSuite('');
+      const suite = new RunnerSuite(rootFixtures, '');
       suite.file = file;
-      const revertBabelRequire = runnerSpec(suite, config.timeout, file);
+      const revertBabelRequire = runnerSpec(suite, config.timeout);
       try {
         require(file);
-        validateRegistrations(file);
-        suite.findSuite(s => {
-          for (const hook of (s as RunnerSuite)._hooks)
-            validateFixturesForFunction(hook.fn, hook.stack, hook.type + ' hook', hook.type === 'beforeEach' || hook.type === 'afterEach');
-        });
         this._suites.push(suite);
       } catch (error) {
         this._reporter.onError(serializeError(error), file);

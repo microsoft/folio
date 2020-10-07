@@ -14,25 +14,16 @@
  * limitations under the License.
  */
 
-import crypto from 'crypto';
 import { Config } from './config';
-import { callerFile } from './util';
 import { TestStatus, Parameters } from './test';
 import { debugLog } from './debug';
 
 type Scope = 'test' | 'worker';
 
-export type FixtureDefinitionOptions = {
-  auto?: boolean;
-};
-
 type FixtureRegistration = {
-  id: number;
   name: string;
   scope: Scope;
   fn: Function;
-  file: string;
-  stack: string;
   auto: boolean;
   isOverride: boolean;
   deps: string[];
@@ -79,25 +70,23 @@ export function currentTestInfo(): TestInfo | null {
   return currentTestInfoValue;
 }
 
-export const registrations = new Map<string, FixtureRegistration>();
-const registrationsByFile = new Map<string, FixtureRegistration[]>();
-let registrationCount = 0;
-
-export let parameters: any = {};
-
 export type ParameterRegistration = {
   name: string;
   description: string;
   defaultValue: string | number | boolean;
 };
-
 export const parameterRegistrations = new Map<string, ParameterRegistration>();
-
+export let parameters: Parameters = {};
 export function assignParameters(params: any) {
   parameters = Object.assign(parameters, params);
 }
 
-export const matrix: any = {};
+export const matrix: { [name: string]: any } = {};
+export function setParameterValues(name: string, values: any[]) {
+  if (!(name in matrix))
+    throw new Error(`Unregistered parameter '${name}' was set.`);
+  matrix[name] = values;
+}
 
 export let config: Config = {} as any;
 export function assignConfig(c: Config) {
@@ -121,6 +110,8 @@ class Fixture {
     this.usages = new Set();
     this.hasGeneratorValue = registration.name in parameters;
     this.value = this.hasGeneratorValue ? parameters[registration.name] : null;
+    if (this.hasGeneratorValue && this.registration.deps.length)
+      throw new Error(`Parameter fixture "${this.registration.name}" should not have dependencies`);
   }
 
   async setup() {
@@ -177,10 +168,120 @@ class Fixture {
   }
 }
 
+type VisitMarker = 'visiting' | 'visited';
+let lastFixturePoolId = 0;
+
 export class FixturePool {
-  instances: Map<string, Fixture>;
-  constructor() {
-    this.instances = new Map();
+  id: number;
+  parentPool: FixturePool | undefined;
+  instances = new Map<string, Fixture>();
+  registrations: Map<string, FixtureRegistration>;
+
+  constructor(parentPool: FixturePool | undefined) {
+    this.parentPool = parentPool;
+    this.id = ++lastFixturePoolId;
+    this.registrations = new Map(parentPool ? parentPool.registrations : []);
+  }
+
+  union(other: FixturePool): FixturePool {
+    const result = new FixturePool(this);
+    for (const [name, registration] of other.registrations) {
+      const found = this.registrations.get(name);
+      if (!found)
+        result.registrations.set(name, registration);
+      else if (found !== registration)
+        throw new Error(`Fixture "${name}" is defined in both fixture sets.`);
+    }
+    return result;
+  }
+
+  registerFixture(name: string, scope: Scope, fn: Function, auto: boolean, isOverride: boolean) {
+    const previous = this.registrations.get(name);
+    if (!isOverride && previous) {
+      if (previous.scope !== scope)
+        throw new Error(`Fixture "${name}" has already been registered as a ${previous.scope} fixture. Use a different name for this ${scope} fixture.`);
+      else
+        throw new Error(`Fixture "${name}" has already been registered. Use ${scope === 'test' ? 'overrideTestFixtures' : 'overrideWorkerFixtures'} to override it in a specific test file.`);
+    } else if (isOverride && !previous) {
+      throw new Error(`Fixture "${name}" has not been registered yet. Use ${scope === 'test' ? 'defineTestFixtures' : 'defineWorkerFixtures'} instead.`);
+    } else if (isOverride && previous && previous.scope !== scope) {
+      throw new Error(`Fixture "${name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixtures' : 'overrideWorkerFixtures'} instead.`);
+    }
+
+    const deps = fixtureParameterNames(fn);
+    const registration: FixtureRegistration = { name, scope, fn, auto, isOverride, deps };
+    this.registrations.set(name, registration);
+  }
+
+  registerWorkerParameter(parameter: ParameterRegistration) {
+    if (parameterRegistrations.has(parameter.name))
+      throw new Error(`Parameter "${parameter.name}" has been already registered`);
+    parameterRegistrations.set(parameter.name, parameter);
+    matrix[parameter.name] = [parameter.defaultValue];
+  }
+
+  checkCycles() {
+    const markers = new Map<FixtureRegistration, VisitMarker>();
+    const stack: FixtureRegistration[] = [];
+    const visit = (registration: FixtureRegistration): string | undefined => {
+      markers.set(registration, 'visiting');
+      stack.push(registration);
+      const deps = fixtureParameterNames(registration.fn);
+      for (const name of deps) {
+        const dep = this.registrations.get(name);
+        if (!dep)
+          return `Fixture "${registration.name}" has unknown parameter "${name}".`;
+        if (registration.scope === 'worker' && dep.scope === 'test')
+          return `Worker fixture "${registration.name}" cannot depend on a test fixture "${name}".`;
+        if (!markers.has(dep)) {
+          const error = visit(dep);
+          if (error)
+            return error;
+        } else if (markers.get(dep) === 'visiting') {
+          const index = stack.indexOf(dep);
+          const names = stack.slice(index, stack.length).map(r => `"${r.name}"`);
+          return `Fixtures ${names.join(' -> ')} -> "${dep.name}" form a dependency cycle.`;
+        }
+      }
+      markers.set(registration, 'visited');
+      stack.pop();
+    };
+    for (const registration of this.registrations.values()) {
+      const error = visit(registration);
+      if (error)
+        throw new Error(error);
+    }
+  }
+
+  parametersForFunction(fn: Function, prefix: string, allowTestFixtures: boolean): string[] {
+    const result: string[] = [];
+    const visit = (name: string, prefix: string): string | undefined => {
+      const registration = this.registrations.get(name);
+      if (!registration)
+        return `${prefix} has unknown parameter "${name}".`;
+      if (!allowTestFixtures && registration.scope === 'test')
+        return `${prefix} cannot depend on a test fixture "${name}".`;
+      if (parameterRegistrations.has(name))
+        result.push(name);
+      for (const dep of registration.deps) {
+        const error = visit(dep, `Fixture "${name}"`);
+        if (error)
+          return error;
+      }
+    };
+    for (const name of fixtureParameterNames(fn)) {
+      const error = visit(name, prefix);
+      if (error)
+        throw new Error(error);
+    }
+    for (const registration of this.registrations.values()) {
+      if (registration.auto) {
+        const error = visit(registration.name, `Fixture "${registration.name}"`);
+        if (error)
+          throw new Error(error);
+      }
+    }
+    return result;
   }
 
   async setupFixture(name: string): Promise<Fixture> {
@@ -188,9 +289,9 @@ export class FixturePool {
     if (fixture)
       return fixture;
 
-    if (!registrations.has(name))
+    const registration = this.registrations.get(name);
+    if (!registration)
       throw new Error('Unknown fixture: ' + name);
-    const registration = registrations.get(name);
     fixture = new Fixture(this, registration);
     this.instances.set(name, fixture);
     await fixture.setup();
@@ -206,7 +307,7 @@ export class FixturePool {
 
   async resolveParametersAndRunHookOrTest(fn: Function) {
     // Install all automatic fixtures.
-    for (const registration of registrations.values()) {
+    for (const registration of this.registrations.values()) {
       if (registration.auto)
         await this.setupFixture(registration.name);
     }
@@ -220,35 +321,6 @@ export class FixturePool {
       params[n] = this.instances.get(n).value;
     return fn(params);
   }
-}
-
-export function fixturesForCallback(callback: Function): string[] {
-  const names = new Set<string>();
-  const visit  = (callback: Function) => {
-    for (const name of fixtureParameterNames(callback)) {
-      if (name in names)
-        continue;
-      names.add(name);
-      if (!registrations.has(name))
-        throw new Error('Using undefined fixture ' + name);
-
-      const { fn } = registrations.get(name);
-      visit(fn);
-    }
-  };
-
-  // Account for automatic fixtures.
-  for (const registration of registrations.values()) {
-    if (registration.auto) {
-      names.add(registration.name);
-      visit(registration.fn);
-    }
-  }
-
-  visit(callback);
-  const result = [...names];
-  result.sort();
-  return result;
 }
 
 const signatureSymbol = Symbol('signature');
@@ -268,138 +340,9 @@ function innerFixtureParameterNames(fn: Function): string[] {
   if (!trimmedParams)
     return [];
   if (trimmedParams && trimmedParams[0] !== '{')
-    throw new Error('First argument must use the object destructuring pattern.'  + trimmedParams);
+    throw new Error('First argument must use the object destructuring pattern: '  + trimmedParams);
   const signature = trimmedParams.substring(1).trim();
   if (!signature)
     return [];
   return signature.split(',').map((t: string) => t.trim().split(':')[0].trim());
-}
-
-function innerRegisterFixture(name: string, scope: Scope, fn: Function, options: FixtureDefinitionOptions, isOverride: boolean) {
-  const file = callerFile(innerRegisterFixture, 3);
-  const obj = { stack: '' };
-  Error.captureStackTrace(obj);
-  const stack = obj.stack.substring('Error:\n'.length);
-  const deps = fixtureParameterNames(fn);
-  const registration: FixtureRegistration = { id: registrationCount++, name, scope, fn, file, stack, auto: options.auto, isOverride, deps };
-  if (!registrationsByFile.has(file))
-    registrationsByFile.set(file, []);
-  registrationsByFile.get(file).push(registration);
-}
-
-export function registerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions, isOverride: boolean) {
-  innerRegisterFixture(name, 'test', fn, options, isOverride);
-}
-
-export function registerWorkerFixture(name: string, fn: (params: any, runTest: (arg: any) => Promise<void>) => Promise<void>, options: FixtureDefinitionOptions, isOverride: boolean) {
-  innerRegisterFixture(name, 'worker', fn, options, isOverride);
-}
-
-export function registerWorkerParameter(parameter: ParameterRegistration) {
-  parameterRegistrations.set(parameter.name, parameter);
-}
-
-export function setParameterValues(name: string, values: any[]) {
-  if (!parameterRegistrations.has(name))
-    throw new Error(`Unregistered parameter '${name}' was set.`);
-  matrix[name] = values;
-}
-
-function topSortRequires(file: string): string[] {
-  const visited = new Set<string>();
-  const result: string[] = [];
-  const visit = (file: string) => {
-    file = require.resolve(file);
-    if (visited.has(file))
-      return;
-    visited.add(file);
-    const cache = require.cache[file];
-    const deps = cache ? cache.children.map((m: { id: any; }) => m.id) : [];
-    for (const dep of deps)
-      visit(dep);
-    result.push(file);
-  };
-  visit(file);
-  return result;
-}
-
-function lookupRegistrations(file: string): FixtureRegistration[] {
-  const deps = topSortRequires(file);
-  const result = [];
-  for (const dep of deps) {
-    const registrationList = registrationsByFile.get(dep) || [];
-    result.push(...registrationList);
-  }
-  return result;
-}
-
-function errorWithStack(stack: string, message: string): Error {
-  const e = new Error(message);
-  e.stack = 'Error: ' + message + stack;
-  return e;
-}
-
-type VisitMarker = 'visiting' | 'visited';
-export function validateRegistrations(file: string): string {
-  // When we are running several tests in the same worker, we should cherry pick
-  // registrations specific to each file. That way we erase potential fixtures
-  // from previous test files.
-  registrations.clear();
-  const hash = crypto.createHash('sha1');
-  const list = lookupRegistrations(file);
-
-  for (const registration of list) {
-    const previous = registrations.get(registration.name);
-    if (!registration.isOverride && previous) {
-      if (previous.scope !== registration.scope)
-        throw errorWithStack(registration.stack, `Fixture "${registration.name}" has already been registered as a ${previous.scope} fixture. Use a different name for this ${registration.scope} fixture.`);
-      else
-        throw errorWithStack(registration.stack, `Fixture "${registration.name}" has already been registered. Use ${registration.scope === 'test' ? 'overrideTestFixtures' : 'overrideWorkerFixtures'} to override it in a specific test file.`);
-    } else if (registration.isOverride && !previous) {
-      throw errorWithStack(registration.stack, `Fixture "${registration.name}" has not been registered yet. Use ${registration.scope === 'test' ? 'defineTestFixtures' : 'defineWorkerFixtures'} instead.`);
-    } else if (registration.isOverride && previous && previous.scope !== registration.scope) {
-      throw errorWithStack(registration.stack, `Fixture "${registration.name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixtures' : 'overrideWorkerFixtures'} instead.`);
-    }
-    registrations.set(registration.name, registration);
-    if (registration.scope === 'worker')
-      hash.update('#' + registration.id);
-  }
-
-  const markers = new Map<FixtureRegistration, VisitMarker>();
-  const stack: FixtureRegistration[] = [];
-  const visit = (registration: FixtureRegistration) => {
-    markers.set(registration, 'visiting');
-    stack.push(registration);
-    const deps = fixtureParameterNames(registration.fn);
-    for (const name of deps) {
-      const dep = registrations.get(name);
-      if (!dep)
-        throw errorWithStack(registration.stack, `Fixture "${registration.name}" has unknown parameter "${name}".`);
-      if (registration.scope === 'worker' && dep.scope === 'test')
-        throw errorWithStack(registration.stack, `Worker fixture "${registration.name}" cannot depend on a test fixture "${name}".`);
-      if (!markers.has(dep)) {
-        visit(dep);
-      } else if (markers.get(dep) === 'visiting') {
-        const index = stack.indexOf(dep);
-        const names = stack.slice(index, stack.length).map(r => `"${r.name}"`);
-        throw errorWithStack(registration.stack, `Fixtures ${names.join(' -> ')} -> "${dep.name}" form a dependency cycle.`);
-      }
-    }
-    markers.set(registration, 'visited');
-    stack.pop();
-  };
-  for (const registration of registrations.values())
-    visit(registration);
-  return hash.digest('hex');
-}
-
-export function validateFixturesForFunction(fn: Function, stack: string, fnName: string, allowTestFixtures: boolean) {
-  const deps = fixtureParameterNames(fn);
-  for (const name of deps) {
-    const dep = registrations.get(name);
-    if (!dep)
-      throw errorWithStack(stack, `${fnName} has unknown parameter "${name}".`);
-    if (!allowTestFixtures && dep.scope === 'test')
-      throw errorWithStack(stack, `${fnName} cannot depend on a test fixture "${name}".`);
-  }
 }

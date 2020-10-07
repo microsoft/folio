@@ -16,7 +16,7 @@
 
 import type { Expect } from './expectType';
 import expectLibrary from 'expect';
-import { config, currentTestInfo } from '.';
+import { config, currentTestInfo } from './fixtures';
 import { compare } from './golden';
 
 export const expect: Expect = expectLibrary;

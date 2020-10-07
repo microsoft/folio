@@ -18,18 +18,10 @@ import { Spec, Suite } from './test';
 
 export class WorkerSpec extends Spec {
   _id: string;
-
-  constructor(title: string, fn: Function, suite: WorkerSuite) {
-    super(title, fn, suite);
-  }
 }
 
 export class WorkerSuite extends Suite {
   _hooks: { type: string, fn: Function } [] = [];
-
-  constructor(title: string, parent?: WorkerSuite) {
-    super(title, parent);
-  }
 
   _assignIds(parametersString: string) {
     this.findSpec((test: WorkerSpec) => {

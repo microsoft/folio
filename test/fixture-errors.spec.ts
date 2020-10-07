@@ -292,3 +292,67 @@ it('should detect fixture dependency cycle', async ({ runInlineFixturesTest }) =
   expect(result.report.errors[0].error.message).toContain('Fixtures "foo" -> "bar" -> "baz" -> "qux" -> "foo" form a dependency cycle.');
   expect(result.exitCode).toBe(1);
 });
+
+it('should throw when fixture is redefined in union', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const fixtures1 = baseFixtures.defineTestFixtures({
+        foo: async ({}, test) => await test(123)
+      });
+      const fixtures2 = baseFixtures.defineTestFixtures({
+        foo: async ({}, test) => await test(456)
+      });
+      const { it } = fixtures1.union(fixtures2);
+      it('test', async ({foo, bar}) => {
+        expect(foo).toBe(123);
+        expect(bar).toBe(456);
+      });
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('Fixture "foo" is defined in both fixture sets.');
+  expect(result.report.errors[0].error.stack).toContain('a.test.js:10');
+});
+
+it('should throw when mixing different fixture objects', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const fixtures1 = baseFixtures.defineTestFixtures({
+        foo: async ({}, test) => await test(123)
+      });
+      const fixtures2 = baseFixtures.defineTestFixtures({
+        bar: async ({}, test) => await test(456)
+      });
+      fixtures1.describe('suite', () => {
+        fixtures1.it('test 1', async ({foo}) => {
+          expect(foo).toBe(123);
+        });
+        fixtures2.it('test 2', async ({bar}) => {
+          expect(bar).toBe(456);
+        });
+      });
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('Mixing different fixture sets in the same suite.');
+  expect(result.report.errors[0].error.stack).toContain('a.test.js:14');
+});
+
+it('should not reuse fixtures from one file in another one', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it } = baseFixtures.defineTestFixtures({
+        foo: async ({}, runTest) => {
+          await runTest();
+        },
+      });
+      it('test1', async ({}) => {});
+    `,
+    'b.spec.ts': `
+      const { it } = baseFixtures;
+      it('test1', async ({}) => {});
+      it('test2', async ({foo}) => {});
+    `,
+  });
+  expect(result.report.errors[0].error.message).toBe('Test has unknown parameter "foo".');
+  expect(result.report.errors[0].error.stack).toContain('b.spec.ts:6');
+  expect(result.results.length).toBe(1);
+});
