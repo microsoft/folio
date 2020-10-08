@@ -184,13 +184,28 @@ export class FixturePool {
   }
 
   union(other: FixturePool): FixturePool {
+    const containsRegistrationRecursively = (pool: FixturePool, registration: FixtureRegistration): boolean => {
+      if (pool.registrations.get(registration.name) === registration)
+        return true;
+      if (!pool.parentPool)
+        return false;
+      return containsRegistrationRecursively(pool.parentPool, registration);
+    };
+
     const result = new FixturePool(this);
-    for (const [name, registration] of other.registrations) {
-      const found = this.registrations.get(name);
-      if (!found)
-        result.registrations.set(name, registration);
-      else if (found !== registration)
+    for (const [name, otherRegistration] of other.registrations) {
+      const thisRegistration = this.registrations.get(name);
+      if (!thisRegistration) {
+        result.registrations.set(name, otherRegistration);
+      } else if (containsRegistrationRecursively(this, otherRegistration)) {
+        // |this| contains an override - do nothing.
+      } else if (containsRegistrationRecursively(other, thisRegistration)) {
+        // |other| contains an override - use it.
+        result.registrations.set(name, otherRegistration);
+      } else {
+        // Both |this| and |other| have a different override - throw.
         throw new Error(`Fixture "${name}" is defined in both fixture sets.`);
+      }
     }
     return result;
   }
