@@ -142,3 +142,39 @@ it('should respect override order 2', async ({ runInlineFixturesTest }) => {
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(5);
 });
+
+it('should allow overrides in union', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'fixtures.js': `
+      const base = baseFixtures.defineTestFixtures({
+        foo: async ({}, runTest) => { await runTest('base') }
+      });
+      const fixtures1 = base.defineTestFixtures({
+        bar: async ({}, runTest) => { await runTest('bar') }
+      });
+      const fixtures2 = base.overrideTestFixtures({
+        foo: async ({}, runTest) => { await runTest('override') }
+      });
+      module.exports = { fixtures1, fixtures2 };
+    `,
+    'a.test.js': `
+      const { fixtures1, fixtures2 } = require('./fixtures.js');
+      fixtures1.union(fixtures2).it('test1', ({ foo, bar }) => {
+        expect(foo).toBe('override');
+        expect(bar).toBe('bar');
+      });
+      fixtures2.union(fixtures1).it('test2', ({ foo, bar }) => {
+        expect(foo).toBe('override');
+        expect(bar).toBe('bar');
+      });
+      fixtures2.union(fixtures1).overrideTestFixtures({
+        foo: async ({}, runTest) => { await runTest('local') }
+      }).it('test3', ({ foo, bar }) => {
+        expect(foo).toBe('local');
+        expect(bar).toBe('bar');
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(3);
+});
