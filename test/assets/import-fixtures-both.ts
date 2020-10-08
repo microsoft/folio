@@ -19,12 +19,12 @@ import { fixtures2 } from './export-2.fixtures';
 
 const fixtures = fixtures1.union(fixtures2);
 const { it, expect } = fixtures.overrideTestFixtures({
-  testWrap: async ({}, runTest) => {
-    await runTest('override');
+  testWrap: async function*() {
+    yield 'override';
   }
 }).overrideWorkerFixtures({
-  workerTypeOnly: async ({}, runTest) => {
-    await runTest(17);
+  workerTypeOnly: async function*() {
+    yield 17;
   }
 });
 
