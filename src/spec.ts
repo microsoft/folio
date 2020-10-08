@@ -163,4 +163,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
 export interface Fixtures<P, W, T> extends FixturesImpl<P, W, T> {
 }
 
+export type WorkerFixtures<F> = F extends Fixtures<infer P, infer W, infer T> ? P & W & T : never;
+export type TestFixtures<F> = F extends Fixtures<infer P, infer W, infer T> ? P & W & T : never;
+
 export const rootFixtures = new FixturesImpl(new FixturePool(undefined)) as Fixtures<{}, {}, {}>;
