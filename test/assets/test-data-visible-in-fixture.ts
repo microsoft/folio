@@ -17,8 +17,8 @@
 import { config, fixtures, TestInfo } from '../../';
 
 const { it, expect } = fixtures.defineTestFixtures<{ testInfoForward: TestInfo }>({
-  testInfoForward: async ({ testInfo }, runTest) => {
-    await runTest(testInfo);
+  testInfoForward: async function*({ testInfo }) {
+    yield testInfo;
     testInfo.data['myname'] = 'myvalue';
   },
 });

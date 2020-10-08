@@ -97,10 +97,9 @@ class Fixture {
   pool: FixturePool;
   registration: FixtureRegistration;
   usages: Set<string>;
-  hasGeneratorValue: boolean;
+  hasPredefinedValue: boolean;
   value: any;
-  _teardownFenceCallback: (value?: unknown) => void;
-  _tearDownComplete: Promise<void>;
+  _generator: AsyncGenerator<any>;
   _setup = false;
   _teardown = false;
 
@@ -108,14 +107,14 @@ class Fixture {
     this.pool = pool;
     this.registration = registration;
     this.usages = new Set();
-    this.hasGeneratorValue = registration.name in parameters;
-    this.value = this.hasGeneratorValue ? parameters[registration.name] : null;
-    if (this.hasGeneratorValue && this.registration.deps.length)
+    this.hasPredefinedValue = registration.name in parameters;
+    this.value = this.hasPredefinedValue ? parameters[registration.name] : null;
+    if (this.hasPredefinedValue && this.registration.deps.length)
       throw new Error(`Parameter fixture "${this.registration.name}" should not have dependencies`);
   }
 
   async setup() {
-    if (this.hasGeneratorValue)
+    if (this.hasPredefinedValue)
       return;
     for (const name of this.registration.deps) {
       await this.pool.setupFixture(name);
@@ -125,34 +124,23 @@ class Fixture {
     const params = {};
     for (const n of this.registration.deps)
       params[n] = this.pool.instances.get(n).value;
-    let setupFenceFulfill: { (): void; (value?: unknown): void; };
-    let setupFenceReject: { (arg0: any): any; (reason?: any): void; };
-    const setupFence = new Promise((f, r) => { setupFenceFulfill = f; setupFenceReject = r; });
-    const teardownFence = new Promise(f => this._teardownFenceCallback = f);
     debugLog(`setup fixture "${this.registration.name}"`);
-    this._tearDownComplete = this.registration.fn(params, async (value: any) => {
-      this.value = value;
-      setupFenceFulfill();
-      return await teardownFence;
-    }).catch((e: any) => {
-      if (!this._setup)
-        setupFenceReject(e);
-      else
-        throw e;
-
-    });
-    await setupFence;
+    this._generator = this.registration.fn(params);
+    const { done, value } = await this._generator.next();
+    if (done)
+      throw new Error(`Fixture "${this.registration.name}" did not yield the value`);
+    this.value = value;
     this._setup = true;
   }
 
   async teardown() {
-    if (this.hasGeneratorValue) {
-      this.pool.instances.delete(this.registration.name);
-      return;
-    }
     if (this._teardown)
       return;
     this._teardown = true;
+    if (this.hasPredefinedValue) {
+      this.pool.instances.delete(this.registration.name);
+      return;
+    }
     for (const name of this.usages) {
       const fixture = this.pool.instances.get(name);
       if (!fixture)
@@ -161,8 +149,9 @@ class Fixture {
     }
     if (this._setup) {
       debugLog(`teardown fixture "${this.registration.name}"`);
-      this._teardownFenceCallback();
-      await this._tearDownComplete;
+      const { done } = await this._generator.next();
+      if (!done)
+        throw new Error(`Fixture "${this.registration.name}" has yielded two values`);
     }
     this.pool.instances.delete(this.registration.name);
   }

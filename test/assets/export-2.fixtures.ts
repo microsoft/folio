@@ -24,11 +24,11 @@ type TypeOnlyWorkerState = {
 };
 
 export const fixtures2 = baseFixtures.defineTestFixtures<TypeOnlyTestState>({
-  testTypeOnly: async ({}, runTest) => {
-    await runTest('testTypeOnly');
+  testTypeOnly: async function*() {
+    yield 'testTypeOnly';
   }
 }).defineWorkerFixtures<TypeOnlyWorkerState>({
-  workerTypeOnly: async ({}, runTest) => {
-    await runTest(42);
+  workerTypeOnly: async function*() {
+    yield 42;
   }
 });

@@ -24,11 +24,11 @@ type WrapTestState = {
 };
 
 export const fixtures1 = baseFixtures.defineTestFixtures<WrapTestState>({
-  testWrap: async ({}, runTest) => {
-    await runTest('testWrap');
+  testWrap: async function*() {
+    yield 'testWrap';
   }
 }).defineWorkerFixtures<WrapWorkerState>({
-  workerWrap: async ({}, runTest) => {
-    await runTest(42);
+  workerWrap: async function*() {
+    yield 42;
   }
 });

@@ -171,9 +171,11 @@ it('tests respect automatic fixture parameters', async ({ runInlineFixturesTest 
     'a.test.js': `
       const { it } = baseFixtures
         .defineParameter('param', 'Some param', 'value')
-        .defineTestFixtures({ automaticTestFixture: async ({param}, runTest) => {
-          await runTest(param);
-        } });
+        .defineTestFixtures({
+          automaticTestFixture: async function*({ param }) {
+            yield param;
+          }
+        });
       it('test 1', async ({}) => {
         expect(1).toBe(1);
       });
