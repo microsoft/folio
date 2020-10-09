@@ -24,6 +24,7 @@ import { ENV_PREFIX } from './base';
 export interface SerializedSuite {
   title: string;
   file: string;
+  location: string,
   specs: ReturnType<JSONReporter['_serializeTestSpec']>[];
   suites?: SerializedSuite[];
 }
@@ -67,6 +68,7 @@ class JSONReporter extends EmptyReporter {
     return {
       title: suite.title,
       file: suite.file,
+      location: suite.location,
       specs: suite.specs.map(test => this._serializeTestSpec(test)),
       suites: suites.length ? suites : undefined,
     };
@@ -76,6 +78,7 @@ class JSONReporter extends EmptyReporter {
     return {
       title: spec.title,
       file: spec.file,
+      location: spec.location,
       tests: spec.tests.map(r => this._serializeTest(r))
     };
   }
