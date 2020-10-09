@@ -24,6 +24,7 @@ import { ENV_PREFIX } from './base';
 export interface SerializedSuite {
   title: string;
   file: string;
+  location: string,
   specs: ReturnType<JSONReporter['_serializeTestSpec']>[];
   suites?: SerializedSuite[];
 }
