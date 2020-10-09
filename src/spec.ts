@@ -151,7 +151,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
       description,
       defaultValue: defaultValue as any,
     });
-    result._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false, false);
+    result._pool.registerFixture(name as string, 'worker', async function*() { yield defaultValue; }, false, false);
     return result as any;
   }
 

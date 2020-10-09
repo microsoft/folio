@@ -184,3 +184,26 @@ it('tests respect automatic fixture parameters', async ({ runInlineFixturesTest 
   expect(result.exitCode).toBe(0);
   expect(result.report.suites[0].specs[0].tests[0].parameters).toEqual({ param: 'value' });
 });
+
+it('testParametersPathSegment does not throw in non-parametrized test', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const { it } = baseFixtures
+        .defineParameter('param', 'Some param', 'value')
+        .overrideTestFixtures({
+          testParametersPathSegment: async function*({ param }) {
+            yield param;
+          }
+        });
+      it('test 1', async ({}) => {
+        expect(1).toBe(1);
+      });
+      it('test 2', async ({param}) => {
+        expect(2).toBe(2);
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.report.suites[0].specs[0].tests[0].parameters).toEqual({});
+  expect(result.report.suites[0].specs[1].tests[0].parameters).toEqual({ param: 'value' });
+});
