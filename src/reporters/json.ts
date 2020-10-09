@@ -67,6 +67,7 @@ class JSONReporter extends EmptyReporter {
     return {
       title: suite.title,
       file: suite.file,
+      location: suite.location,
       specs: suite.specs.map(test => this._serializeTestSpec(test)),
       suites: suites.length ? suites : undefined,
     };
@@ -76,6 +77,7 @@ class JSONReporter extends EmptyReporter {
     return {
       title: spec.title,
       file: spec.file,
+      location: spec.location,
       tests: spec.tests.map(r => this._serializeTest(r))
     };
   }
