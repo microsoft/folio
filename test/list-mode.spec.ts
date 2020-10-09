@@ -81,7 +81,7 @@ it('should emit test annotations', async ({ runInlineTest }) => {
     `
   }, { 'list': true });
   expect(result.exitCode).toBe(0);
-  expect(result.report.suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fail', description: 'Fail annotation' }]);
+  expect(result.report.suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fail', description: 'Fail annotation', condition: true, }]);
 });
 
 it('should emit suite annotations', async ({ runInlineTest }) => {
@@ -97,5 +97,5 @@ it('should emit suite annotations', async ({ runInlineTest }) => {
     `
   }, { 'list': true });
   expect(result.exitCode).toBe(0);
-  expect(result.report.suites[0].suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fixme', description: 'Fix me!' }]);
+  expect(result.report.suites[0].suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fixme', description: 'Fix me!', condition: true }]);
 });
