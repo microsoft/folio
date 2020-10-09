@@ -40,11 +40,12 @@ export class TestModifier {
     if (processed.condition) {
       this._slow = true;
       this._timeout *= 3;
-      this._annotations.push({
-        type: 'slow',
-        description: processed.description
-      });
     }
+    this._annotations.push({
+      type: 'slow',
+      condition: processed.condition,
+      description: processed.description
+    });
   }
 
   skip(): void;
@@ -53,13 +54,13 @@ export class TestModifier {
   skip(condition: boolean, description: string): void;
   skip(arg?: boolean | string, description?: string) {
     const processed = this._interpretCondition(arg, description);
-    if (processed.condition) {
+    if (processed.condition)
       this._skipped = true;
-      this._annotations.push({
-        type: 'skip',
-        description: processed.description
-      });
-    }
+    this._annotations.push({
+      type: 'skip',
+      condition: processed.condition,
+      description: processed.description
+    });
   }
 
   fixme(): void;
@@ -68,13 +69,13 @@ export class TestModifier {
   fixme(condition: boolean, description: string): void;
   fixme(arg?: boolean | string, description?: string) {
     const processed = this._interpretCondition(arg, description);
-    if (processed.condition) {
+    if (processed.condition)
       this._skipped = true;
-      this._annotations.push({
-        type: 'fixme',
-        description: processed.description
-      });
-    }
+    this._annotations.push({
+      type: 'fixme',
+      condition: processed.condition,
+      description: processed.description
+    });
   }
 
   flaky(): void;
@@ -83,13 +84,13 @@ export class TestModifier {
   flaky(condition: boolean, description: string): void;
   flaky(arg?: boolean | string, description?: string) {
     const processed = this._interpretCondition(arg, description);
-    if (processed.condition) {
+    if (processed.condition)
       this._flaky = true;
-      this._annotations.push({
-        type: 'flaky',
-        description: processed.description
-      });
-    }
+    this._annotations.push({
+      type: 'flaky',
+      condition: processed.condition,
+      description: processed.description
+    });
   }
 
   fail(): void;
@@ -98,13 +99,13 @@ export class TestModifier {
   fail(condition: boolean, description: string): void;
   fail(arg?: boolean | string, description?: string) {
     const processed = this._interpretCondition(arg, description);
-    if (processed.condition) {
+    if (processed.condition)
       this._expectedStatus = 'failed';
-      this._annotations.push({
-        type: 'fail',
-        description: processed.description
-      });
-    }
+    this._annotations.push({
+      type: 'fail',
+      condition: processed.condition,
+      description: processed.description
+    });
   }
 
   private _interpretCondition(arg?: boolean | string, description?: string): { condition: boolean, description?: string } {
