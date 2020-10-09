@@ -75,13 +75,17 @@ it('should emit test annotations', async ({ runInlineTest }) => {
     'a.test.js': `
       it('should emit annotation', (test, parameters) => {
         test.fail(true, 'Fail annotation');
+        test.fixme(false, 'fixme annotation');
       }, async ({}) => {
         expect(true).toBe(false);
       });
     `
   }, { 'list': true });
   expect(result.exitCode).toBe(0);
-  expect(result.report.suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fail', description: 'Fail annotation', condition: true, }]);
+  expect(result.report.suites[0].specs[0].tests[0].annotations).toEqual([
+    { type: 'fail', description: 'Fail annotation', condition: true, },
+    { type: 'fixme', description: 'fixme annotation', condition: false, },
+  ]);
 });
 
 it('should emit suite annotations', async ({ runInlineTest }) => {
