@@ -50,8 +50,8 @@ it('should reuse worker for the same parameters', async ({ runInlineFixturesTest
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const { it } = baseFixtures.defineWorkerFixtures({
-        worker1: async function*() { yield null; },
-        worker2: async function*() { yield null; },
+        worker1: ({}, runTest) => runTest(),
+        worker2: ({}, runTest) => runTest(),
       });
 
       it('succeeds', async ({ worker1, testWorkerIndex }) => {

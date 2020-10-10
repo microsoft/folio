@@ -17,8 +17,8 @@
 import { fixtures } from '../../';
 
 const { it, expect } = fixtures.defineTestFixtures<{ postProcess: string }>({
-  postProcess: async function*({ testInfo }) {
-    yield '';
+  postProcess: async ({testInfo}, runTest) => {
+    await runTest('');
     console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
   },
 });

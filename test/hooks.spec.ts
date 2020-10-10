@@ -21,13 +21,13 @@ it('hooks should work with fixtures', async ({ runInlineFixturesTest }) => {
   const { results } = await runInlineFixturesTest({
     'a.test.js': `
       const logs = [];
-      const fixtures = baseFixtures.defineWorkerFixtures({ w: async function*() {
+      const fixtures = baseFixtures.defineWorkerFixtures({ w: async ({}, test) => {
         logs.push('+w');
-        yield 17;
+        await test(17);
         logs.push('-w');
-      } }).defineTestFixtures({ t: async function*() {
+      } }).defineTestFixtures({ t: async ({}, test) => {
         logs.push('+t');
-        yield 42;
+        await test(42);
         logs.push('-t');
       } });
 
@@ -75,9 +75,9 @@ it('hooks should work with fixtures', async ({ runInlineFixturesTest }) => {
 it('afterEach failure should not prevent other hooks and fixture teardown', async ({ runInlineFixturesTest }) => {
   const report = await runInlineFixturesTest({
     'a.test.js': `
-      const fixtures = baseFixtures.defineTestFixtures({ t: async function*() {
+      const fixtures = baseFixtures.defineTestFixtures({ t: async ({}, test) => {
         console.log('+t');
-        yield 42;
+        await test(42);
         console.log('-t');
       } });
       fixtures.describe('suite', () => {
@@ -167,9 +167,9 @@ it('should throw when hook depends on unknown fixture', async ({ runInlineFixtur
 it('should throw when beforeAll hook depends on test fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const { it, beforeAll, describe } = baseFixtures.defineTestFixtures({
-        foo: async function*() { yield undefined; }
-      });
+      const { it, beforeAll, describe } = baseFixtures.defineTestFixtures({ foo: async ({}, runTest) => {
+        await runTest();
+      } });
       describe('suite', () => {
         beforeAll(async ({foo}) => {});
         it('works', async ({foo}) => {});
@@ -184,9 +184,9 @@ it('should throw when beforeAll hook depends on test fixture', async ({ runInlin
 it('should throw when afterAll hook depends on test fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const { it, afterAll, describe } = baseFixtures.defineTestFixtures({
-        foo: async function*() { yield undefined; }
-      });
+      const { it, afterAll, describe } = baseFixtures.defineTestFixtures({ foo: async ({}, runTest) => {
+        await runTest();
+      } });
       describe('suite', () => {
         afterAll(async ({foo}) => {});
         it('works', async ({foo}) => {});
@@ -201,12 +201,12 @@ it('should throw when afterAll hook depends on test fixture', async ({ runInline
 it('should throw when hook uses different fixtures set than describe', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const f1 = baseFixtures.defineTestFixtures({
-        foo: async function*() { yield undefined; }
-      });
-      const f2 = baseFixtures.defineTestFixtures({
-        bar: async function*() { yield undefined; }
-      });
+      const f1 = baseFixtures.defineTestFixtures({ foo: async ({}, runTest) => {
+        await runTest();
+      } });
+      const f2 = baseFixtures.defineTestFixtures({ bar: async ({}, runTest) => {
+        await runTest();
+      } });
       f1.describe('suite', () => {
         f2.afterAll(async ({foo}) => {});
         f1.it('works', async ({foo}) => {});
