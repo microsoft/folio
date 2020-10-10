@@ -23,7 +23,7 @@
 
 ### Base concepts
 
-Playwright test runner is based on the concept of the test fixtures. Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else. Here is how typical test environment setup differs between traditional BDD and the fixture-based one:
+Folio is based on the concept of the test fixtures. Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else. Here is how typical test environment setup differs between traditional BDD and the fixture-based one:
 
 ### Without fixtures:
 
@@ -70,9 +70,9 @@ describe('database', () => {
 ### With fixtures:
 
 ```ts
-import { fixtures } from '@playwright/test-runner';
+import { folio } from 'folio';
 
-const builder = fixtures.extend<{}, { database: Database }, { table: Table }>();
+const builder = folio.extend<{}, { database: Database }, { table: Table }>();
 
 builder.defineWorkerFixture('database', async ({}, runTest) => {
   const database = await connect();
@@ -133,8 +133,8 @@ Here is how test fixtures are declared and defined:
 
 ```ts
 // hello.fixtures.ts
-import { fixtures as base } from '@playwright/test-runner';
-export { expect } from '@playwright/test-runner';
+import { folio as base } from 'folio';
+export { expect } from 'folio';
 
 // Define test fixtures |hello|, |world| and |test|.
 type TestFixtures = {
@@ -160,8 +160,8 @@ builder.defineTestFixture('test', async ({}, runTest) => {
   await runTest('Test');
 });
 
-const fixtures = builder.build();
-export const it = fixtures.it;
+const folio = builder.build();
+export const it = folio.it;
 ```
 
 Fixtures can use other fixtures.
@@ -179,7 +179,7 @@ With fixtures, test organization becomes flexible - you can put tests that make 
 
 # Worker fixtures
 
-Playwright test runner uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Playwright test runner will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
+Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Folio will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
 
 Here is how the test looks:
 ```ts
@@ -201,8 +201,8 @@ it('fetch 2', async ({ port }) => {
 And here is how fixtures are declared and defined:
 ```ts
 // express.fixtures.ts
-import { fixtures as base } from '@playwright/test-runner';
-export { expect } from '@playwright/test-runner';
+import { folio as base } from 'folio';
+export { expect } from 'folio';
 import express from 'express';
 import type { Express } from 'express';
 
@@ -239,13 +239,13 @@ builder.defineWorkerFixture('autoExpress', async ({ port }, runTest) => {
   console.log('Server stopped');
 });
 
-const fixtures = builder.build();
-export const it = fixtures.it;
+const folio = builder.build();
+export const it = folio.it;
 ```
 
 # Parameters
 
-It is common to run tests in different configurations, for example when running web app tests against multiple browsers or testing two different versions of api endpoint. Playwright test runner supports this via parameters - define the parameter and start using it in a test or a fixture.
+It is common to run tests in different configurations, for example when running web app tests against multiple browsers or testing two different versions of api endpoint. Folio supports this via parameters - define the parameter and start using it in a test or a fixture.
 
 Consider the following test that uses an API url endpoint:
 ```ts
@@ -262,8 +262,8 @@ it('fetch 1', async ({ apiUrl }) => {
 Here is how to define the api version parameter:
 ```ts
 // api.fixtures.ts
-import { fixtures as base } from '@playwright/test-runner';
-export { expect } from '@playwright/test-runner';
+import { folio as base } from 'folio';
+export { expect } from 'folio';
 
 const builder = base.extend<{ version: string }, { apiUrl: string }, {}>();
 
@@ -275,8 +275,8 @@ builder.defineWorkerFixture('apiUrl', async ({ version }, runTest) => {
   await server.close();
 });
 
-const fixtures = builder.build();
-export const it = fixtures.it;
+const folio = builder.build();
+export const it = folio.it;
 ```
 
 ### In the command line
@@ -304,7 +304,7 @@ It is also possible to run tests against multiple api versions.
 
 // Generate three versions of each test that directly or indirectly
 // depends on the |version| parameter.
-fixtures.generateParametrizedTests('version', ['v1', 'v2', 'v3']);
+folio.generateParametrizedTests('version', ['v1', 'v2', 'v3']);
 ```
 
 TODO: update the npx command.
