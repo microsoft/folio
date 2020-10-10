@@ -15,7 +15,7 @@
  */
 
 import { Config } from './config';
-import { Test, Suite, TestResult } from './test';
+import { Test, Suite, TestResult, TestError } from './test';
 
 export interface Reporter {
   onBegin(config: Config, suite: Suite): void;
@@ -24,6 +24,17 @@ export interface Reporter {
   onStdErr(chunk: string | Buffer, test?: Test): void;
   onTestEnd(test: Test, result: TestResult): void;
   onTimeout(timeout: number): void;
-  onError(error: any, file?: string): void;
+  onError(error: TestError, file?: string): void;
   onEnd(): void;
+}
+
+export class EmptyReporter implements Reporter {
+  onBegin(config: Config, suite: Suite) {}
+  onTestBegin(test: Test) {}
+  onStdOut(chunk: string | Buffer, test?: Test) {}
+  onStdErr(chunk: string | Buffer, test?: Test) {}
+  onTestEnd(test: Test, result: TestResult) {}
+  onTimeout(timeout: number) {}
+  onError(error: any, file?: string) {}
+  onEnd() {}
 }

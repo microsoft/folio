@@ -31,10 +31,12 @@ it('should work directly', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should work via fixture', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
+it('should work via fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineTestFixture('title', async ({testInfo}, test) => await test(testInfo.title));
+      const { it } = baseFixtures.defineTestFixtures({
+        title: async function*({ testInfo }) { yield testInfo.title; }
+      });
       it('test 1', async ({title}) => {
         expect(title).toBe('test 1');
       });

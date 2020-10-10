@@ -16,13 +16,11 @@
 
 import { config, fixtures, TestInfo } from '../../';
 
-const { it, expect, defineTestFixture } = fixtures
-    .declareTestFixtures<{ testInfoForward: TestInfo }>()
-    .declareWorkerFixtures<{ config: any }>();
-
-defineTestFixture('testInfoForward', async ({ testInfo }, runTest) => {
-  await runTest(testInfo);
-  testInfo.data['myname'] = 'myvalue';
+const { it, expect } = fixtures.defineTestFixtures<{ testInfoForward: TestInfo }>({
+  testInfoForward: async function*({ testInfo }) {
+    yield testInfo;
+    testInfo.data['myname'] = 'myvalue';
+  },
 });
 
 it('ensure fixture handles test error', async ({ testInfoForward }) => {

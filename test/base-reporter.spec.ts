@@ -14,14 +14,18 @@
  * limitations under the License.
  */
 
-import { fixtures } from './fixtures';
+import { fixtures, stripAscii } from './fixtures';
 const { it, expect } = fixtures;
 
-it('should shard workers by fixtures', async ({ runTest }) => {
-  const result = await runTest('worker-fixture-combination.js');
-  expect(result.passed).toBe(3);
-  expect(result.exitCode).toBe(0);
-  expect(result.output).toContain('test that does not use fixtures');
-  expect(result.output).toContain('test that uses fixture');
-  expect(result.output).toContain('another test that uses fixture');
+it('handle long test names', async ({ runInlineTest }) => {
+  const title = 'title'.repeat(30);
+  const result = await runInlineTest({
+    'a.test.js': `
+      it('${title}', async ({}) => {
+        expect(1).toBe(0);
+      });
+    `,
+  });
+  expect(stripAscii(result.output)).toContain('expect(1).toBe');
+  expect(result.exitCode).toBe(1);
 });

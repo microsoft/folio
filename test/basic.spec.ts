@@ -22,15 +22,15 @@ it('should fail', async ({ runTest }) => {
   expect(result.exitCode).toBe(1);
   expect(result.passed).toBe(0);
   expect(result.failed).toBe(1);
-  expect(result.output).toContain('one-failure.ts:20:1');
+  expect(result.output).toContain('1) one-failure.ts:19');
 });
 
 it('should timeout', async ({ runTest }) => {
-  const { exitCode, passed, failed, timedOut } = await runTest('one-timeout.js', { timeout: 100 });
+  const { exitCode, passed, failed, output } = await runTest('one-timeout.js', { timeout: 100 });
   expect(exitCode).toBe(1);
   expect(passed).toBe(0);
-  expect(failed).toBe(0);
-  expect(timedOut).toBe(1);
+  expect(failed).toBe(1);
+  expect(output).toContain('Timeout of 100ms exceeded.');
 });
 
 it('should succeed', async ({ runTest }) => {

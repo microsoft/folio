@@ -16,14 +16,16 @@
 
 import { fixtures1 } from './export-1.fixtures';
 import { fixtures2 } from './export-2.fixtures';
-const { overrideTestFixture, overrideWorkerFixture, it, expect } = fixtures1.union(fixtures2);
 
-overrideTestFixture('testWrap', async ({}, runTest) => {
-  await runTest('override');
-});
-
-overrideWorkerFixture('workerTypeOnly', async ({}, runTest) => {
-  await runTest(17);
+const fixtures = fixtures1.union(fixtures2);
+const { it, expect } = fixtures.overrideTestFixtures({
+  testWrap: async function*() {
+    yield 'override';
+  }
+}).overrideWorkerFixtures({
+  workerTypeOnly: async function*() {
+    yield 17;
+  }
 });
 
 it('ensure that overrides work', async ({ testTypeOnly, workerTypeOnly, testWrap, workerWrap }) => {

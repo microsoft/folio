@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
-import { fixtures } from '../../..';
+import { fixtures } from './fixtures';
 const { it, expect } = fixtures;
-import * as fs from 'fs';
-import * as path from 'path';
 
-it('succeeds', async ({ testWorkerIndex }) => {
-  expect(testWorkerIndex).toBe(0);
-  // First test waits for the second to start to work around the race.
-  while (true) {
-    if (fs.existsSync(path.join(process.env.PW_OUTPUT_DIR, 'parallel-index.txt')))
-      break;
-    await new Promise(f => setTimeout(f, 100));
-  }
+it('should get top level stdio', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'a.spec.js': `
+      it('test', ({testInfo}) => {
+        console.log('REPEAT ' + testInfo.repeatEachIndex);
+        expect(1).toBe(1);
+      });
+    `
+  }, { 'repeat-each': 3 });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(3);
+  expect(result.output).toContain('REPEAT 0');
+  expect(result.output).toContain('REPEAT 1');
+  expect(result.output).toContain('REPEAT 2');
+  expect(result.output).not.toContain('REPEAT 3');
 });

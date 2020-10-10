@@ -17,13 +17,11 @@
 import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { FixturePool } from './fixtures';
-import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, Parameters } from './ipc';
+import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, Parameters, TestStatus } from './ipc';
 import { Config } from './config';
 import { Reporter } from './reporter';
-import assert from 'assert';
 import { RunnerSuite, RunnerTest } from './runnerTest';
-import { TestResult } from './test';
+import { Test, TestResult } from './test';
 
 export class Dispatcher {
   private _workers = new Set<Worker>();
@@ -37,6 +35,8 @@ export class Dispatcher {
   private _suite: RunnerSuite;
   private _reporter: Reporter;
   private _hasWorkerErrors = false;
+  private _isStopped = false;
+  private _failureCount = 0;
 
   constructor(suite: RunnerSuite, config: Config, reporter: Reporter) {
     this._config = config;
@@ -80,7 +80,7 @@ export class Dispatcher {
           workers.add(test.file + variant._workerHash);
       });
       console.log();
-      const jobs = Math.min(config.jobs, workers.size);
+      const jobs = Math.min(config.workers, workers.size);
       console.log(`Running ${total} test${total > 1 ? 's' : ''} using ${jobs} worker${jobs > 1 ? 's' : ''}${shardDetails}`);
     }
   }
@@ -91,7 +91,8 @@ export class Dispatcher {
       const testsByWorkerHash = new Map<string, {
         tests: RunnerTest[],
         parameters: Parameters,
-        parametersString: string
+        parametersString: string,
+        repeatEachIndex: number,
       }>();
       for (const spec of suite._allSpecs()) {
         for (const test of spec.tests as RunnerTest[]) {
@@ -100,7 +101,8 @@ export class Dispatcher {
             entry = {
               tests: [],
               parameters: test.parameters,
-              parametersString: test._parametersString
+              parametersString: test._parametersString,
+              repeatEachIndex: test._repeatEachIndex,
             };
             testsByWorkerHash.set(test._workerHash, entry);
           }
@@ -124,6 +126,7 @@ export class Dispatcher {
           file: suite.file,
           parameters: entry.parameters,
           parametersString: entry.parametersString,
+          repeatEachIndex: entry.repeatEachIndex,
           hash,
         });
       }
@@ -134,17 +137,19 @@ export class Dispatcher {
 
   async run() {
     // Loop in case job schedules more jobs
-    while (this._queue.length)
+    while (this._queue.length && !this._isStopped)
       await this._dispatchQueue();
   }
 
   async _dispatchQueue() {
     const jobs = [];
     while (this._queue.length) {
+      if (this._isStopped)
+        break;
       const file = this._queue.shift();
       const requiredHash = file.hash;
       let worker = await this._obtainWorker();
-      while (worker.hash && worker.hash !== requiredHash) {
+      while (!this._isStopped && worker.hash && worker.hash !== requiredHash) {
         this._restartWorker(worker);
         worker = await this._obtainWorker();
       }
@@ -177,9 +182,8 @@ export class Dispatcher {
         for (const { testId } of runPayload.entries) {
           const { test, result } = this._testById.get(testId);
           this._reporter.onTestBegin(test);
-          result.status = 'failed';
           result.error = params.fatalError;
-          this._reporter.onTestEnd(test, result);
+          this._reportTestEnd(test, result, 'failed');
         }
         doneCallback();
         return;
@@ -216,7 +220,7 @@ export class Dispatcher {
     if (this._freeWorkers.length)
       return this._freeWorkers.pop();
     // If we can create worker, create it.
-    if (this._workers.size < this._config.jobs)
+    if (this._workers.size < this._config.workers)
       this._createWorker();
     // Wait for the next available worker.
     await new Promise(f => this._workerClaimers.push(f));
@@ -243,8 +247,7 @@ export class Dispatcher {
       result.data = params.data;
       result.duration = params.duration;
       result.error = params.error;
-      result.status = params.status;
-      this._reporter.onTestEnd(test, result);
+      this._reportTestEnd(test, result, params.status);
     });
     worker.on('stdOut', (params: TestOutputPayload) => {
       const chunk = chunkFromParams(params);
@@ -274,17 +277,32 @@ export class Dispatcher {
   }
 
   async _restartWorker(worker) {
+    if (this._isStopped)
+      return;
     await worker.stop();
     this._createWorker();
   }
 
   async stop() {
+    this._isStopped = true;
     if (!this._workers.size)
       return;
     const result = new Promise(f => this._stopCallback = f);
     for (const worker of this._workers)
       worker.stop();
     await result;
+  }
+
+  private _reportTestEnd(test: Test, result: TestResult, status: TestStatus) {
+    if (this._isStopped)
+      return;
+    result.status = status;
+    if (result.status !== 'skipped' && result.status !== test.expectedStatus)
+      ++this._failureCount;
+    if (!this._config.maxFailures || this._failureCount <= this._config.maxFailures)
+      this._reporter.onTestEnd(test, result);
+    if (this._config.maxFailures && this._failureCount === this._config.maxFailures)
+      this._isStopped = true;
   }
 
   hasWorkerErrors(): boolean {

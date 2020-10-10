@@ -3,15 +3,15 @@
 - [Basic concepts](#basic-concepts)
 - [Test fixtures](#test-fixtures)
 - [Worker fixtures](#worker-fixtures)
-- [Built-in fixtures](#built-in-fixtures)
-  - [testWorkerIndex](#testworkerindex)
-  - [testInfo](#testinfo)
+- Built-in fixtures
+  - testWorkerIndex
+  - testInfo
 
 ## Basic concepts
 
 Playwright test runner is based on the concept of the test fixtures. Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else. Here is how typical test environment setup differs between traditional BDD and the fixture-based one:
 
-**Without fixtures**
+### Without fixtures
 
 ```ts
 describe('database', () => {
@@ -53,10 +53,26 @@ describe('database', () => {
 });
 ```
 
-**With fixtures**
+### With fixtures
 
 ```ts
-import { it } from './db.fixtures';
+import { fixtures } from '@playwright/test-runner';
+
+const { it } = fixtures
+    .defineWorkerFixtures<{ database: Database }>({
+      database: async ({}, runTest) => {
+        const db = connect();
+        await runTest(db);
+        db.dispose();
+      }
+    })
+    .defineTestFixtures<{ table: Table }>({
+      table: async ({}, runTest) => {
+        const t = database.createTable();
+        await runTest(t);
+        database.dropTable(t);
+      }
+    });
 
 it('create user', ({ table }) => {
     table.insert();
@@ -106,42 +122,42 @@ Here is how test fixtures are declared and defined:
 import { fixtures as baseFixtures } from '@playwright/test-runner';
 export { expect } from '@playwright/test-runner';
 
-// For types: Declare test fixtures |hello|, |world| and |test|.
+// Define test fixtures |hello|, |world| and |test|.
+
 type TestFixtures = {
   hello: string;
   world: string;
   test: string;
 };
-const fixtures = baseFixtures.declareTestFixtures<TestFixtures>();
+
+const fixtures = baseFixtures.defineTestFixtures<TestFixtures>({
+  hello: async ({}, runTest) => {
+    // Set up fixture.
+    const value = 'Hello';
+    // Run the test with the fixture value.
+    await runTest(value);
+    // Clean up fixture.
+  },
+
+  world: async ({}, runTest) => {
+    await runTest('World');
+  },
+
+  test: async ({}, runTest) => {
+    await runTest('Test');
+  }
+});
 export const it = fixtures.it;
-
-// Define fixture |hello|.
-fixtures.defineTestFixture('hello', async ({}, runTest) => {
-  const value = 'Hello'; // Set up fixture.
-  await runTest(value); // Run the test with the fixture value.
-  // Optionally, clean up fixture.
-});
-
-fixtures.defineTestFixture('world', async ({}, runTest) => {
-  await runTest('World');
-});
-
-fixtures.defineTestFixture('test', async ({}, runTest) => {
-  await runTest('Test');
-});
 ```
 
 Fixtures can use other fixtures.
 
 ```ts
-type TestFixtures = {
-  // ...
-  helloWorld: string;
-};
-
-fixtures.defineTestFixture('helloWorld', async ({hello, world}, runTest) => {
-  await runTest(`${hello}, ${world}!`);
-});
+  ...
+  helloWorld: async ({hello, world}, runTest) => {
+    await runTest(`${hello}, ${world}!`);
+  }
+  ...
 ```
 
 With fixtures, test organization becomes flexible - you can put tests that make sense next to each other based on what they test, not based on the environment they need.
@@ -149,7 +165,7 @@ With fixtures, test organization becomes flexible - you can put tests that make 
 
 ## Worker fixtures
 
-Playwright test runner uses worker processes to run test files. You can specify the maximum number of workers using `--jobs` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Playwright test runner will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
+Playwright test runner uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Playwright test runner will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
 
 Here is how the test looks:
 ```ts
@@ -176,37 +192,37 @@ export { expect } from '@playwright/test-runner';
 import express from 'express';
 import type { Express } from 'express';
 
-// For types: Declare worker fixtures.
+// Declare worker fixtures.
 type ExpressWorkerFixtures = {
   port: number;
   express: Express;
 };
-const fixtures = baseFixtures.declareWorkerFixtures<ExpressWorkerFixtures>();
-export const it = fixtures.it;
+const fixtures = baseFixtures.defineWorkerFixtures<ExpressWorkerFixtures>({
+  // Define |port| fixture that has unique value value of the worker process index.
+  port: async ({ testWorkerIndex }, runTest) => {
+    await runTest(3000 + testWorkerIndex);
+  },
 
-// Define |port| fixture that has unique value value of the worker process index.
-fixtures.defineWorkerFixture('port', async ({ testWorkerIndex }, runTest) => {
-  await runTest(3000 + testWorkerIndex);
+  // Define the express worker fixture, make it start automatically for every worker.
+  autoExpress: async ({ port }, runTest) => {
+    const app = express();
+    app.get('/1', (req, res) => {
+      res.send('Hello World 1!')
+    });
+    app.get('/2', (req, res) => {
+      res.send('Hello World 2!')
+    });
+    let server;
+    console.log('Starting server...');
+    await new Promise(f => {
+      server = app.listen(port, f);
+    });
+    console.log('Server ready');
+    await runTest(server);
+    console.log('Stopping server...');
+    await new Promise(f => server.close(f));
+    console.log('Server stopped');
+  },
 });
-
-// Define the express worker fixture, make it start automatically for every worker.
-fixtures.defineWorkerFixture('express', async ({ port }, runTest) => {
-  const app = express();
-  app.get('/1', (req, res) => {
-    res.send('Hello World 1!')
-  });
-  app.get('/2', (req, res) => {
-    res.send('Hello World 2!')
-  });
-  let server;
-  console.log('Starting server...');
-  await new Promise(f => {
-    server = app.listen(port, f);
-  });
-  console.log('Server ready');
-  await runTest(server);
-  console.log('Stopping server...');
-  await new Promise(f => server.close(f));
-  console.log('Server stopped');
-}, { auto: true });
+export const it = fixtures.it;
 ```

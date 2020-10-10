@@ -15,7 +15,7 @@
  */
 
 import colors from 'colors/safe';
-import { fixtures } from './fixtures';
+import { fixtures, stripAscii } from './fixtures';
 const { it, expect } = fixtures;
 
 it('should retry failures', async ({ runTest }) => {
@@ -33,12 +33,11 @@ it('should retry failures', async ({ runTest }) => {
 });
 
 it('should retry timeout', async ({ runTest }) => {
-  const { exitCode, passed, failed, timedOut, output } = await runTest('one-timeout.js', { timeout: 100, retries: 2 });
+  const { exitCode, passed, failed, output } = await runTest('one-timeout.js', { timeout: 100, retries: 2 });
   expect(exitCode).toBe(1);
   expect(passed).toBe(0);
-  expect(failed).toBe(0);
-  expect(timedOut).toBe(1);
-  expect(output.split('\n')[0]).toBe(colors.red('T').repeat(3));
+  expect(failed).toBe(1);
+  expect(stripAscii(output).split('\n')[0]).toBe('××T');
 });
 
 it('should fail on unexpected pass with retries', async ({ runTest }) => {
@@ -53,7 +52,7 @@ it('should not retry unexpected pass', async ({ runTest }) => {
   expect(exitCode).toBe(1);
   expect(passed).toBe(0);
   expect(failed).toBe(1);
-  expect(output.split('\n')[0]).toBe(colors.red('P'));
+  expect(stripAscii(output).split('\n')[0]).toBe('F');
 });
 
 it('should not retry expected failure', async ({ runTest }) => {
@@ -61,7 +60,7 @@ it('should not retry expected failure', async ({ runTest }) => {
   expect(exitCode).toBe(0);
   expect(passed).toBe(2);
   expect(failed).toBe(0);
-  expect(output.split('\n')[0]).toBe(colors.green('f') + colors.green('·'));
+  expect(stripAscii(output).split('\n')[0]).toBe('··');
 });
 
 it('should retry unhandled rejection', async ({ runTest }) => {
@@ -69,6 +68,6 @@ it('should retry unhandled rejection', async ({ runTest }) => {
   expect(result.exitCode).toBe(1);
   expect(result.passed).toBe(0);
   expect(result.failed).toBe(1);
-  expect(result.output.split('\n')[0]).toBe(colors.red('F').repeat(3));
+  expect(stripAscii(result.output).split('\n')[0]).toBe('××F');
   expect(result.output).toContain('Unhandled rejection');
 });

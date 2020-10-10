@@ -18,12 +18,15 @@ export type Config = {
   forbidOnly?: boolean;
   globalTimeout: number;
   grep?: string;
-  jobs: number;
+  maxFailures: number;
   outputDir: string;
   quiet?: boolean;
   repeatEach: number;
   retries: number,
   shard: { total: number, current: number } | undefined,
+  snapshotDir: string;
   testDir: string;
   timeout: number;
+  updateSnapshots: boolean;
+  workers: number;
 };

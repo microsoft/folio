@@ -14,23 +14,27 @@
  * limitations under the License.
  */
 
-import { FixturePool, validateRegistrations, assignParameters, TestInfo, parameters, assignConfig, config } from './fixtures';
+import fs from 'fs';
+import path from 'path';
 import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
 import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
-import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, TestOutputPayload, DonePayload } from './ipc';
+import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
+import { rootFixtures } from './spec';
+import { assignConfig, assignParameters, config, FixturePool, setCurrentTestInfo, TestInfo, parameters } from './fixtures';
 
-export const fixturePool = new FixturePool();
+// We rely on the fact that worker only receives tests with the same FixturePool.
+export let fixturePool: FixturePool = rootFixtures._pool;
 
 export class WorkerRunner extends EventEmitter {
   private _failedTestId: string | undefined;
   private _fatalError: any | undefined;
   private _entries: Map<string, TestEntry>;
   private _remaining: Map<string, TestEntry>;
-  private _stopped: any;
+  private _isStopped: any;
   private _parsedParameters: any = {};
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
@@ -38,13 +42,15 @@ export class WorkerRunner extends EventEmitter {
   private _loaded = false;
   private _parametersString: string;
   private _workerIndex: number;
+  private _repeatEachIndex: number;
 
   constructor(runPayload: RunPayload, config: Config, workerIndex: number) {
     super();
     assignConfig(config);
-    this._suite = new WorkerSuite('');
+    this._suite = new WorkerSuite(rootFixtures, '');
     this._suite.file = runPayload.file;
     this._workerIndex = workerIndex;
+    this._repeatEachIndex = runPayload.repeatEachIndex;
     this._parametersString = runPayload.parametersString;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
@@ -53,22 +59,24 @@ export class WorkerRunner extends EventEmitter {
   }
 
   stop() {
-    this._stopped = true;
+    this._isStopped = true;
+    this._testId = null;
+    this._setCurrentTestInfo(null);
   }
 
   unhandledError(error: Error | any) {
+    if (this._isStopped)
+      return;
     if (this._testInfo) {
       this._testInfo.status = 'failed';
       this._testInfo.error = serializeError(error);
       this._failedTestId = this._testId;
-      this._stopped = true;
       this.emit('testEnd', buildTestEndPayload(this._testId, this._testInfo));
-      this._testInfo = null;
     } else if (!this._loaded) {
       // No current test - fatal error.
       this._fatalError = serializeError(error);
     }
-    this._reportDone();
+    this._reportDoneAndStop();
   }
 
   async run() {
@@ -84,17 +92,19 @@ export class WorkerRunner extends EventEmitter {
     this._suite._assignIds(this._parametersString);
     this._loaded = true;
 
-    validateRegistrations(this._suite.file);
     await this._runSuite(this._suite);
-    this._reportDone();
+    this._reportDoneAndStop();
   }
 
   private async _runSuite(suite: WorkerSuite) {
+    if (this._isStopped)
+      return;
+    fixturePool = suite._fixtures._pool;
     try {
       await this._runHooks(suite, 'beforeAll', 'before');
     } catch (e) {
       this._fatalError = serializeError(e);
-      this._reportDone();
+      this._reportDoneAndStop();
     }
     for (const entry of suite._entries) {
       if (entry instanceof WorkerSuite)
@@ -106,12 +116,12 @@ export class WorkerRunner extends EventEmitter {
       await this._runHooks(suite, 'afterAll', 'after');
     } catch (e) {
       this._fatalError = serializeError(e);
-      this._reportDone();
+      this._reportDoneAndStop();
     }
   }
 
   private async _runTest(test: WorkerSpec) {
-    if (this._stopped)
+    if (this._isStopped)
       return;
     if (!this._entries.has(test._id))
       return;
@@ -121,13 +131,15 @@ export class WorkerRunner extends EventEmitter {
 
     const testId = test._id;
     this._testId = testId;
+    fixturePool = test._fixtures._pool;
 
-    const testInfo: TestInfo = {
+    this._setCurrentTestInfo({
       title: test.title,
       file: test.file,
       location: test.location,
       fn: test.fn,
       parameters,
+      repeatEachIndex: this._repeatEachIndex,
       workerIndex: this._workerIndex,
       deadline,
       retry,
@@ -137,35 +149,44 @@ export class WorkerRunner extends EventEmitter {
       stdout: [],
       stderr: [],
       data: {},
-    };
-    this._testInfo = testInfo;
-    assignParameters({ 'testInfo': testInfo });
+      relativeArtifactsPath: '',
+      outputPath: () => '',
+      snapshotPath: () => ''
+    });
+    assignParameters({ 'testInfo': this._testInfo });
 
-    this.emit('testBegin', buildTestBeginPayload(testId, testInfo));
+    this.emit('testBegin', buildTestBeginPayload(testId, this._testInfo));
 
     if (skipped) {
       // TODO: don't even send those to the worker.
-      testInfo.status = 'skipped';
-      this.emit('testEnd', buildTestEndPayload(testId, testInfo));
+      this._testInfo.status = 'skipped';
+      this.emit('testEnd', buildTestEndPayload(testId, this._testInfo));
       return;
     }
 
     const startTime = monotonicTime();
-    const { timedOut } = await raceAgainstDeadline(this._runTestWithFixturesAndHooks(test, testInfo), deadline);
+    const { timedOut } = await raceAgainstDeadline(this._runTestWithFixturesAndHooks(test, this._testInfo), deadline);
+
+    // Async hop above, we could have stopped.
+    if (!this._testInfo)
+      return;
+
     // Do not overwrite test failure upon timeout in fixture or hook.
-    if (timedOut && testInfo.status === 'passed')
-      testInfo.status = 'timedOut';
-    testInfo.duration = monotonicTime() - startTime;
-    if (this._testInfo) {
-      // We could have reported end due to an unhandled exception.
-      this.emit('testEnd', buildTestEndPayload(testId, testInfo));
-    }
-    if (!this._stopped && testInfo.status !== 'passed') {
+    if (timedOut && this._testInfo.status === 'passed')
+      this._testInfo.status = 'timedOut';
+    this._testInfo.duration = monotonicTime() - startTime;
+    this.emit('testEnd', buildTestEndPayload(testId, this._testInfo));
+    if (this._testInfo.status !== 'passed') {
       this._failedTestId = this._testId;
-      this._stopped = true;
+      this._reportDoneAndStop();
     }
-    this._testInfo = null;
+    this._setCurrentTestInfo(null);
     this._testId = null;
+  }
+
+  private _setCurrentTestInfo(testInfo: TestInfo | null) {
+    this._testInfo = testInfo;
+    setCurrentTestInfo(testInfo);
   }
 
   private async _runTestWithFixturesAndHooks(test: WorkerSpec, testInfo: TestInfo) {
@@ -176,12 +197,16 @@ export class WorkerRunner extends EventEmitter {
       testInfo.error = serializeError(error);
       // Continue running afterEach hooks even after the failure.
     }
-    if (this._stopped)
-      return;
+
     debugLog(`running test "${test.fullTitle()}"`);
     try {
       // Do not run the test when beforeEach hook fails.
-      if (testInfo.status !== 'failed') {
+      if (!this._isStopped && testInfo.status !== 'failed') {
+        // Run internal fixtures to resolve artifacts and output paths
+        const parametersPathSegment = (await fixturePool.setupFixture('testParametersPathSegment')).value;
+        testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, parametersPathSegment);
+        testInfo.outputPath = outputPath(testInfo);
+        testInfo.snapshotPath = snapshotPath(testInfo);
         await fixturePool.resolveParametersAndRunHookOrTest(test.fn);
         testInfo.status = 'passed';
       }
@@ -201,7 +226,8 @@ export class WorkerRunner extends EventEmitter {
         // Continue running fixtures teardown even after the failure.
       }
     }
-    if (this._stopped)
+    // Worker will tear down test scope if we are stopped.
+    if (this._isStopped)
       return;
     try {
       await fixturePool.teardownScope('test');
@@ -213,9 +239,8 @@ export class WorkerRunner extends EventEmitter {
       }
     }
   }
-
   private async _runHooks(suite: WorkerSuite, type: string, dir: 'before' | 'after') {
-    if (this._stopped)
+    if (this._isStopped)
       return;
     debugLog(`running hooks "${type}" for suite "${suite.fullTitle()}"`);
     if (!this._hasTestsToRun(suite))
@@ -241,13 +266,16 @@ export class WorkerRunner extends EventEmitter {
       throw error;
   }
 
-  private _reportDone() {
+  private _reportDoneAndStop() {
+    if (this._isStopped)
+      return;
     const donePayload: DonePayload = {
       failedTestId: this._failedTestId,
       fatalError: this._fatalError,
       remaining: [...this._remaining.values()],
     };
     this.emit('done', donePayload);
+    this.stop();
   }
 
   private _hasTestsToRun(suite: WorkerSuite): boolean {
@@ -275,5 +303,28 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
     status: testInfo.status,
     error: testInfo.error,
     data: testInfo.data,
+  };
+}
+
+function relativeArtifactsPath(testInfo: TestInfo, parametersPathSegment: string) {
+  const relativePath = path.relative(config.testDir, testInfo.file.replace(/\.(spec|test)\.(js|ts)/, ''));
+  const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-');
+  return path.join(relativePath, sanitizedTitle, parametersPathSegment);
+}
+
+function outputPath(testInfo: TestInfo): (...pathSegments: string[]) => string {
+  const retrySuffix = testInfo.retry ? '-retry' + testInfo.retry : '';
+  const repeatEachSuffix = testInfo.repeatEachIndex ? '-repeat' + testInfo.repeatEachIndex : '';
+  const basePath = path.join(config.outputDir, testInfo.relativeArtifactsPath) + retrySuffix + repeatEachSuffix;
+  return (...pathSegments: string[]): string => {
+    fs.mkdirSync(basePath, { recursive: true });
+    return path.join(basePath, ...pathSegments);
+  };
+}
+
+function snapshotPath(testInfo: TestInfo): (...pathSegments: string[]) => string {
+  const basePath = path.join(config.testDir, config.snapshotDir, testInfo.relativeArtifactsPath);
+  return (...pathSegments: string[]): string => {
+    return path.join(basePath, ...pathSegments);
   };
 }

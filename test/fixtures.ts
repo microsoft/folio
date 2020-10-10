@@ -14,23 +14,18 @@
  * limitations under the License.
  */
 
-import { fixtures as baseFixtures } from '@playwright/test-runner';
+import { config, fixtures as baseFixtures, TestInfo } from '@playwright/test-runner';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
-import { tmpdir } from 'os';
 import * as path from 'path';
-import rimraf from 'rimraf';
-import { promisify } from 'util';
 import type { ReportFormat } from '../src/reporters/json';
-
-const removeFolderAsync = promisify(rimraf);
+export { config } from '@playwright/test-runner';
 
 export type RunResult = {
   exitCode: number,
   output: string,
   passed: number,
   failed: number,
-  timedOut: number,
   expectedFlaky: number,
   unexpectedFlaky: number,
   skipped: number,
@@ -38,25 +33,29 @@ export type RunResult = {
   results: any[],
 };
 
-async function runTest(reportFile: string, outputDir: string, filePath: string, params: any = {}): Promise<RunResult> {
+async function innerRunTest(baseDir: string, filePath: string, outputDir: string, params: any = {}): Promise<RunResult> {
   const paramList = [];
   for (const key of Object.keys(params)) {
-    for (const value of  Array.isArray(params[key]) ? params[key] : [params[key]])
-      paramList.push(params[key] === true ? `--${key}` : `--${key}=${value}`);
+    for (const value of  Array.isArray(params[key]) ? params[key] : [params[key]]) {
+      const k = key.startsWith('-') ? key : '--' + key;
+      paramList.push(params[key] === true ? `${k}` : `${k}=${value}`);
+    }
   }
+  const reportFile = path.join(outputDir, 'report.json');
   const testProcess = spawn('node', [
     path.join(__dirname, '..', 'cli.js'),
-    path.resolve(__dirname, 'assets', filePath),
+    filePath,
     '--output=' + outputDir,
     '--reporter=dot,json',
-    '--jobs=2',
+    '--workers=2',
     ...paramList
   ], {
     env: {
       ...process.env,
       PW_OUTPUT_DIR: outputDir,
-      PWRUNNER_JSON_REPORT: reportFile,
-    }
+      PTR_JSON_OUTPUT_NAME: reportFile,
+    },
+    cwd: baseDir
   });
   let output = '';
   testProcess.stderr.on('data', chunk => {
@@ -70,12 +69,11 @@ async function runTest(reportFile: string, outputDir: string, filePath: string, 
       process.stdout.write(String(chunk));
   });
   const status = await new Promise<number>(x => testProcess.on('close', x));
-  const passed = (/(\d+) passed/.exec(output.toString()) || [])[1];
-  const failed = (/(\d+) failed/.exec(output.toString()) || [])[1];
-  const timedOut = (/(\d+) timed out/.exec(output.toString()) || [])[1];
-  const expectedFlaky = (/(\d+) expected flaky/.exec(output.toString()) || [])[1];
-  const unexpectedFlaky = (/(\d+) unexpected flaky/.exec(output.toString()) || [])[1];
-  const skipped = (/(\d+) skipped/.exec(output.toString()) || [])[1];
+  const passed = (/(\d+) passed/.exec(output.toString()) || [])[1] || '0';
+  const failed = (/(\d+) failed/.exec(output.toString()) || [])[1] || '0';
+  const expectedFlaky = (/(\d+) expected flaky/.exec(output.toString()) || [])[1] || '0';
+  const unexpectedFlaky = (/(\d+) unexpected flaky/.exec(output.toString()) || [])[1] || '0';
+  const skipped = (/(\d+) skipped/.exec(output.toString()) || [])[1] || '0';
   let report;
   try {
     report = JSON.parse(fs.readFileSync(reportFile).toString());
@@ -102,64 +100,77 @@ async function runTest(reportFile: string, outputDir: string, filePath: string, 
     exitCode: status,
     output,
     passed: parseInt(passed, 10),
-    failed: parseInt(failed || '0', 10),
-    timedOut: parseInt(timedOut || '0', 10),
-    expectedFlaky: parseInt(expectedFlaky || '0', 10),
-    unexpectedFlaky: parseInt(unexpectedFlaky || '0', 10),
-    skipped: parseInt(skipped || '0', 10),
+    failed: parseInt(failed, 10),
+    expectedFlaky: parseInt(expectedFlaky, 10),
+    unexpectedFlaky: parseInt(unexpectedFlaky, 10),
+    skipped: parseInt(skipped, 10),
     report,
     results,
   };
 }
 
 type TestState = {
-  outputDir: string;
   runTest: (filePath: string, options?: any) => Promise<RunResult>;
-  runInlineTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
-  runInlineFixturesTest: (files: { [key: string]: string }, options?: any) => Promise<RunResult>;
+  runInlineTest: (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
+  runInlineFixturesTest: (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
 };
 
-export const fixtures = baseFixtures.declareTestFixtures<TestState>();
+export const fixtures = baseFixtures.defineTestFixtures<TestState>({
 
-fixtures.defineTestFixture('outputDir', async ({ testWorkerIndex }, testRun) => {
-  await testRun(path.join(__dirname, 'test-results', String(testWorkerIndex)));
+  runTest: async ({ testInfo }, testRun) => {
+    // Print output on failure.
+    let result: RunResult;
+    await testRun(async (filePath, options) => {
+      const target = path.join(config.testDir, 'assets', filePath);
+      let isDir = false;
+      try {
+        isDir = fs.statSync(target).isDirectory();
+      } catch (e) {
+      }
+      if (isDir)
+        result = await innerRunTest(path.join(config.testDir, 'assets', filePath), '.', testInfo.outputPath('output'), options);
+      else
+        result = await innerRunTest(path.join(config.testDir, 'assets'), filePath, testInfo.outputPath('output'), options);
+      return result;
+    });
+    if (testInfo.status !== testInfo.expectedStatus)
+      console.log(result.output);
+  },
+
+  runInlineTest: async ({ testInfo }, runTest) => {
+    await runInlineTest(testInfo, `
+      const { fixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
+      const { it, test, describe } = fixtures;
+    `, runTest);
+  },
+
+  runInlineFixturesTest: async ({ testInfo }, runTest) => {
+    await runInlineTest(testInfo, `
+    const { fixtures: baseFixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
+`, runTest);
+  }
 });
 
-fixtures.defineTestFixture('runTest', async ({ outputDir, testInfo }, testRun) => {
-  const reportFile = path.join(outputDir, `results.json`);
-  await removeFolderAsync(outputDir).catch(e => { });
-  // Print output on failure.
+async function runInlineTest(testInfo: TestInfo, header: string, runTest) {
+  const baseDir = testInfo.outputPath();
   let result: RunResult;
-  await testRun(async (filePath, options) => {
-    result = await runTest(reportFile, outputDir, filePath, options);
+  await runTest(async (files: string[], options) => {
+    await Promise.all(Object.keys(files).map(async name => {
+      const fullName = path.join(baseDir, name);
+      await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
+      if (fullName.endsWith('.js') || fullName.endsWith('.ts'))
+        await fs.promises.writeFile(fullName, header + files[name]);
+      else
+        await fs.promises.writeFile(fullName, files[name]);
+    }));
+    result = await innerRunTest(baseDir, '.', path.join(baseDir, 'test-results'), options);
     return result;
   });
   if (testInfo.status !== testInfo.expectedStatus)
     console.log(result.output);
-});
+}
 
-fixtures.defineTestFixture('runInlineTest', async ({ runTest }, testRun) => {
-  await runInlineTest(`
-    const { fixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
-    const { it, describe } = fixtures;
-  `, runTest, testRun);
-});
-
-
-fixtures.defineTestFixture('runInlineFixturesTest', async ({ runTest }, testRun) => {
-  await runInlineTest(`
-    const { fixtures: baseFixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
-  `, runTest, testRun);
-});
-
-async function runInlineTest(header: string, runTest, testRun) {
-  await testRun(async (files, options) => {
-    const dir = await fs.promises.mkdtemp(path.join(tmpdir(), 'playwright-test-runInlineTest'));
-    await Promise.all(Object.keys(files).map(async name => {
-      await fs.promises.writeFile(path.join(dir, name), header + files[name]);
-    }));
-    const result = await runTest(dir, options);
-    await removeFolderAsync(dir);
-    return result;
-  });
+const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
+export function stripAscii(str: string): string {
+  return str.replace(asciiRegex, '');
 }

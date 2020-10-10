@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { Parameters, TestStatus } from './ipc';
-export { Parameters, TestStatus } from './ipc';
+import { Parameters, TestError, TestStatus } from './ipc';
+export { Parameters, TestStatus, TestError } from './ipc';
+import type { FixturesImpl } from './spec';
 
 class Base {
   title: string;
@@ -25,10 +26,15 @@ class Base {
 
   _only = false;
   _ordinal: number;
+  _fixtures: FixturesImpl;
 
-  constructor(title: string, parent?: Suite) {
+  constructor(fixtures: FixturesImpl, title: string, parent?: Suite) {
+    this._fixtures = fixtures;
     this.title = title;
     this.parent = parent;
+    // Root suite has default fixtures that do not match all others.
+    if (parent && parent.parent && parent._fixtures !== fixtures)
+      throw new Error(`Mixing different fixture sets in the same suite.\nAre you using it and describe from different fixture files?`);
   }
 
   titlePath(): string[] {
@@ -48,13 +54,13 @@ export class Spec extends Base {
   fn: Function;
   tests: Test[] = [];
 
-  constructor(title: string, fn: Function, suite: Suite) {
-    super(title, suite);
+  constructor(fixtures: FixturesImpl, title: string, fn: Function, suite: Suite) {
+    super(fixtures, title, suite);
     this.fn = fn;
     suite._addSpec(this);
   }
 
-  _ok(): boolean {
+  ok(): boolean {
     return !this.tests.find(r => !r.ok());
   }
 }
@@ -65,8 +71,8 @@ export class Suite extends Base {
   _entries: (Suite | Spec)[] = [];
   total = 0;
 
-  constructor(title: string, parent?: Suite) {
-    super(title, parent);
+  constructor(fixtures: FixturesImpl, title: string, parent?: Suite) {
+    super(fixtures, title, parent);
     if (parent)
       parent._addSuite(this);
   }
@@ -83,13 +89,27 @@ export class Suite extends Base {
     this._entries.push(suite);
   }
 
-  findSpec(fn: (test: Spec) => boolean | void): boolean {
+  findTest(fn: (test: Test) => boolean | void): boolean {
+    for (const suite of this.suites) {
+      if (suite.findTest(fn))
+        return true;
+    }
+    for (const spec of this.specs) {
+      for (const test of spec.tests) {
+        if (fn(test))
+          return true;
+      }
+    }
+    return false;
+  }
+
+  findSpec(fn: (spec: Spec) => boolean | void): boolean {
     for (const suite of this.suites) {
       if (suite.findSpec(fn))
         return true;
     }
-    for (const test of this.specs) {
-      if (fn(test))
+    for (const spec of this.specs) {
+      if (fn(spec))
         return true;
     }
     return false;
@@ -146,18 +166,30 @@ export class Test {
     this.spec = spec;
   }
 
-  ok(): boolean {
+  status(): 'skipped' | 'expected' | 'unexpected' | 'expected-flaky' | 'unexpected-flaky' {
+    if (this.skipped)
+      return 'skipped';
+    // List mode bail out.
+    if (!this.results.length)
+      return 'skipped';
+    if (this.results.length === 1 && this.expectedStatus === this.results[0].status)
+      return 'expected';
     let hasPassedResults = false;
     for (const result of this.results) {
       // Missing status is Ok when running in shards mode.
-      if (result.status === 'skipped' || !result.status)
-        return true;
-      if (!this.flaky && result.status !== this.expectedStatus)
-        return false;
+      if (!result.status)
+        return 'skipped';
       if (result.status === this.expectedStatus)
         hasPassedResults = true;
     }
-    return hasPassedResults;
+    if (hasPassedResults)
+      return this.flaky ? 'expected-flaky' : 'unexpected-flaky';
+    return 'unexpected';
+  }
+
+  ok(): boolean {
+    const status = this.status();
+    return status === 'expected' || status === 'expected-flaky' || status === 'skipped';
   }
 }
 
@@ -166,7 +198,7 @@ export type TestResult = {
   workerIndex: number,
   duration: number;
   status?: TestStatus;
-  error?: any;
+  error?: TestError;
   stdout: (string | Buffer)[];
   stderr: (string | Buffer)[];
   data: any;

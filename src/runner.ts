@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues, validateRegistrations } from './fixtures';
+import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
@@ -28,17 +28,17 @@ import { RunnerSuite } from './runnerTest';
 import { runnerSpec } from './runnerSpec';
 import { debugLog } from './debug';
 import { Suite } from './test';
+import { rootFixtures } from './spec';
 export { Reporter } from './reporter';
 export { Config } from './config';
+export { Test, TestResult, Suite, TestStatus, TestError } from './test';
 
 const removeFolderAsync = promisify(rimraf);
 
-type RunResult = 'passed' | 'failed' | 'forbid-only' | 'no-tests';
+type RunResult = 'passed' | 'failed' | 'sigint' | 'forbid-only' | 'no-tests';
 
 export class Runner {
   private _reporter: Reporter;
-  private _beforeFunctions: Function[] = [];
-  private _afterFunctions: Function[] = [];
   private _rootSuite: RunnerSuite;
   private _hasBadFiles = false;
   private _suites: RunnerSuite[] = [];
@@ -52,12 +52,11 @@ export class Runner {
     debugLog(`loadFiles`, files);
     // First traverse tests.
     for (const file of files) {
-      const suite = new RunnerSuite('');
+      const suite = new RunnerSuite(rootFixtures, '');
       suite.file = file;
-      const revertBabelRequire = runnerSpec(suite, config.timeout, file);
+      const revertBabelRequire = runnerSpec(suite, config.timeout);
       try {
         require(file);
-        validateRegistrations(file);
         this._suites.push(suite);
       } catch (error) {
         this._reporter.onError(serializeError(error), file);
@@ -115,18 +114,22 @@ export class Runner {
 
   private async _runTests(suite: RunnerSuite): Promise<RunResult> {
     // Trial run does not need many workers, use one.
-    const runner = new Dispatcher(suite, { ...config, jobs: config.jobs }, this._reporter);
-    try {
-      for (const f of this._beforeFunctions)
-        await f();
-      this._reporter.onBegin(config, suite);
-      await runner.run();
-      await runner.stop();
-      this._reporter.onEnd();
-    } finally {
-      for (const f of this._afterFunctions)
-        await f();
-    }
-    return this._hasBadFiles || runner.hasWorkerErrors() || suite.findSpec(spec => !spec._ok()) ? 'failed' : 'passed';
+    const runner = new Dispatcher(suite, { ...config, workers: config.workers }, this._reporter);
+    let sigint = false;
+    let sigintCallback: () => void;
+    const sigIntPromise = new Promise(f => sigintCallback = f);
+    const sigintHandler = () => {
+      process.off('SIGINT', sigintHandler);
+      sigint = true;
+      sigintCallback();
+    };
+    process.on('SIGINT', sigintHandler);
+    this._reporter.onBegin(config, suite);
+    await Promise.race([runner.run(), sigIntPromise]);
+    await runner.stop();
+    this._reporter.onEnd();
+    if (sigint)
+      return 'sigint';
+    return this._hasBadFiles || runner.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
   }
 }

@@ -14,52 +14,42 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs';
+import fs from 'fs';
 import path from 'path';
 import { Config } from '../config';
-import { Reporter } from '../reporter';
-import { Test, Suite, Spec, TestResult } from '../test';
+import { EmptyReporter } from '../reporter';
+import { Test, Suite, Spec, TestResult, TestError } from '../test';
+import { ENV_PREFIX } from './base';
 
 export interface SerializedSuite {
   title: string;
   file: string;
+  location: string,
   specs: ReturnType<JSONReporter['_serializeTestSpec']>[];
   suites?: SerializedSuite[];
 }
 
 export type ReportFormat = {
   config: Config;
-  errors?: { file: string, error: any }[];
+  errors?: { file: string, error: TestError }[];
   suites?: SerializedSuite[];
 };
 
-class JSONReporter implements Reporter {
+class JSONReporter extends EmptyReporter {
   config: Config;
   suite: Suite;
-  private _errors: { file: string, error: any }[] = [];
+  private _errors: { file: string, error: TestError }[] = [];
 
   onBegin(config: Config, suite: Suite) {
     this.config = config;
     this.suite = suite;
   }
 
-  onTimeout(timeout) {
+  onTimeout() {
     this.onEnd();
   }
 
-  onStdOut(chunk: string | Buffer) {
-  }
-
-  onStdErr(chunk: string | Buffer) {
-  }
-
-  onTestBegin(test: Test): void {
-  }
-
-  onTestEnd(test: Test, result: TestResult): void {
-  }
-
-  onError(error: any, file?: string): void {
+  onError(error: TestError, file?: string): void {
     this._errors.push({ file, error });
   }
 
@@ -78,6 +68,7 @@ class JSONReporter implements Reporter {
     return {
       title: suite.title,
       file: suite.file,
+      location: suite.location,
       specs: suite.specs.map(test => this._serializeTestSpec(test)),
       suites: suites.length ? suites : undefined,
     };
@@ -87,6 +78,7 @@ class JSONReporter implements Reporter {
     return {
       title: spec.title,
       file: spec.file,
+      location: spec.location,
       tests: spec.tests.map(r => this._serializeTest(r))
     };
   }
@@ -119,9 +111,10 @@ class JSONReporter implements Reporter {
 
 function outputReport(report: ReportFormat) {
   const reportString = JSON.stringify(report, undefined, 2);
-  if (process.env.PWRUNNER_JSON_REPORT) {
-    fs.mkdirSync(path.dirname(process.env.PWRUNNER_JSON_REPORT), { recursive: true });
-    fs.writeFileSync(process.env.PWRUNNER_JSON_REPORT, reportString);
+  const outputName = process.env[`${ENV_PREFIX}_JSON_OUTPUT_NAME`];
+  if (outputName) {
+    fs.mkdirSync(path.dirname(outputName), { recursive: true });
+    fs.writeFileSync(outputName, reportString);
   } else {
     console.log(reportString);
   }

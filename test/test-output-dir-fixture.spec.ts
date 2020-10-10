@@ -20,19 +20,26 @@ const { it } = fixtures;
 it('should work and remove empty dir', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my-test.spec.js': `
-      it('test 1', async ({testOutputPath, testInfo}) => {
-        if (testInfo.retry)
-          expect(testOutputPath('')).toContain(require('path').join('my-test', 'test-1-retry1'));
-        else
-          expect(testOutputPath('')).toContain(require('path').join('my-test', 'test-1'));
-        expect(require('fs').existsSync(testOutputPath(''))).toBe(true);
-        expect(testInfo.retry).toBe(1);
+      it('test 1', async ({testInfo}) => {
+        if (testInfo.retry) {
+          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1-retry1', 'foo', 'bar'));
+        } else {
+          expect(testInfo.outputPath()).toContain(require('path').join('my-test', 'test-1'));
+          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'foo', 'bar'));
+        }
+        expect(require('fs').existsSync(testInfo.outputPath())).toBe(true);
+        if (testInfo.retry !== 1)
+          throw new Error('Give me a retry');
       });
     `,
   }, { retries: 10 });
   expect(result.exitCode).toBe(1);
+
   expect(result.results[0].status).toBe('failed');
   expect(result.results[0].retry).toBe(0);
+  // Should only fail the last retry check.
+  expect(result.results[0].error.message).toBe('Give me a retry');
+
   expect(result.results[1].status).toBe('passed');
   expect(result.results[1].retry).toBe(1);
 });

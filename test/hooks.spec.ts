@@ -17,20 +17,21 @@ import { expect } from '@playwright/test-runner';
 import { fixtures } from './fixtures';
 const { it } = fixtures;
 
-it('hooks should work with fixtures', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('hooks should work with fixtures', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
       const logs = [];
-      fixtures.defineWorkerFixture('w', async ({}, test) => {
+      const fixtures = baseFixtures.defineWorkerFixtures({ w: async function*() {
         logs.push('+w');
-        await test(17);
+        yield 17;
         logs.push('-w');
-      });
-      fixtures.defineTestFixture('t', async ({}, test) => {
+      } }).defineTestFixtures({ t: async function*() {
         logs.push('+t');
-        await test(42);
+        yield 42;
         logs.push('-t');
-      });
+      } });
+
+      const { it, describe } = fixtures;
 
       describe('suite', () => {
         fixtures.beforeAll(async ({w}) => {
@@ -71,24 +72,26 @@ it('hooks should work with fixtures', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-it('afterEach failure should not prevent other hooks and fixture teardown', async ({ runInlineTest }) => {
-  const report = await runInlineTest({
+it('afterEach failure should not prevent other hooks and fixture teardown', async ({ runInlineFixturesTest }) => {
+  const report = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineTestFixture('t', async ({}, test) => {
+      const fixtures = baseFixtures.defineTestFixtures({ t: async function*() {
         console.log('+t');
-        await test(42);
+        yield 42;
         console.log('-t');
-      });
-      fixtures.afterEach(async ({}) => {
-        console.log('afterEach1');
-      });
-      fixtures.afterEach(async ({}) => {
-        console.log('afterEach2');
-        throw new Error('afterEach2');
-      });
-      it('one', async ({t}) => {
-        console.log('test');
-        expect(t).toBe(42);
+      } });
+      fixtures.describe('suite', () => {
+        fixtures.afterEach(async ({}) => {
+          console.log('afterEach1');
+        });
+        fixtures.afterEach(async ({}) => {
+          console.log('afterEach2');
+          throw new Error('afterEach2');
+        });
+        fixtures.it('one', async ({t}) => {
+          console.log('test');
+          expect(t).toBe(42);
+        });
       });
     `,
   });
@@ -99,18 +102,20 @@ it('afterEach failure should not prevent other hooks and fixture teardown', asyn
 it('beforeEach failure should prevent the test, but not other hooks', async ({ runInlineTest }) => {
   const report = await runInlineTest({
     'a.test.js': `
-      fixtures.beforeEach(async ({}) => {
-        console.log('beforeEach1');
-      });
-      fixtures.beforeEach(async ({}) => {
-        console.log('beforeEach2');
-        throw new Error('beforeEach2');
-      });
-      fixtures.afterEach(async ({}) => {
-        console.log('afterEach');
-      });
-      it('one', async ({}) => {
-        console.log('test');
+      fixtures.describe('suite', () => {
+        fixtures.beforeEach(async ({}) => {
+          console.log('beforeEach1');
+        });
+        fixtures.beforeEach(async ({}) => {
+          console.log('beforeEach2');
+          throw new Error('beforeEach2');
+        });
+        fixtures.afterEach(async ({}) => {
+          console.log('afterEach');
+        });
+        it('one', async ({}) => {
+          console.log('test');
+        });
       });
     `,
   });
@@ -129,5 +134,86 @@ it('should throw when hook is called in fixutres file', async ({ runInlineTest }
       });
     `,
   });
-  expect(report.report.errors[0].error.message).toContain('beforeEach hook should be called from the test file.');
+  expect(report.report.errors[0].error.message).toContain('beforeEach hook should be called inside a describe block. Consider using an auto fixture.');
+});
+
+it('should throw when hook is called without describe', async ({ runInlineFixturesTest }) => {
+  const report = await runInlineFixturesTest({
+    'a.test.js': `
+      const { it, beforeEach } = baseFixtures;
+      beforeEach(async ({}) => {});
+      it('test', async ({}) => {
+      });
+    `,
+  });
+  expect(report.report.errors[0].error.message).toContain('beforeEach hook should be called inside a describe block. Consider using an auto fixture.');
+});
+
+it('should throw when hook depends on unknown fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, beforeEach, describe } = baseFixtures;
+      describe('suite', () => {
+        beforeEach(async ({foo}) => {});
+        it('works', async ({}) => {});
+      });
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('beforeEach hook has unknown parameter "foo".');
+  expect(result.report.errors[0].error.stack).toContain('a.spec.ts:5');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when beforeAll hook depends on test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, beforeAll, describe } = baseFixtures.defineTestFixtures({
+        foo: async function*() { yield undefined; }
+      });
+      describe('suite', () => {
+        beforeAll(async ({foo}) => {});
+        it('works', async ({foo}) => {});
+      });
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('beforeAll hook cannot depend on a test fixture "foo".');
+  expect(result.report.errors[0].error.stack).toContain('a.spec.ts:7');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when afterAll hook depends on test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const { it, afterAll, describe } = baseFixtures.defineTestFixtures({
+        foo: async function*() { yield undefined; }
+      });
+      describe('suite', () => {
+        afterAll(async ({foo}) => {});
+        it('works', async ({foo}) => {});
+      });
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('afterAll hook cannot depend on a test fixture "foo".');
+  expect(result.report.errors[0].error.stack).toContain('a.spec.ts:7');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when hook uses different fixtures set than describe', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.spec.ts': `
+      const f1 = baseFixtures.defineTestFixtures({
+        foo: async function*() { yield undefined; }
+      });
+      const f2 = baseFixtures.defineTestFixtures({
+        bar: async function*() { yield undefined; }
+      });
+      f1.describe('suite', () => {
+        f2.afterAll(async ({foo}) => {});
+        f1.it('works', async ({foo}) => {});
+      });
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('Using afterAll hook from a different fixture set.');
+  expect(result.report.errors[0].error.stack).toContain('a.spec.ts:11');
+  expect(result.exitCode).toBe(1);
 });

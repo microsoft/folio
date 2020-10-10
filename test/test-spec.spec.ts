@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-import { fixtures } from '../../..';
+import { fixtures, stripAscii } from './fixtures';
 const { it, expect } = fixtures;
-import * as fs from 'fs';
-import * as path from 'path';
 
-it('succeeds', async ({ testWorkerIndex }) => {
-  // First test waits for the second to start to work around the race.
-  fs.writeFileSync(path.join(process.env.PW_OUTPUT_DIR, 'parallel-index.txt'), 'TRUE');
-  expect(testWorkerIndex).toBe(1);
+it('should handle test() spec', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      test('test', async ({}) => {
+        expect(1).toBe(1);
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
 });

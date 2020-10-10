@@ -1,2 +1,4 @@
 node_modules
+third_party/
 out/
+test-results/

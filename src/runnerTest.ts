@@ -21,18 +21,12 @@ export type ModifierFn = (modifier: TestModifier, parameters: any) => void;
 
 export class RunnerSpec extends Spec {
   _modifierFn: ModifierFn | null;
-
-  constructor(title: string, fn: Function, suite: RunnerSuite) {
-    super(title, fn, suite);
-  }
+  _usedParameters: string[];
 }
 
 export class RunnerSuite extends Suite {
   _modifierFn: ModifierFn | null;
-
-  constructor(title: string, parent?: RunnerSuite) {
-    super(title, parent);
-  }
+  _hooks: { type: string, fn: Function, stack: string } [] = [];
 
   _assignIds() {
     this.findSpec((test: RunnerSpec) => {
@@ -40,16 +34,17 @@ export class RunnerSuite extends Suite {
         run._id = `${test._ordinal}@${run.spec.file}::[${run._parametersString}]`;
     });
   }
+
+  _addHook(type: string, fn: any, stack: string) {
+    this._hooks.push({ type, fn, stack });
+  }
 }
 
 export class RunnerTest extends Test {
   _parametersString: string;
   _workerHash: string;
   _id: string;
-
-  constructor(spec: RunnerSpec) {
-    super(spec);
-  }
+  _repeatEachIndex: number;
 
   _appendTestResult(): TestResult {
     const result: TestResult = {

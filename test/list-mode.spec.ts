@@ -17,14 +17,15 @@ import { expect } from '@playwright/test-runner';
 import { fixtures } from './fixtures';
 const { it } = fixtures;
 
-it('should work with parameters', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'fixture.spec.js': `
-      fixtures.defineParameter('worker', '', '');
+it('should work with parameters', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'fixtures.js': `
+      const fixtures = baseFixtures.defineParameter('worker', '', '');
       fixtures.generateParametrizedTests('worker', ['A', 'B', 'C']);
+      module.exports = fixtures;
     `,
     'a.test.js': `
-      require('./fixture.spec.js');
+      const { it } = require('./fixtures.js');
       it('should use worker A', (test, parameters) => {
         test.fail(parameters.worker !== 'A');
       }, async ({worker}) => {
@@ -32,7 +33,7 @@ it('should work with parameters', async ({ runInlineTest }) => {
       });
     `,
     'b.test.js': `
-      require('./fixture.spec.js');
+      const { it } = require('./fixtures.js');
       it('should use worker B', (test, parameters) => {
         test.fail(parameters.worker !== 'B');
       }, async ({worker}) => {
@@ -40,7 +41,7 @@ it('should work with parameters', async ({ runInlineTest }) => {
       });
     `,
     'c.test.js': `
-      require('./fixture.spec.js');
+      const { it } = require('./fixtures.js');
       it('should use worker C', (test, parameters) => {
         test.fail(parameters.worker !== 'C');
       }, async ({worker}) => {

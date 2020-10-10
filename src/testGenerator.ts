@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import crypto from 'crypto';
-import { registrations, fixturesForCallback, validateRegistrations, matrix } from './fixtures';
+import { matrix } from './fixtures';
 import { Configuration } from './ipc';
 import { Config } from './config';
 import { RunnerSuite, RunnerSpec, RunnerTest, ModifierFn } from './runnerTest';
 import { TestModifier } from './testModifier';
+import { rootFixtures } from './spec';
 
 export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuite {
-  const rootSuite = new RunnerSuite('');
+  const rootSuite = new RunnerSuite(rootFixtures, '');
   let grep: RegExp = null;
   if (config.grep) {
     const match = config.grep.match(/^\/(.*)\/(g|i|)$|.*/);
@@ -30,34 +30,18 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
   }
 
   for (const suite of suites) {
-    // Leave only those fixtures that are relevant for this file.
-    validateRegistrations(suite.file);
-
     // Name each test.
     suite._renumber();
 
     for (const spec of suite._allSpecs() as RunnerSpec[]) {
       if (grep && !grep.test(spec.fullTitle()))
         continue;
-      // Get all the fixtures that the test needs.
-      let fixtures: string[] = [];
-      try {
-        fixtures = fixturesForCallback(spec.fn);
-      } catch (error) {
-        // It is totally fine if the test can't parse it's fixtures, worker will report
-        // this test as failing, not need to quit on the suite.
-      }
-      // For worker fixtures, trace them to their registrations to make sure
-      // they are compatible.
-      const registrationsHash = computeWorkerRegistrationHash(fixtures);
 
       const generatorConfigurations: Configuration[] = [];
       // For generator fixtures, collect all variants of the fixture values
       // to build different workers for them.
-      for (const name of fixtures) {
+      for (const name of spec._usedParameters) {
         const values = matrix[name];
-        if (!values)
-          continue;
         const state = generatorConfigurations.length ? generatorConfigurations.slice() : [[]];
         generatorConfigurations.length = 0;
         for (const gen of state) {
@@ -73,7 +57,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
       for (const configuration of generatorConfigurations) {
         for (let i = 0; i < config.repeatEach; ++i) {
           const parametersString = serializeParameters(configuration) +  `#repeat-${i}#`;
-          const workerHash = registrationsHash + '@' + parametersString;
+          const workerHash = spec._fixtures._pool.id + '@' + parametersString;
           const test = new RunnerTest(spec);
           const parameters = parametersObject(configuration);
           test.parameters = parameters;
@@ -98,6 +82,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
 
           test._parametersString = parametersString;
           test._workerHash = workerHash;
+          test._repeatEachIndex = i;
           spec.tests.push(test);
         }
       }
@@ -119,21 +104,6 @@ function filterOnly(suite: RunnerSuite) {
     return true;
   }
   return false;
-}
-
-function computeWorkerRegistrationHash(fixtures: string[]): string {
-  // Build worker hash - indices of all worker fixtures as seen by this file.
-  // Note that tests that share fixture by requiring them from a single fixtures
-  // file will share the fixture registration instance and therefore will
-  // get the same hash.
-  const hash = crypto.createHash('sha1');
-  for (const fixture of fixtures) {
-    const registration = registrations.get(fixture);
-    if (registration.scope !== 'worker')
-      continue;
-    hash.update('@' + registration.index);
-  }
-  return hash.digest('hex');
 }
 
 function serializeParameters(parameters: Configuration): string {

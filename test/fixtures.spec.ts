@@ -17,10 +17,12 @@ import { expect } from '@playwright/test-runner';
 import { fixtures } from './fixtures';
 const { it } = fixtures;
 
-it('should work', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('should work', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineTestFixture('asdf', async ({}, test) => await test(123));
+      const { it } = baseFixtures.defineTestFixtures({
+        asdf: async function*() { yield 123; }
+      });
       it('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(123);
       });
@@ -29,10 +31,12 @@ it('should work', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-it('should work with a sync function', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('should work with a sync function', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineTestFixture('asdf', async ({}, test) => await test(123));
+      const { it } = baseFixtures.defineTestFixtures({
+        asdf: async function*() { yield 123; }
+      });
       it('should use asdf', ({asdf}) => {
         expect(asdf).toBe(123);
       });
@@ -41,10 +45,12 @@ it('should work with a sync function', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-it('should work with a non-arrow function', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('should work with a non-arrow function', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineTestFixture('asdf', async ({}, test) => await test(123));
+      const { it } = baseFixtures.defineTestFixtures({
+        asdf: async function*() { yield 123; }
+      });
       it('should use asdf', function ({asdf}) {
         expect(asdf).toBe(123);
       });
@@ -53,10 +59,12 @@ it('should work with a non-arrow function', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-it('should work with a named function', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('should work with a named function', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineTestFixture('asdf', async ({}, test) => await test(123));
+      const { it } = baseFixtures.defineTestFixtures({
+        asdf: async function*() { yield 123; }
+      });
       it('should use asdf', async function hello({asdf}) {
         expect(asdf).toBe(123);
       });
@@ -65,10 +73,12 @@ it('should work with a named function', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-it('should work with renamed parameters', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('should work with renamed parameters', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineTestFixture('asdf', async ({}, test) => await test(123));
+      const { it } = baseFixtures.defineTestFixtures({
+        asdf: async function*() { yield 123; }
+      });
       it('should use asdf', function ({asdf: renamed}) {
         expect(renamed).toBe(123);
       });
@@ -77,10 +87,12 @@ it('should work with renamed parameters', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-it('should fail if parameters are not destructured', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
+it('should fail if parameters are not destructured', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineTestFixture('asdf', async ({}, test) => await test(123));
+      const { it } = baseFixtures.defineTestFixtures({
+        asdf: async function*() { yield 123; }
+      });
       it('should pass', function () {
         expect(1).toBe(1);
       });
@@ -89,29 +101,31 @@ it('should fail if parameters are not destructured', async ({ runInlineTest }) =
       });
     `,
   });
-  expect(result.passed).toBe(1);
-  expect(result.failed).toBe(1);
-  expect(result.output).toContain('First argument must use the object destructuring pattern.');
-  expect(result.output).toContain('a.test.js');
+  expect(result.report.errors[0].error.message).toBe('First argument must use the object destructuring pattern: abc');
+  expect(result.report.errors[0].error.stack).toContain('a.test.js:10');
+  expect(result.results.length).toBe(0);
 });
 
 it('should fail with an unknown fixture', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+  const result = await runInlineTest({
     'a.test.js': `
       it('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(123);
       });
     `,
   });
-  expect(results[0].status).toBe('failed');
-  expect(results[0].error.message).toBe('Unknown fixture: asdf');
+  expect(result.report.errors[0].error.message).toBe('Test has unknown parameter "asdf".');
+  expect(result.report.errors[0].error.stack).toContain('a.test.js:5');
+  expect(result.results.length).toBe(0);
 });
 
-it('should run the fixture every time', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('should run the fixture every time', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
       let counter = 0;
-      fixtures.defineTestFixture('asdf', async ({}, test) => await test(counter++));
+      const { it } = baseFixtures.defineTestFixtures({
+        asdf: async function*() { yield counter++; }
+      });
       it('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(0);
       });
@@ -126,11 +140,13 @@ it('should run the fixture every time', async ({ runInlineTest }) => {
   expect(results.map(r => r.status)).toEqual(['passed', 'passed', 'passed']);
 });
 
-it('should only run worker fixtures once', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('should only run worker fixtures once', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
       let counter = 0;
-      fixtures.defineWorkerFixture('asdf', async ({}, test) => await test(counter++));
+      const { it } = baseFixtures.defineWorkerFixtures({
+        asdf: async function*() { yield counter++; }
+      });
       it('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(0);
       });
@@ -145,27 +161,36 @@ it('should only run worker fixtures once', async ({ runInlineTest }) => {
   expect(results.map(r => r.status)).toEqual(['passed', 'passed', 'passed']);
 });
 
-it('each file should get their own fixtures', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('each file should get their own fixtures', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'a.test.js': `
-      fixtures.defineWorkerFixture('worker', async ({}, test) => await test('worker-a'));
-      fixtures.defineTestFixture('test', async ({}, test) => await test('test-a'));
+      const { it } = baseFixtures.defineWorkerFixtures({
+        worker: async function*() { yield 'worker-a'; }
+      }).defineTestFixtures({
+        test: async function*() { yield 'test-a'; }
+      });
       it('should use worker', async ({worker, test}) => {
         expect(worker).toBe('worker-a');
         expect(test).toBe('test-a');
       });
     `,
     'b.test.js': `
-      fixtures.defineWorkerFixture('worker', async ({}, test) => await test('worker-b'));
-      fixtures.defineTestFixture('test', async ({}, test) => await test('test-b'));
+      const { it } = baseFixtures.defineWorkerFixtures({
+        worker: async function*() { yield 'worker-b'; }
+      }).defineTestFixtures({
+        test: async function*() { yield 'test-b'; }
+      });
       it('should use worker', async ({worker, test}) => {
         expect(worker).toBe('worker-b');
         expect(test).toBe('test-b');
       });
     `,
     'c.test.js': `
-      fixtures.defineWorkerFixture('worker', async ({}, test) => await test('worker-c'));
-      fixtures.defineTestFixture('test', async ({}, test) => await test('test-c'));
+      const { it } = baseFixtures.defineWorkerFixtures({
+        worker: async function*() { yield 'worker-c'; }
+      }).defineTestFixtures({
+        test: async function*() { yield 'test-c'; }
+      });
       it('should use worker', async ({worker, test}) => {
         expect(worker).toBe('worker-c');
         expect(test).toBe('test-c');
@@ -175,26 +200,28 @@ it('each file should get their own fixtures', async ({ runInlineTest }) => {
   expect(results.map(r => r.status)).toEqual(['passed', 'passed', 'passed']);
 });
 
-it('tests should be able to share worker fixtures', async ({ runInlineTest }) => {
-  const { results } = await runInlineTest({
+it('tests should be able to share worker fixtures', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
     'worker.js': `
       global.counter = 0;
-      fixtures.defineWorkerFixture('worker', async ({}, test) => await test(global.counter++));
+      module.exports = baseFixtures.defineWorkerFixtures({
+        worker: async function*() { yield global.counter++; }
+      });
     `,
     'a.test.js': `
-      require('./worker.js');
+      const { it } = require('./worker.js');
       it('should use worker', async ({worker}) => {
         expect(worker).toBe(0);
       });
     `,
     'b.test.js': `
-      require('./worker.js');
+      const { it } = require('./worker.js');
       it('should use worker', async ({worker}) => {
         expect(worker).toBe(0);
       });
     `,
     'c.test.js': `
-      require('./worker.js');
+      const { it } = require('./worker.js');
       it('should use worker', async ({worker}) => {
         expect(worker).toBe(0);
       });
@@ -203,14 +230,13 @@ it('tests should be able to share worker fixtures', async ({ runInlineTest }) =>
   expect(results.map(r => r.status)).toEqual(['passed', 'passed', 'passed']);
 });
 
-it('tests respect automatic test fixtures', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
+it('tests respect automatic test fixtures', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
     'a.test.js': `
       let counter = 0;
-      fixtures.defineTestFixture('automaticTestFixture', async ({}, runTest) => {
-        ++counter;
-        await runTest();
-      }, { auto: true  });
+      const { it } = baseFixtures.defineTestFixtures({
+        automaticTestFixture: async function*() { ++counter; yield; }
+      });
       it('test 1', async ({}) => {
         expect(counter).toBe(1);
       });
@@ -223,14 +249,13 @@ it('tests respect automatic test fixtures', async ({ runInlineTest }) => {
   expect(result.results.map(r => r.status)).toEqual(['passed', 'passed']);
 });
 
-it('tests respect automatic worker fixtures', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
+it('tests respect automatic worker fixtures', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
     'a.test.js': `
       let counter = 0;
-      fixtures.defineWorkerFixture('automaticWorkerFixture', async ({}, runTest) => {
-        ++counter;
-        await runTest();
-      }, { auto: true  });
+      const { it } = baseFixtures.defineWorkerFixtures({
+        automaticWorkerFixture: async function*() { ++counter; yield; }
+      });
       it('test 1', async ({}) => {
         expect(counter).toBe(1);
       });
@@ -243,14 +268,13 @@ it('tests respect automatic worker fixtures', async ({ runInlineTest }) => {
   expect(result.results.map(r => r.status)).toEqual(['passed', 'passed']);
 });
 
-it('tests does not run non-automatic worker fixtures', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
+it('tests does not run non-automatic worker fixtures', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
     'a.test.js': `
       let counter = 0;
-      fixtures.defineWorkerFixture('nonAutomaticWorkerFixture', async ({}, runTest) => {
-        ++counter;
-        await runTest();
-      }, { auto: false  });
+      const { it } = baseFixtures.defineTestFixtures({
+        nonAutomaticWorkerFixture: async function*() { ++counter; yield; }
+      });
       it('test 1', async ({}) => {
         expect(counter).toBe(0);
       });
@@ -260,21 +284,75 @@ it('tests does not run non-automatic worker fixtures', async ({ runInlineTest })
   expect(result.results.map(r => r.status)).toEqual(['passed']);
 });
 
-it('should not reuse fixtures from one file in another one', async ({ runInlineFixturesTest }) => {
+it('should teardown fixtures after timeout', async ({ runInlineFixturesTest, testInfo }) => {
+  const file = testInfo.outputPath('log.txt');
+  require('fs').writeFileSync(file, '', 'utf8');
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const { it, defineTestFixture } = baseFixtures;
-      defineTestFixture('foo', async ({}, runTest) => {
-        await runTest();
+      const { it } = baseFixtures
+        .defineParameter('file', 'File', '')
+        .defineTestFixtures({
+          t: async function*({ file }) {
+            yield 't';
+            require('fs').appendFileSync(file, 'test fixture teardown\\n', 'utf8');
+          }
+        }).defineWorkerFixtures({
+          w: async function*({ file }) {
+            yield 'w';
+            require('fs').appendFileSync(file, 'worker fixture teardown\\n', 'utf8');
+          }
+        });
+      it('test', async ({t, w}) => {
+        expect(t).toBe('t');
+        expect(w).toBe('w');
+        await new Promise(() => {});
       });
-      it('test1', async ({}) => {});
     `,
-    'b.spec.ts': `
-      const { it } = baseFixtures;
-      it('test1', async ({}) => {});
-      it('test2', async ({foo}) => {});
+  }, { timeout: 1000, param: 'file=' + file });
+  expect(result.results[0].status).toBe('timedOut');
+  const content = require('fs').readFileSync(file, 'utf8');
+  expect(content).toContain('worker fixture teardown');
+  expect(content).toContain('test fixture teardown');
+});
+
+it('should work with two different fixture objects', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const fixtures1 = baseFixtures.defineTestFixtures({
+        foo: async function*() { yield 123; }
+      });
+      const fixtures2 = baseFixtures.defineTestFixtures({
+        bar: async function*() { yield 456; }
+      });
+      fixtures1.it('test 1', async ({foo}) => {
+        expect(foo).toBe(123);
+      });
+      fixtures2.it('test 2', async ({bar}) => {
+        expect(bar).toBe(456);
+      });
     `,
   });
-  expect(result.results[2].error.message).toContain('Unknown fixture: foo');
-  expect(result.exitCode).toBe(1);
+  expect(result.results[0].workerIndex).toBe(0);
+  expect(result.results[0].status).toBe('passed');
+  expect(result.results[1].workerIndex).toBe(1);
+  expect(result.results[1].status).toBe('passed');
+});
+
+it('should work with fixtures union', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const fixtures1 = baseFixtures.defineTestFixtures({
+        foo: async function*() { yield 123; }
+      });
+      const fixtures2 = baseFixtures.defineTestFixtures({
+        bar: async function*() { yield 456; }
+      });
+      const { it } = fixtures1.union(fixtures2);
+      it('test', async ({foo, bar}) => {
+        expect(foo).toBe(123);
+        expect(bar).toBe(456);
+      });
+    `,
+  });
+  expect(result.results[0].status).toBe('passed');
 });

@@ -16,22 +16,17 @@
 
 import { fixtures as baseFixtures, expect } from '../..';
 
-type Parameters = {
-  param1: string;
-  param2: string;
-};
-
-const fixtures = baseFixtures.declareParameters<Parameters>().declareTestFixtures<{ fixture1: string, fixture2: string}>();
-fixtures.defineParameter('param1', 'Custom parameter 1', '');
-fixtures.defineParameter('param2', 'Custom parameter 2', 'value2');
-fixtures.defineTestFixture('fixture1', async ({testInfo}, runTest) => {
-  await runTest(testInfo.parameters.param1 as string);
-});
-fixtures.defineTestFixture('fixture2', async ({testInfo}, runTest) => {
-  await runTest(testInfo.parameters.param2 as string);
-});
-
-const { it } = fixtures;
+const { it } = baseFixtures
+    .defineParameter<'param1', string>('param1', 'Custom parameter 1', '')
+    .defineParameter<'param2', string>('param2', 'Custom parameter 2', 'value2')
+    .defineTestFixtures<{ fixture1: string, fixture2: string}>({
+      fixture1: async function*({ testInfo }) {
+        yield testInfo.parameters.param1 as string;
+      },
+      fixture2: async function*({ testInfo }) {
+        yield testInfo.parameters.param2 as string;
+      },
+    });
 
 it('pass', async ({ param1, param2, fixture1, fixture2 }) => {
   // Available as fixtures.

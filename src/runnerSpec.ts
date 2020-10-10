@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs';
 import { installTransform } from './transform';
 import { RunnerSuite, RunnerSpec } from './runnerTest';
-import { callerFile, extractLocation } from './util';
-import { setImplementation } from './spec';
+import { extractLocation } from './util';
+import { FixturesImpl, setImplementation } from './spec';
 import { TestModifier } from './testModifier';
 
-export function runnerSpec(suite: RunnerSuite, timeout: number, file: string): () => void {
-  const resolvedFile = fs.realpathSync(file);
+export function runnerSpec(suite: RunnerSuite, timeout: number): () => void {
   const suites = [suite];
 
-  const it = (spec: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const it = (spec: 'default' | 'skip' | 'only', fixtures: FixturesImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     const suite = suites[0];
     if (typeof fn !== 'function') {
       fn = modifierFn;
       modifierFn = null;
     }
-    const test = new RunnerSpec(title, fn, suite);
+    const test = new RunnerSpec(fixtures, title, fn, suite);
+    test._usedParameters = fixtures._pool.parametersForFunction(fn, `Test`, true);
     test.file = suite.file;
     test.location = extractLocation(new Error());
     if (spec === 'only')
@@ -48,12 +47,12 @@ export function runnerSpec(suite: RunnerSuite, timeout: number, file: string): (
     return test;
   };
 
-  const describe = (spec: 'describe' | 'skip' | 'only', title: string, modifierFn: (suite: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const describe = (spec: 'default' | 'skip' | 'only', fixtures: FixturesImpl, title: string, modifierFn: (suite: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     if (typeof fn !== 'function') {
       fn = modifierFn;
       modifierFn = null;
     }
-    const child = new RunnerSuite(title, suites[0]);
+    const child = new RunnerSuite(fixtures, title, suites[0]);
     child.file = suite.file;
     child.location = extractLocation(new Error());
     if (spec === 'only')
@@ -73,23 +72,22 @@ export function runnerSpec(suite: RunnerSuite, timeout: number, file: string): (
     suites.shift();
   };
 
-  const hook = (hookName: string) => {
-    const hookFile = callerFile(hook, 3);
-    if (hookFile !== resolvedFile) {
-      throw new Error(`${hookName} hook should be called from the test file.\n` +
-          `Do you need a shared hook for multiple test files?\n` +
-          `  - Use {auto: true} option in defineWorkerFixture instead of beforeAll/afterAll.\n` +
-          `  - Use {auto: true} option in defineTestFixture instead of beforeEach/afterEach.`);
-    }
+  const hook = (hookName: string, fixtures: FixturesImpl, fn: Function) => {
+    const suite = suites[0];
+    if (!suite.parent)
+      throw new Error(`${hookName} hook should be called inside a describe block. Consider using an auto fixture.`);
+    if (suite._fixtures !== fixtures)
+      throw new Error(`Using ${hookName} hook from a different fixture set.\nAre you using describe and ${hookName} from different fixture files?`);
+    fixtures._pool.parametersForFunction(fn, `${hookName} hook`, hookName === 'beforeEach' || hookName === 'afterEach');
   };
 
   setImplementation({
     it,
     describe,
-    beforeEach: () => hook('beforeEach'),
-    afterEach: () => hook('afterEach'),
-    beforeAll: () => hook('beforeAll'),
-    afterAll: () => hook('afterAll'),
+    beforeEach: (fixtures, fn) => hook('beforeEach', fixtures, fn),
+    afterEach: (fixtures, fn) => hook('afterEach', fixtures, fn),
+    beforeAll: (fixtures, fn) => hook('beforeAll', fixtures, fn),
+    afterAll: (fixtures, fn) => hook('afterAll', fixtures, fn),
   });
 
   return installTransform();

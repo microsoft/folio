@@ -16,7 +16,7 @@
 
 import { Config } from '../config';
 import { Reporter } from '../reporter';
-import { Suite, Test, TestResult } from '../test';
+import { Suite, Test, TestError, TestResult } from '../test';
 
 export class Multiplexer implements Reporter {
   private _reporters: Reporter[];
@@ -60,7 +60,7 @@ export class Multiplexer implements Reporter {
       reporter.onEnd();
   }
 
-  onError(error: any, file?: string) {
+  onError(error: TestError, file?: string) {
     for (const reporter of this._reporters)
       reporter.onError(error, file);
   }
