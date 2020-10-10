@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { fixtures as baseFixtures } from '../..';
+import { folio as baseFolio } from '../..';
 
-const builder = baseFixtures.extend<{}, { workerTypeOnly: number }, { testTypeOnly: string }>();
+const builder = baseFolio.extend<{}, { workerTypeOnly: number }, { testTypeOnly: string }>();
 
 builder.defineTestFixture('testTypeOnly', async ({}, runTest) => {
   await runTest('testTypeOnly');

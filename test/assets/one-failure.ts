@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { fixtures } from '../..';
-const { it, expect } = fixtures;
+import { folio } from '../..';
+const { it, expect } = folio;
 
 it('fails', () => {
   expect(1 + 1).toBe(7);

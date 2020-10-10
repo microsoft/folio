@@ -16,8 +16,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { fixtures } = require('../..');
-const { it, expect } = fixtures;
+const { folio } = require('../..');
+const { it, expect } = folio;
 
 it('flake', test => {
   test.flaky();

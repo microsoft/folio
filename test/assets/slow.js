@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-const { fixtures } = require('../../');
-const { it } = fixtures;
+const { folio } = require('../../');
+const { it } = folio;
 
 it('slow', test => {
   test.slow();

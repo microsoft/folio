@@ -1,8 +1,8 @@
 {
-  "name": "@playwright/test-runner",
-  "version": "0.9.24-post",
+  "name": "folio",
+  "version": "0.3.5",
   "bin": {
-    "test-runner": "./cli.js"
+    "folio": "./cli.js"
   },
   "main": "./out/index.js",
   "engines": {
@@ -53,5 +53,5 @@
   "author": {
     "name": "Microsoft Corporation"
   },
-  "repository": "github:Microsoft/playwright-test-runner"
+  "repository": "github:Microsoft/folio"
 }

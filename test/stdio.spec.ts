@@ -40,7 +40,7 @@ it('should get top level stdio', async ({runInlineTest}) => {
 it('should get stdio from worker fixture teardown', async ({runInlineFixturesTest}) => {
   const result = await runInlineFixturesTest({
     'a.spec.js': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineWorkerFixture('fixture', async ({}, runTest) => {
         console.log('\\n%% worker setup');
         await runTest();

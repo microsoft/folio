@@ -20,7 +20,7 @@ const { it, expect } = fixtures;
 it('should handle fixture timeout', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineTestFixture('timeout', async ({}, runTest) => {
         await runTest();
         await new Promise(f => setTimeout(f, 100000));
@@ -44,7 +44,7 @@ it('should handle fixture timeout', async ({ runInlineFixturesTest }) => {
 it('should handle worker fixture timeout', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineWorkerFixture('timeout', async ({}, runTest) => {
       });
       const { it } = builder.build();
@@ -60,7 +60,7 @@ it('should handle worker fixture timeout', async ({ runInlineFixturesTest }) => 
 it('should handle worker fixture error', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineTestFixture('failure', async ({}, runTest) => {
         throw new Error('Worker failed');
       });
@@ -78,7 +78,7 @@ it('should handle worker fixture error', async ({ runInlineFixturesTest }) => {
 it('should handle worker tear down fixture error', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineWorkerFixture('failure', async ({}, runTest) => {
         await runTest();
         throw new Error('Worker failed');
@@ -97,7 +97,7 @@ it('should handle worker tear down fixture error', async ({ runInlineFixturesTes
 it('should throw when overriding non-defined worker fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.overrideWorkerFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -112,7 +112,7 @@ it('should throw when overriding non-defined worker fixture', async ({ runInline
 it('should throw when defining worker fixture twice', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'b.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineWorkerFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -130,7 +130,7 @@ it('should throw when defining worker fixture twice', async ({ runInlineFixtures
 it('should throw when overriding non-defined test fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'c.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.overrideTestFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -145,7 +145,7 @@ it('should throw when overriding non-defined test fixture', async ({ runInlineFi
 it('should throw when defining test fixture twice', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'd.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineTestFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -163,7 +163,7 @@ it('should throw when defining test fixture twice', async ({ runInlineFixturesTe
 it('should throw when defining test fixture with the same name as a worker fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'e.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineWorkerFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -181,7 +181,7 @@ it('should throw when defining test fixture with the same name as a worker fixtu
 it('should throw when defining worker fixture with the same name as a test fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'e.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineTestFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -199,7 +199,7 @@ it('should throw when defining worker fixture with the same name as a test fixtu
 it('should throw when overriding worker fixture as a test fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'f.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineWorkerFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -217,7 +217,7 @@ it('should throw when overriding worker fixture as a test fixture', async ({ run
 it('should throw when overriding test fixture as a worker fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'f.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineTestFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -236,7 +236,7 @@ it('should throw when overriding test fixture as a worker fixture', async ({ run
 it('should throw when worker fixture depends on a test fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'f.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineTestFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -254,7 +254,7 @@ it('should throw when worker fixture depends on a test fixture', async ({ runInl
 it('should define and override the same fixture in two files', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineWorkerFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -265,7 +265,7 @@ it('should define and override the same fixture in two files', async ({ runInlin
       it('works', async ({foo}) => {});
     `,
     'b.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineWorkerFixture('foo', async ({}, runTest) => {
         await runTest();
       });
@@ -283,7 +283,7 @@ it('should define and override the same fixture in two files', async ({ runInlin
 it('should detect fixture dependency cycle', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'x.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineTestFixture('good1', ({}, runTest) => runTest());
       builder.defineTestFixture('foo', ({bar}, runTest) => runTest());
       builder.defineTestFixture('bar', ({baz}, runTest) => runTest());
@@ -301,10 +301,10 @@ it('should detect fixture dependency cycle', async ({ runInlineFixturesTest }) =
 it('should throw when fixture is redefined in union', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
-      const builder1 = baseFixtures.extend();
+      const builder1 = baseFolio.extend();
       builder1.defineTestFixture('foo', ({}, runTest) => runTest(123));
       const fixtures1 = builder1.build();
-      const builder2 = baseFixtures.extend();
+      const builder2 = baseFolio.extend();
       builder2.defineTestFixture('foo', ({}, runTest) => runTest(456));
       const fixtures2 = builder2.build();
       const { it } = fixtures1.union(fixtures2);
@@ -321,10 +321,10 @@ it('should throw when fixture is redefined in union', async ({ runInlineFixtures
 it('should throw when mixing different fixture objects', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
-      const builder1 = baseFixtures.extend();
+      const builder1 = baseFolio.extend();
       builder1.defineTestFixture('foo', ({}, runTest) => runTest(123));
       const fixtures1 = builder1.build();
-      const builder2 = baseFixtures.extend();
+      const builder2 = baseFolio.extend();
       builder2.defineTestFixture('bar', ({}, runTest) => runTest(456));
       const fixtures2 = builder2.build();
       fixtures1.describe('suite', () => {
@@ -344,13 +344,13 @@ it('should throw when mixing different fixture objects', async ({ runInlineFixtu
 it('should not reuse fixtures from one file in another one', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineTestFixture('foo', ({}, runTest) => runTest());
       const { it } = builder.build();
       it('test1', async ({}) => {});
     `,
     'b.spec.ts': `
-      const { it } = baseFixtures;
+      const { it } = baseFolio;
       it('test1', async ({}) => {});
       it('test2', async ({foo}) => {});
     `,
@@ -363,7 +363,7 @@ it('should not reuse fixtures from one file in another one', async ({ runInlineF
 it('should detect a cycle in the union', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
-      const baseBuilder = baseFixtures.extend();
+      const baseBuilder = baseFolio.extend();
       baseBuilder.defineTestFixture('foo', ({}, runTest) => runTest('foo'));
       baseBuilder.defineTestFixture('bar', ({}, runTest) => runTest('bar'));
       const base = baseBuilder.build();

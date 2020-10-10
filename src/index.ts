@@ -50,4 +50,4 @@ builder.defineTestFixture('testParametersPathSegment', async ({}, runTest) => {
   await runTest('');
 });
 
-export const fixtures = builder.build();
+export const folio = builder.build();

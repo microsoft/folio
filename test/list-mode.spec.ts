@@ -20,7 +20,7 @@ const { it } = fixtures;
 it('should work with parameters', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixtures.js': `
-      const builder = baseFixtures.extend();
+      const builder = baseFolio.extend();
       builder.defineParameter('worker', '', '');
       const fixtures = builder.build();
       fixtures.generateParametrizedTests('worker', ['A', 'B', 'C']);
