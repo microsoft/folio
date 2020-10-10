@@ -34,18 +34,20 @@ type BuiltinTestFixtures = {
   testParametersPathSegment: string;
 };
 
-export const fixtures = rootFixtures.defineWorkerFixtures<BuiltinWorkerFixtures>({
-  testWorkerIndex: async ({}, runTest) => {
-    // Worker injects the value for this one.
-    await runTest(undefined as any);
-  }
-}).defineTestFixtures<BuiltinTestFixtures>({
-  testInfo: async ({}, runTest) => {
-    // Worker injects the value for this one.
-    await runTest(undefined as any);
-  },
+const builder = rootFixtures.extend<{}, BuiltinWorkerFixtures, BuiltinTestFixtures>();
 
-  testParametersPathSegment: async ({}, runTest) => {
-    await runTest('');
-  },
+builder.defineWorkerFixture('testWorkerIndex', async ({}, runTest) => {
+  // Worker injects the value for this one.
+  await runTest(undefined as any);
 });
+
+builder.defineTestFixture('testInfo', async ({}, runTest) => {
+  // Worker injects the value for this one.
+  await runTest(undefined as any);
+});
+
+builder.defineTestFixture('testParametersPathSegment', async ({}, runTest) => {
+  await runTest('');
+});
+
+export const fixtures = builder.build();

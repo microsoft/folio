@@ -16,19 +16,13 @@
 
 import { fixtures as baseFixtures } from '../..';
 
-type WrapWorkerState = {
-  workerWrap: number;
-};
-type WrapTestState = {
-  testWrap: string;
-};
+const builder = baseFixtures.extend<{}, { workerWrap: number }, { testWrap: string }>();
 
-export const fixtures1 = baseFixtures.defineTestFixtures<WrapTestState>({
-  testWrap: async ({}, runTest) => {
-    await runTest('testWrap');
-  }
-}).defineWorkerFixtures<WrapWorkerState>({
-  workerWrap: async ({}, runTest) => {
-    await runTest(42);
-  }
+builder.defineTestFixture('testWrap', async ({}, runTest) => {
+  await runTest('testWrap');
 });
+builder.defineWorkerFixture('workerWrap', async ({}, runTest) => {
+  await runTest(42);
+});
+
+export const fixtures1 = builder.build();

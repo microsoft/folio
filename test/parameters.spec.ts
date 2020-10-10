@@ -20,9 +20,10 @@ const { it, expect } = fixtures;
 it('should run with each configuration', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
-      const fixtures = baseFixtures
-        .defineParameter('foo', 'Foo parameters', 'foo')
-        .defineParameter('bar', 'Bar parameters', 'bar');
+      const builder = baseFixtures.extend();
+      builder.defineParameter('foo', 'Foo parameters', 'foo');
+      builder.defineParameter('bar', 'Bar parameters', 'bar');
+      const fixtures = builder.build();
       fixtures.generateParametrizedTests('foo', ['foo1', 'foo2', 'foo3']);
       fixtures.generateParametrizedTests('bar', ['bar1', 'bar2']);
 
@@ -64,11 +65,15 @@ it('should fail on invalid parameters', async ({ runInlineTest }) => {
   expect(result.output).toContain(`Unregistered parameter 'invalid' was set.`);
 });
 
-it('should throw on duplicate parameters globally', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
+it('should throw on duplicate parameters globally', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
     'a.spec.ts': `
-      const f1 = fixtures.defineParameter('foo', 'Foo', '');
-      const f2 = fixtures.defineParameter('foo', 'Bar', '123');
+      const builder1 = baseFixtures.extend();
+      builder1.defineParameter('foo', 'Foo', '');
+      const f1 = builder1.build();
+      const builder2 = baseFixtures.extend();
+      builder2.defineParameter('foo', 'Bar', '123');
+      const f2 = builder2.build();
       f1.it('success', async ({}) => {
       });
       f2.it('success', async ({}) => {
@@ -76,14 +81,16 @@ it('should throw on duplicate parameters globally', async ({ runInlineTest }) =>
     `
   });
   expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('a.spec.ts:6');
+  expect(result.output).toContain('a.spec.ts:8');
   expect(result.output).toContain(`Parameter "foo" has been already registered`);
 });
 
 it('should use kebab for CLI name', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
-      const fixtures = baseFixtures.defineParameter('fooCamelCase', 'Foo parameters', 'foo');
+      const builder = baseFixtures.extend();
+      builder.defineParameter('fooCamelCase', 'Foo parameters', 'foo');
+      const fixtures = builder.build();
 
       const { it } = fixtures;
 
@@ -98,7 +105,9 @@ it('should use kebab for CLI name', async ({ runInlineFixturesTest }) => {
 it('should respect boolean CLI option', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
-      const fixtures = baseFixtures.defineParameter('fooCamelCase', 'Foo parameters', false);
+      const builder = baseFixtures.extend();
+      builder.defineParameter('fooCamelCase', 'Foo parameters', false);
+      const fixtures = builder.build();
       const { it } = fixtures;
       it('test', async ({ fooCamelCase }) => {
         expect(fooCamelCase).toBeTruthy();
@@ -111,9 +120,10 @@ it('should respect boolean CLI option', async ({ runInlineFixturesTest }) => {
 it('should show parameters descriptions', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
-      const fixtures = baseFixtures
-          .defineParameter('browserName', 'Browser name', 'chromium')
-          .defineParameter('headful', 'Whether to show browser window or not', false);
+      const builder = baseFixtures.extend();
+      builder.defineParameter('browserName', 'Browser name', 'chromium');
+      builder.defineParameter('headful', 'Whether to show browser window or not', false);
+      const fixtures = builder.build();
     `
   }, { 'help': true });
   expect(result.output).toContain(`-p, --param browserName=<value>`);
@@ -127,7 +137,9 @@ it('should show parameters descriptions', async ({ runInlineFixturesTest }) => {
 it('should support integer parameter', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
-      const fixtures = baseFixtures.defineParameter('integer', 'Some integer', 5);
+      const builder = baseFixtures.extend();
+      builder.defineParameter('integer', 'Some integer', 5);
+      const fixtures = builder.build();
       const { it } = fixtures;
       it('success', async ({integer}) => {
         expect(integer).toBe(6);
@@ -140,7 +152,9 @@ it('should support integer parameter', async ({ runInlineFixturesTest }) => {
 it('should support boolean parameter', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
-      const fixtures = baseFixtures.defineParameter('bool', 'Some bool', false);
+      const builder = baseFixtures.extend();
+      builder.defineParameter('bool', 'Some bool', false);
+      const fixtures = builder.build();
       const { it } = fixtures;
       it('success', async ({bool}) => {
         expect(bool).toBe(true);
@@ -153,7 +167,9 @@ it('should support boolean parameter', async ({ runInlineFixturesTest }) => {
 it('should generate tests from CLI', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
-      const fixtures = baseFixtures.defineParameter('bool', 'Some bool', false);
+      const builder = baseFixtures.extend();
+      builder.defineParameter('bool', 'Some bool', false);
+      const fixtures = builder.build();
       const { it } = fixtures;
       it('success', async ({bool}) => {
         expect(bool).toBe(true);
@@ -169,11 +185,12 @@ it('should generate tests from CLI', async ({ runInlineFixturesTest }) => {
 it('tests respect automatic fixture parameters', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
-      const { it } = baseFixtures
-        .defineParameter('param', 'Some param', 'value')
-        .defineTestFixtures({ automaticTestFixture: async ({param}, runTest) => {
-          await runTest(param);
-        } });
+      const builder = baseFixtures.extend();
+      builder.defineParameter('param', 'Some param', 'value');
+      builder.defineTestFixture('automaticTestFixture', async ({param}, runTest) => {
+        await runTest(param);
+      });
+      const { it } = builder.build();
       it('test 1', async ({}) => {
         expect(1).toBe(1);
       });
@@ -186,13 +203,12 @@ it('tests respect automatic fixture parameters', async ({ runInlineFixturesTest 
 it('testParametersPathSegment does not throw in non-parametrized test', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
-      const { it } = baseFixtures
-        .defineParameter('param', 'Some param', 'value')
-        .overrideTestFixtures({
-          testParametersPathSegment: async ({ param }, runTest) => {
-            await runTest(param);
-          }
-        });
+      const builder = baseFixtures.extend();
+      builder.defineParameter('param', 'Some param', 'value');
+      builder.overrideTestFixture('testParametersPathSegment', async ({ param }, runTest) => {
+        await runTest(param);
+      });
+      const { it } = builder.build();
       it('test 1', async ({}) => {
         expect(1).toBe(1);
       });

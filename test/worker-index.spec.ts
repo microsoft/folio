@@ -49,10 +49,10 @@ it('should run in parallel', async ({ runInlineTest }) => {
 it('should reuse worker for the same parameters', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
-      const { it } = baseFixtures.defineWorkerFixtures({
-        worker1: ({}, runTest) => runTest(),
-        worker2: ({}, runTest) => runTest(),
-      });
+      const builder = baseFixtures.extend();
+      builder.defineWorkerFixture('worker1', ({}, runTest) => runTest());
+      builder.defineWorkerFixture('worker2', ({}, runTest) => runTest());
+      const { it } = builder.build();
 
       it('succeeds', async ({ worker1, testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);
@@ -70,7 +70,10 @@ it('should reuse worker for the same parameters', async ({ runInlineFixturesTest
 it('should not reuse worker for different parameters', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
-      const { it } = baseFixtures.defineParameter('param', '', '');
+      const builder = baseFixtures.extend();
+      builder.defineParameter('param', '', '');
+      builder.defineWorkerFixture('worker2', ({}, runTest) => runTest());
+      const { it } = builder.build();
 
       it('succeeds', async ({ testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);

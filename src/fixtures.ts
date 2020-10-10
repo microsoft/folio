@@ -235,7 +235,7 @@ export class FixturePool {
     matrix[parameter.name] = [parameter.defaultValue];
   }
 
-  checkCycles() {
+  validate() {
     const markers = new Map<FixtureRegistration, VisitMarker>();
     const stack: FixtureRegistration[] = [];
     const visit = (registration: FixtureRegistration): string | undefined => {

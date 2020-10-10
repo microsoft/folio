@@ -109,50 +109,12 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     let pool = this._pool;
     for (const other of others)
       pool = pool.union(other._pool);
+    pool.validate();
     return new FixturesImpl(pool);
   }
 
-  defineTestFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & TestFixtures & T, runTest: (value: T[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures & T> {
-    const result = new FixturesImpl(new FixturePool(this._pool));
-    for (const [ name, fixture ] of Object.entries(o))
-      result._pool.registerFixture(name, 'test', fixture as any, name.startsWith('auto'), false);
-    result._pool.checkCycles();
-    return result as any;
-  }
-
-  overrideTestFixtures(o: { [ key in keyof TestFixtures ]?: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
-    const result = new FixturesImpl(new FixturePool(this._pool));
-    for (const [ name, fixture ] of Object.entries(o))
-      result._pool.registerFixture(name, 'test', fixture as any, name.startsWith('auto'), true);
-    result._pool.checkCycles();
-    return result as any;
-  }
-
-  defineWorkerFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & T, runTest: (value: T[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures & T, TestFixtures> {
-    const result = new FixturesImpl(new FixturePool(this._pool));
-    for (const [ name, fixture ] of Object.entries(o))
-      result._pool.registerFixture(name, 'worker', fixture as any, name.startsWith('auto'), false);
-    result._pool.checkCycles();
-    return result as any;
-  }
-
-  overrideWorkerFixtures(o: { [ key in keyof WorkerFixtures ]?: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
-    const result = new FixturesImpl(new FixturePool(this._pool));
-    for (const [ name, fixture ] of Object.entries(o))
-      result._pool.registerFixture(name, 'worker', fixture as any, name.startsWith('auto'), true);
-    result._pool.checkCycles();
-    return result as any;
-  }
-
-  defineParameter<N extends string, P>(name: N, description: string, defaultValue: P): Fixtures<WorkerParameters & { [key in N] : P }, WorkerFixtures, TestFixtures> {
-    const result = new FixturesImpl(new FixturePool(this._pool));
-    result._pool.registerWorkerParameter({
-      name: name as string,
-      description,
-      defaultValue: defaultValue as any,
-    });
-    result._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false, false);
-    return result as any;
+  extend<P = {}, W = {}, T = {}>(): Builder<WorkerParameters & P, WorkerFixtures & W, TestFixtures & T> {
+    return new BuilderImpl(new FixturePool(this._pool)) as any;
   }
 
   generateParametrizedTests<T extends keyof WorkerParameters>(name: T, values: WorkerParameters[T][]) {
@@ -160,10 +122,60 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
   }
 }
 
-export interface Fixtures<P, W, T> extends FixturesImpl<P, W, T> {
+export class BuilderImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtures = {}> {
+  _pool: FixturePool;
+
+  constructor(pool: FixturePool) {
+    this._pool = pool;
+  }
+
+  declareTestFixtures<T extends object>(): Builder<WorkerParameters, WorkerFixtures, TestFixtures & T> {
+    return this as any;
+  }
+
+  declareWorkerFixtures<W extends object>(): Builder<WorkerParameters, WorkerFixtures & W, TestFixtures> {
+    return this as any;
+  }
+
+  declareParameters<P extends object>(): Builder<WorkerParameters & P, WorkerFixtures, TestFixtures> {
+    return this as any;
+  }
+
+  defineTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>): void {
+    this._pool.registerFixture(name as string, 'test', fixture as any, (name as string).startsWith('auto'), false);
+  }
+
+  overrideTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>): void {
+    this._pool.registerFixture(name as string, 'test', fixture as any, (name as string).startsWith('auto'), true);
+  }
+
+  defineWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>): void {
+    this._pool.registerFixture(name as string, 'worker', fixture as any, (name as string).startsWith('auto'), false);
+  }
+
+  overrideWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>): void {
+    this._pool.registerFixture(name as string, 'worker', fixture as any, (name as string).startsWith('auto'), true);
+  }
+
+  defineParameter<N extends keyof WorkerParameters>(name: N, description: string, defaultValue: WorkerParameters[N]): void {
+    this._pool.registerWorkerParameter({
+      name: name as string,
+      description,
+      defaultValue: defaultValue as any,
+    });
+    this._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false, false);
+  }
+
+  build(): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
+    this._pool.validate();
+    return new FixturesImpl(this._pool) as any;
+  }
 }
 
-export type WorkerFixtures<F> = F extends Fixtures<infer P, infer W, infer T> ? P & W & T : never;
-export type TestFixtures<F> = F extends Fixtures<infer P, infer W, infer T> ? P & W & T : never;
+
+export interface Fixtures<P, W, T> extends FixturesImpl<P, W, T> {
+}
+export interface Builder<P, W, T> extends BuilderImpl<P, W, T> {
+}
 
 export const rootFixtures = new FixturesImpl(new FixturePool(undefined)) as Fixtures<{}, {}, {}>;
