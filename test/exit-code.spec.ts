@@ -15,8 +15,8 @@
  */
 
 import path from 'path';
-import { fixtures } from './fixtures';
-const { it, expect } = fixtures;
+import { folio } from './fixtures';
+const { it, expect } = folio;
 
 function monotonicTime(): number {
   const [seconds, nanoseconds] = process.hrtime();

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { config, fixtures as baseFixtures, TestInfo } from '@playwright/test-runner';
+import { config, folio as baseFolio, TestInfo } from 'folio';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { ReportFormat } from '../src/reporters/json';
-export { config } from '@playwright/test-runner';
+export { config } from 'folio';
 
 export type RunResult = {
   exitCode: number,
@@ -116,7 +116,7 @@ type TestState = {
   runInlineFixturesTest: RunInlineTestFunction;
 };
 
-const builder = baseFixtures.extend<{}, {}, TestState>();
+const builder = baseFolio.extend<{}, {}, TestState>();
 
 builder.defineTestFixture('runTest', async ({ testInfo }, run) => {
   // Print output on failure.
@@ -170,7 +170,7 @@ async function runInlineTest(testInfo: TestInfo, header: string, run: (fn: RunIn
     console.log(result.output);
 }
 
-export const fixtures = builder.build();
+export const folio = builder.build();
 
 const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
 export function stripAscii(str: string): string {

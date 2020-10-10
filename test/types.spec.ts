@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { fixtures } from './fixtures';
-const { it, expect } = fixtures;
+import { folio } from './fixtures';
+const { it, expect } = folio;
 
 it('should be able to import/export fixtures', async ({ runTest }) => {
   const { exitCode, passed } = await runTest('import-fixtures-both.ts');

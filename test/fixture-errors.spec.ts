@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { fixtures } from './fixtures';
-const { it, expect } = fixtures;
+import { folio } from './fixtures';
+const { it, expect } = folio;
 
 it('should handle fixture timeout', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({

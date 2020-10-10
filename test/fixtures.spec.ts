@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from '@playwright/test-runner';
-import { fixtures } from './fixtures';
-const { it } = fixtures;
+import { expect } from 'folio';
+import { folio } from './fixtures';
+const { it } = folio;
 
 it('should work', async ({ runInlineFixturesTest }) => {
   const { results } = await runInlineFixturesTest({
