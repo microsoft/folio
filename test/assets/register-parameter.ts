@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 
-import { fixtures as baseFixtures, expect } from '../..';
+import { fixtures as baseFixtures } from '../..';
 
-const { it } = baseFixtures
-    .defineParameter<'param1', string>('param1', 'Custom parameter 1', '')
-    .defineParameter<'param2', string>('param2', 'Custom parameter 2', 'value2')
-    .defineTestFixtures<{ fixture1: string, fixture2: string}>({
-      fixture1: async ({testInfo}, runTest) => {
-        await runTest(testInfo.parameters.param1 as string);
-      },
-      fixture2: async ({testInfo}, runTest) => {
-        await runTest(testInfo.parameters.param2 as string);
-      },
-    });
+const builder = baseFixtures.extend()
+    .declareParameters<{ param1: string, param2: string }>()
+    .declareTestFixtures<{ fixture1: string, fixture2: string }>();
+builder.defineParameter('param1', 'Custom parameter 1', '');
+builder.defineParameter('param2', 'Custom parameter 2', 'value2');
+builder.defineTestFixture('fixture1', async ({testInfo}, runTest) => {
+  await runTest(testInfo.parameters.param1 as string);
+});
+builder.defineTestFixture('fixture2', async ({testInfo}, runTest) => {
+  await runTest(testInfo.parameters.param2 as string);
+});
+const { it, expect } = builder.build();
 
 it('pass', async ({ param1, param2, fixture1, fixture2 }) => {
   // Available as fixtures.

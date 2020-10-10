@@ -16,12 +16,12 @@
 
 import { config, fixtures, TestInfo } from '../../';
 
-const { it, expect } = fixtures.defineTestFixtures<{ testInfoForward: TestInfo }>({
-  testInfoForward: async ({ testInfo }, runTest) => {
-    await runTest(testInfo);
-    testInfo.data['myname'] = 'myvalue';
-  },
+const builder = fixtures.extend<{}, {}, { testInfoForward: TestInfo }>();
+builder.defineTestFixture('testInfoForward', async ({testInfo}, runTest) => {
+  await runTest(testInfo);
+  testInfo.data['myname'] = 'myvalue';
 });
+const { it, expect } = builder.build();
 
 it('ensure fixture handles test error', async ({ testInfoForward }) => {
   console.log('console.log');

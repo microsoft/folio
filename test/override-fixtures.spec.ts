@@ -20,19 +20,19 @@ const { it, expect } = fixtures;
 it('should respect require order', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixture.js': `
-      exports.fixtures = baseFixtures.defineWorkerFixtures({
-        fixture: ({}, runTest) => runTest('base')
-      });
+      const builder = baseFixtures.extend();
+      builder.defineWorkerFixture('fixture', ({}, runTest) => runTest('base'));
+      exports.fixtures = builder.build();
     `,
     'override1.js': `
-      exports.fixtures = require('./fixture.js').fixtures.overrideWorkerFixtures({
-        fixture: ({}, runTest) => runTest('override1')
-      });
+      const builder = require('./fixture.js').fixtures.extend();
+      builder.overrideWorkerFixture('fixture', ({}, runTest) => runTest('override1'));
+      exports.fixtures = builder.build();
     `,
     'override2.js': `
-      exports.fixtures = require('./fixture.js').fixtures.overrideWorkerFixtures({
-        fixture: ({}, runTest) => runTest('override2')
-      });
+      const builder = require('./fixture.js').fixtures.extend();
+      builder.overrideWorkerFixture('fixture', ({}, runTest) => runTest('override2'));
+      exports.fixtures = builder.build();
     `,
     'a.test.js': `
       const { fixtures } = require('./fixture.js');
@@ -79,19 +79,23 @@ it('should respect require order', async ({ runInlineFixturesTest }) => {
 it('should respect override order 2', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixture.js': `
-      module.exports = baseFixtures.defineWorkerFixtures({
-        fixture: ({}, runTest) => runTest('base')
-      });
+      const builder = baseFixtures.extend();
+      builder.defineWorkerFixture('fixture', ({}, runTest) => runTest('base'));
+      module.exports = builder.build();
     `,
     'override1.js': `
-      module.exports = fixtures => fixtures.overrideWorkerFixtures({
-        fixture: ({}, runTest) => runTest('override1')
-      });
+      module.exports = fixtures => {
+        const builder = fixtures.extend();
+        builder.overrideWorkerFixture('fixture', ({}, runTest) => runTest('override1'));
+        return builder.build();
+      };
     `,
     'override2.js': `
-      module.exports = fixtures => fixtures.overrideWorkerFixtures({
-        fixture: ({}, runTest) => runTest('override2')
-      });
+      module.exports = fixtures => {
+        const builder = fixtures.extend();
+        builder.overrideWorkerFixture('fixture', ({}, runTest) => runTest('override2'));
+        return builder.build();
+      };
     `,
     'a.test.js': `
       const base = require('./fixture.js');
@@ -146,30 +150,36 @@ it('should respect override order 2', async ({ runInlineFixturesTest }) => {
 it('should allow overrides in union', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixtures.js': `
-      const base = baseFixtures.defineTestFixtures({
-        foo: async ({}, runTest) => { await runTest('base') }
-      });
-      const fixtures1 = base.defineTestFixtures({
-        bar: async ({}, runTest) => { await runTest('bar') }
-      });
-      const fixtures2 = base.overrideTestFixtures({
-        foo: async ({}, runTest) => { await runTest('override') }
-      });
+      const baseBuilder = baseFixtures.extend();
+      baseBuilder.defineTestFixture('foo', ({}, runTest) => runTest('base'));
+      const base = baseBuilder.build();
+
+      const fixtures1Builder = base.extend();
+      fixtures1Builder.defineTestFixture('bar', ({}, runTest) => runTest('bar'));
+      const fixtures1 = fixtures1Builder.build();
+
+      const fixtures2Builder = base.extend();
+      fixtures2Builder.overrideTestFixture('foo', ({}, runTest) => runTest('override'));
+      const fixtures2 = fixtures2Builder.build();
+
       module.exports = { fixtures1, fixtures2 };
     `,
     'a.test.js': `
       const { fixtures1, fixtures2 } = require('./fixtures.js');
+
       fixtures1.union(fixtures2).it('test1', ({ foo, bar }) => {
         expect(foo).toBe('override');
         expect(bar).toBe('bar');
       });
+
       fixtures2.union(fixtures1).it('test2', ({ foo, bar }) => {
         expect(foo).toBe('override');
         expect(bar).toBe('bar');
       });
-      fixtures2.union(fixtures1).overrideTestFixtures({
-        foo: async ({}, runTest) => { await runTest('local') }
-      }).it('test3', ({ foo, bar }) => {
+
+      const builder = fixtures2.union(fixtures1).extend();
+      builder.overrideTestFixture('foo', ({}, runTest) => runTest('local'));
+      builder.build().it('test3', ({ foo, bar }) => {
         expect(foo).toBe('local');
         expect(bar).toBe('bar');
       });

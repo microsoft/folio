@@ -16,19 +16,13 @@
 
 import { fixtures as baseFixtures } from '../..';
 
-type TypeOnlyTestState = {
-  testTypeOnly: string;
-};
-type TypeOnlyWorkerState = {
-  workerTypeOnly: number;
-};
+const builder = baseFixtures.extend<{}, { workerTypeOnly: number }, { testTypeOnly: string }>();
 
-export const fixtures2 = baseFixtures.defineTestFixtures<TypeOnlyTestState>({
-  testTypeOnly: async ({}, runTest) => {
-    await runTest('testTypeOnly');
-  }
-}).defineWorkerFixtures<TypeOnlyWorkerState>({
-  workerTypeOnly: async ({}, runTest) => {
-    await runTest(42);
-  }
+builder.defineTestFixture('testTypeOnly', async ({}, runTest) => {
+  await runTest('testTypeOnly');
 });
+builder.defineWorkerFixture('workerTypeOnly', async ({}, runTest) => {
+  await runTest(42);
+});
+
+export const fixtures2 = builder.build();
