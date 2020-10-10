@@ -32,37 +32,37 @@ describe('database', () => {
   let database;
   let table;
 
-  beforeAll(() => {
-    database = connect();
+  beforeAll(async () => {
+    database = await connect();
   });
 
-  afterAll(() => {
-    database.dispose();
+  afterAll(async () => {
+    await database.dispose();
   });
 
-  beforeEach(()=> {
-    table = database.createTable();
+  beforeEach(async ()=> {
+    table = await database.createTable();
   });
 
-  afterEach(()=> {
-    database.dropTable(table);
+  afterEach(async () => {
+    await database.dropTable(table);
   });
 
   it('create user', () => {
-     table.insert();
-     // ...
+    table.insert();
+    // ...
   });
 
   it('update user', () => {
-     table.insert();
-     table.update();
-     // ...
+    table.insert();
+    table.update();
+    // ...
   });
 
   it('delete user', () => {
-     table.insert();
-     table.delete();
-     // ...
+    table.insert();
+    table.delete();
+    // ...
   });
 });
 ```
@@ -72,37 +72,37 @@ describe('database', () => {
 ```ts
 import { fixtures } from '@playwright/test-runner';
 
-const { it } = fixtures
-    .defineWorkerFixtures<{ database: Database }>({
-      database: async ({}, runTest) => {
-        const db = connect();
-        await runTest(db);
-        db.dispose();
-      }
-    })
-    .defineTestFixtures<{ table: Table }>({
-      table: async ({}, runTest) => {
-        const t = database.createTable();
-        await runTest(t);
-        database.dropTable(t);
-      }
-    });
+const builder = fixtures.extend<{}, { database: Database }, { table: Table }>();
+
+builder.defineWorkerFixture('database', async ({}, runTest) => {
+  const database = await connect();
+  await runTest(database);
+  await database.dispose();
+});
+
+builder.defineTestFixture('table', async ({ database }, runTest) => {
+  const table = await database.createTable();
+  await runTest(table);
+  await database.dropTable(table);
+});
+
+const { it } = builder.build();
 
 it('create user', ({ table }) => {
-    table.insert();
-    // ...
+  table.insert();
+  // ...
 });
 
 it('update user', ({ table }) => {
-    table.insert();
-    table.update();
-    // ...
+  table.insert();
+  table.update();
+  // ...
 });
 
 it('delete user', ({ table }) => {
-    table.insert();
-    table.delete();
-    // ...
+  table.insert();
+  table.delete();
+  // ...
 });
 ```
 
@@ -133,34 +133,34 @@ Here is how test fixtures are declared and defined:
 
 ```ts
 // hello.fixtures.ts
-import { fixtures as baseFixtures } from '@playwright/test-runner';
+import { fixtures as base } from '@playwright/test-runner';
 export { expect } from '@playwright/test-runner';
 
 // Define test fixtures |hello|, |world| and |test|.
-
 type TestFixtures = {
   hello: string;
   world: string;
   test: string;
 };
+const builder = base.extend<{}, {}, TestFixtures>();
 
-const fixtures = baseFixtures.defineTestFixtures<TestFixtures>({
-  hello: async ({}, runTest) => {
-    // Set up fixture.
-    const value = 'Hello';
-    // Run the test with the fixture value.
-    await runTest(value);
-    // Clean up fixture.
-  },
-
-  world: async ({}, runTest) => {
-    await runTest('World');
-  },
-
-  test: async ({}, runTest) => {
-    await runTest('Test');
-  }
+builder.defineTestFixture('hello', async ({}, runTest) => {
+  // Set up fixture.
+  const value = 'Hello';
+  // Run the test with the fixture value.
+  await runTest(value);
+  // Clean up fixture.
 });
+
+builder.defineTestFixture('world', async ({}, runTest) => {
+  await runTest('World');
+});
+
+builder.defineTestFixture('test', async ({}, runTest) => {
+  await runTest('Test');
+});
+
+const fixtures = builder.build();
 export const it = fixtures.it;
 ```
 
@@ -201,7 +201,7 @@ it('fetch 2', async ({ port }) => {
 And here is how fixtures are declared and defined:
 ```ts
 // express.fixtures.ts
-import { fixtures as baseFixtures } from '@playwright/test-runner';
+import { fixtures as base } from '@playwright/test-runner';
 export { expect } from '@playwright/test-runner';
 import express from 'express';
 import type { Express } from 'express';
@@ -211,33 +211,35 @@ type ExpressWorkerFixtures = {
   port: number;
   express: Express;
 };
-const fixtures = baseFixtures.defineWorkerFixtures<ExpressWorkerFixtures>({
-  // Define |port| fixture that has unique value value of the worker process index.
-  port: async ({ testWorkerIndex }, runTest) => {
-    await runTest(3000 + testWorkerIndex);
-  },
+const builder = base.extend<{}, ExpressWorkerFixtures, {}>();
 
-  // Define the express worker fixture, make it start automatically for every worker.
-  autoExpress: async ({ port }, runTest) => {
-    const app = express();
-    app.get('/1', (req, res) => {
-      res.send('Hello World 1!')
-    });
-    app.get('/2', (req, res) => {
-      res.send('Hello World 2!')
-    });
-    let server;
-    console.log('Starting server...');
-    await new Promise(f => {
-      server = app.listen(port, f);
-    });
-    console.log('Server ready');
-    await runTest(server);
-    console.log('Stopping server...');
-    await new Promise(f => server.close(f));
-    console.log('Server stopped');
-  },
+// Define |port| fixture that has unique value value of the worker process index.
+builder.defineWorkerFixture('port', async ({ testWorkerIndex }, runTest) => {
+  await runTest(3000 + testWorkerIndex);
 });
+
+// Define the express worker fixture, make it start automatically for every worker.
+builder.defineWorkerFixture('autoExpress', async ({ port }, runTest) => {
+  const app = express();
+  app.get('/1', (req, res) => {
+    res.send('Hello World 1!')
+  });
+  app.get('/2', (req, res) => {
+    res.send('Hello World 2!')
+  });
+  let server;
+  console.log('Starting server...');
+  await new Promise(f => {
+    server = app.listen(port, f);
+  });
+  console.log('Server ready');
+  await runTest(server);
+  console.log('Stopping server...');
+  await new Promise(f => server.close(f));
+  console.log('Server stopped');
+});
+
+const fixtures = builder.build();
 export const it = fixtures.it;
 ```
 
@@ -260,18 +262,20 @@ it('fetch 1', async ({ apiUrl }) => {
 Here is how to define the api version parameter:
 ```ts
 // api.fixtures.ts
-import { fixtures as baseFixtures } from '@playwright/test-runner';
+import { fixtures as base } from '@playwright/test-runner';
 export { expect } from '@playwright/test-runner';
 
-const fixtures = baseFixtures
-    .defineParameter('version', 'API version', 'v1')
-    .defineWorkerFixtures<{ apiUrl: string }>({
-      apiUrl: async ({ version }, runTest) => {
-        const server = await startServer();
-        await runTest(`http://localhost/api/${version}`);
-        await server.close();
-      }
-    });
+const builder = base.extend<{ version: string }, { apiUrl: string }, {}>();
+
+builder.defineParameter('version', 'API version', 'v1');
+
+builder.defineWorkerFixture('apiUrl', async ({ version }, runTest) => {
+  const server = await startServer();
+  await runTest(`http://localhost/api/${version}`);
+  await server.close();
+});
+
+const fixtures = builder.build();
 export const it = fixtures.it;
 ```
 
