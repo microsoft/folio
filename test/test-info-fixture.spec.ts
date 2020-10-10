@@ -35,7 +35,7 @@ it('should work via fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const { it } = baseFixtures.defineTestFixtures({
-        title: async function*({ testInfo }) { yield testInfo.title; }
+        title: async ({testInfo}, test) => await test(testInfo.title)
       });
       it('test 1', async ({title}) => {
         expect(title).toBe('test 1');

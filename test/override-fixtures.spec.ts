@@ -21,17 +21,17 @@ it('should respect require order', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixture.js': `
       exports.fixtures = baseFixtures.defineWorkerFixtures({
-        fixture: async function*() { yield 'base'; }
+        fixture: ({}, runTest) => runTest('base')
       });
     `,
     'override1.js': `
       exports.fixtures = require('./fixture.js').fixtures.overrideWorkerFixtures({
-        fixture: async function*() { yield 'override1'; }
+        fixture: ({}, runTest) => runTest('override1')
       });
     `,
     'override2.js': `
       exports.fixtures = require('./fixture.js').fixtures.overrideWorkerFixtures({
-        fixture: async function*() { yield 'override2'; }
+        fixture: ({}, runTest) => runTest('override2')
       });
     `,
     'a.test.js': `
@@ -80,17 +80,17 @@ it('should respect override order 2', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixture.js': `
       module.exports = baseFixtures.defineWorkerFixtures({
-        fixture: async function*() { yield 'base'; }
+        fixture: ({}, runTest) => runTest('base')
       });
     `,
     'override1.js': `
       module.exports = fixtures => fixtures.overrideWorkerFixtures({
-        fixture: async function*() { yield 'override1'; }
+        fixture: ({}, runTest) => runTest('override1')
       });
     `,
     'override2.js': `
       module.exports = fixtures => fixtures.overrideWorkerFixtures({
-        fixture: async function*() { yield 'override2'; }
+        fixture: ({}, runTest) => runTest('override2')
       });
     `,
     'a.test.js': `
@@ -147,13 +147,13 @@ it('should allow overrides in union', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixtures.js': `
       const base = baseFixtures.defineTestFixtures({
-        foo: async function*() { yield 'base'; }
+        foo: async ({}, runTest) => { await runTest('base') }
       });
       const fixtures1 = base.defineTestFixtures({
-        bar: async function*() { yield 'bar'; }
+        bar: async ({}, runTest) => { await runTest('bar') }
       });
       const fixtures2 = base.overrideTestFixtures({
-        foo: async function*() { yield 'override'; }
+        foo: async ({}, runTest) => { await runTest('override') }
       });
       module.exports = { fixtures1, fixtures2 };
     `,
@@ -168,7 +168,7 @@ it('should allow overrides in union', async ({ runInlineFixturesTest }) => {
         expect(bar).toBe('bar');
       });
       fixtures2.union(fixtures1).overrideTestFixtures({
-        foo: async function*() { yield 'local'; }
+        foo: async ({}, runTest) => { await runTest('local') }
       }).it('test3', ({ foo, bar }) => {
         expect(foo).toBe('local');
         expect(bar).toBe('bar');

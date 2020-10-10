@@ -171,11 +171,9 @@ it('tests respect automatic fixture parameters', async ({ runInlineFixturesTest 
     'a.test.js': `
       const { it } = baseFixtures
         .defineParameter('param', 'Some param', 'value')
-        .defineTestFixtures({
-          automaticTestFixture: async function*({ param }) {
-            yield param;
-          }
-        });
+        .defineTestFixtures({ automaticTestFixture: async ({param}, runTest) => {
+          await runTest(param);
+        } });
       it('test 1', async ({}) => {
         expect(1).toBe(1);
       });
@@ -191,8 +189,8 @@ it('testParametersPathSegment does not throw in non-parametrized test', async ({
       const { it } = baseFixtures
         .defineParameter('param', 'Some param', 'value')
         .overrideTestFixtures({
-          testParametersPathSegment: async function*({ param }) {
-            yield param;
+          testParametersPathSegment: async ({ param }, runTest) => {
+            await runTest(param);
           }
         });
       it('test 1', async ({}) => {

@@ -112,7 +112,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     return new FixturesImpl(pool);
   }
 
-  defineTestFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & TestFixtures & T) => AsyncGenerator<T[key]> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures & T> {
+  defineTestFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & TestFixtures & T, runTest: (value: T[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures & T> {
     const result = new FixturesImpl(new FixturePool(this._pool));
     for (const [ name, fixture ] of Object.entries(o))
       result._pool.registerFixture(name, 'test', fixture as any, name.startsWith('auto'), false);
@@ -120,7 +120,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     return result as any;
   }
 
-  overrideTestFixtures(o: { [ key in keyof TestFixtures ]?: (params: WorkerParameters & WorkerFixtures & TestFixtures) => AsyncGenerator<TestFixtures[key]> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
+  overrideTestFixtures(o: { [ key in keyof TestFixtures ]?: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
     const result = new FixturesImpl(new FixturePool(this._pool));
     for (const [ name, fixture ] of Object.entries(o))
       result._pool.registerFixture(name, 'test', fixture as any, name.startsWith('auto'), true);
@@ -128,7 +128,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     return result as any;
   }
 
-  defineWorkerFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & T) => AsyncGenerator<T[key]> }): Fixtures<WorkerParameters, WorkerFixtures & T, TestFixtures> {
+  defineWorkerFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & T, runTest: (value: T[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures & T, TestFixtures> {
     const result = new FixturesImpl(new FixturePool(this._pool));
     for (const [ name, fixture ] of Object.entries(o))
       result._pool.registerFixture(name, 'worker', fixture as any, name.startsWith('auto'), false);
@@ -136,7 +136,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     return result as any;
   }
 
-  overrideWorkerFixtures(o: { [ key in keyof WorkerFixtures ]?: (params: WorkerParameters & WorkerFixtures) => AsyncGenerator<WorkerFixtures[key]> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
+  overrideWorkerFixtures(o: { [ key in keyof WorkerFixtures ]?: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[key]) => Promise<void>) => Promise<void> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
     const result = new FixturesImpl(new FixturePool(this._pool));
     for (const [ name, fixture ] of Object.entries(o))
       result._pool.registerFixture(name, 'worker', fixture as any, name.startsWith('auto'), true);
@@ -151,7 +151,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
       description,
       defaultValue: defaultValue as any,
     });
-    result._pool.registerFixture(name as string, 'worker', async function*() { yield defaultValue; }, false, false);
+    result._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false, false);
     return result as any;
   }
 

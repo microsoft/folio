@@ -35,17 +35,17 @@ type BuiltinTestFixtures = {
 };
 
 export const fixtures = rootFixtures.defineWorkerFixtures<BuiltinWorkerFixtures>({
-  testWorkerIndex: async function*() {
+  testWorkerIndex: async ({}, runTest) => {
     // Worker injects the value for this one.
-    yield 0;
+    await runTest(undefined as any);
   }
 }).defineTestFixtures<BuiltinTestFixtures>({
-  testInfo: async function*() {
+  testInfo: async ({}, runTest) => {
     // Worker injects the value for this one.
-    yield undefined as any;
+    await runTest(undefined as any);
   },
 
-  testParametersPathSegment: async function*() {
-    yield '';
+  testParametersPathSegment: async ({}, runTest) => {
+    await runTest('');
   },
 });

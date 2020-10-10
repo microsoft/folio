@@ -20,11 +20,11 @@ const { it } = baseFixtures
     .defineParameter<'param1', string>('param1', 'Custom parameter 1', '')
     .defineParameter<'param2', string>('param2', 'Custom parameter 2', 'value2')
     .defineTestFixtures<{ fixture1: string, fixture2: string}>({
-      fixture1: async function*({ testInfo }) {
-        yield testInfo.parameters.param1 as string;
+      fixture1: async ({testInfo}, runTest) => {
+        await runTest(testInfo.parameters.param1 as string);
       },
-      fixture2: async function*({ testInfo }) {
-        yield testInfo.parameters.param2 as string;
+      fixture2: async ({testInfo}, runTest) => {
+        await runTest(testInfo.parameters.param2 as string);
       },
     });
 
