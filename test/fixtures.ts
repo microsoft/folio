@@ -109,52 +109,52 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
   };
 }
 
+type RunInlineTestFunction = (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
 type TestState = {
   runTest: (filePath: string, options?: any) => Promise<RunResult>;
-  runInlineTest: (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
-  runInlineFixturesTest: (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
+  runInlineTest: RunInlineTestFunction;
+  runInlineFixturesTest: RunInlineTestFunction;
 };
 
-export const fixtures = baseFixtures.defineTestFixtures<TestState>({
+const builder = baseFixtures.extend<{}, {}, TestState>();
 
-  runTest: async ({ testInfo }, testRun) => {
-    // Print output on failure.
-    let result: RunResult;
-    await testRun(async (filePath, options) => {
-      const target = path.join(config.testDir, 'assets', filePath);
-      let isDir = false;
-      try {
-        isDir = fs.statSync(target).isDirectory();
-      } catch (e) {
-      }
-      if (isDir)
-        result = await innerRunTest(path.join(config.testDir, 'assets', filePath), '.', testInfo.outputPath('output'), options);
-      else
-        result = await innerRunTest(path.join(config.testDir, 'assets'), filePath, testInfo.outputPath('output'), options);
-      return result;
-    });
-    if (testInfo.status !== testInfo.expectedStatus)
-      console.log(result.output);
-  },
-
-  runInlineTest: async ({ testInfo }, runTest) => {
-    await runInlineTest(testInfo, `
-      const { fixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
-      const { it, test, describe } = fixtures;
-    `, runTest);
-  },
-
-  runInlineFixturesTest: async ({ testInfo }, runTest) => {
-    await runInlineTest(testInfo, `
-    const { fixtures: baseFixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
-`, runTest);
-  }
+builder.defineTestFixture('runTest', async ({ testInfo }, run) => {
+  // Print output on failure.
+  let result: RunResult;
+  await run(async (filePath, options) => {
+    const target = path.join(config.testDir, 'assets', filePath);
+    let isDir = false;
+    try {
+      isDir = fs.statSync(target).isDirectory();
+    } catch (e) {
+    }
+    if (isDir)
+      result = await innerRunTest(path.join(config.testDir, 'assets', filePath), '.', testInfo.outputPath('output'), options);
+    else
+      result = await innerRunTest(path.join(config.testDir, 'assets'), filePath, testInfo.outputPath('output'), options);
+    return result;
+  });
+  if (testInfo.status !== testInfo.expectedStatus)
+    console.log(result.output);
 });
 
-async function runInlineTest(testInfo: TestInfo, header: string, runTest) {
+builder.defineTestFixture('runInlineTest', async ({ testInfo }, run) => {
+  await runInlineTest(testInfo, `
+    const { fixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
+    const { it, test, describe } = fixtures;
+  `, run);
+});
+
+builder.defineTestFixture('runInlineFixturesTest', async ({ testInfo }, run) => {
+  await runInlineTest(testInfo, `
+    const { fixtures: baseFixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
+  `, run);
+});
+
+async function runInlineTest(testInfo: TestInfo, header: string, run: (fn: RunInlineTestFunction) => Promise<void>) {
   const baseDir = testInfo.outputPath();
   let result: RunResult;
-  await runTest(async (files: string[], options) => {
+  await run(async (files, options) => {
     await Promise.all(Object.keys(files).map(async name => {
       const fullName = path.join(baseDir, name);
       await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
@@ -169,6 +169,8 @@ async function runInlineTest(testInfo: TestInfo, header: string, runTest) {
   if (testInfo.status !== testInfo.expectedStatus)
     console.log(result.output);
 }
+
+export const fixtures = builder.build();
 
 const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
 export function stripAscii(str: string): string {
