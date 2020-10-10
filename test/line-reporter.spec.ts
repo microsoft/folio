@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { fixtures, stripAscii } from './fixtures';
-const { it, expect } = fixtures;
+import { folio, stripAscii } from './fixtures';
+const { it, expect } = folio;
 
 it('render unexpected after retry', async ({ runInlineTest }) => {
   const result = await runInlineTest({

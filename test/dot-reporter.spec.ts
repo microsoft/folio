@@ -15,8 +15,8 @@
  */
 
 import colors from 'colors/safe';
-import { fixtures, stripAscii } from './fixtures';
-const { it, expect } = fixtures;
+import { folio, stripAscii } from './fixtures';
+const { it, expect } = folio;
 
 it('render expected', async ({ runInlineTest }) => {
   const result = await runInlineTest({

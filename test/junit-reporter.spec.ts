@@ -15,8 +15,8 @@
  */
 
 import xml2js from 'xml2js';
-import { fixtures } from './fixtures';
-const { it, expect } = fixtures;
+import { folio } from './fixtures';
+const { it, expect } = folio;
 
 it('render expected', async ({ runInlineTest }) => {
   const result = await runInlineTest({

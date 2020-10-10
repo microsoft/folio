@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { fixtures } from './fixtures';
-const { it, expect } = fixtures;
+import { folio } from './fixtures';
+const { it, expect } = folio;
 
 it('max-failures should work', async ({ runInlineTest }) => {
   const result = await runInlineTest({

@@ -16,8 +16,8 @@
 
 import colors from 'colors/safe';
 import * as fs from 'fs';
-import { fixtures } from './fixtures';
-const { it, expect } = fixtures;
+import { folio } from './fixtures';
+const { it, expect } = folio;
 
 it('should support golden', async ({runInlineTest}) => {
   const result = await runInlineTest({

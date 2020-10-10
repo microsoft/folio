@@ -1,6 +1,6 @@
 {
   "name": "folio",
-  "version": "0.3.5",
+  "version": "0.3.5-post",
   "bin": {
     "folio": "./cli.js"
   },
@@ -12,7 +12,7 @@
     "lint": "eslint . --ext js,ts",
     "build": "tsc --build tsconfig.json",
     "watch": "tsc --build tsconfig.json --watch",
-    "test": "test-runner test/ --test-ignore=assets/**",
+    "test": "folio test/ --test-ignore=assets/**",
     "prepare": "npm run build",
     "roll-stable": "cd stable-test-runner && npm install"
   },
@@ -38,7 +38,7 @@
     "stack-utils": "^2.0.2"
   },
   "devDependencies": {
-    "@playwright/test-runner": "./stable-test-runner/node_modules/@playwright/test-runner",
+    "folio": "./stable-test-runner/node_modules/folio",
     "@types/babel__core": "^7.1.9",
     "@types/micromatch": "^4.0.1",
     "@types/xml2js": "^0.4.5",
