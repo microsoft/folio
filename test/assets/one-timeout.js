@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-const { fixtures } = require('../..');
-const { it } = fixtures;
+const { folio } = require('../..');
+const { it } = folio;
 
 it('timeout', async () => {
   await new Promise(f => setTimeout(f, 10000));

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { fixtures } from '../../';
+import { folio } from '../../';
 
-const builder = fixtures.extend<{}, {}, { postProcess: string }>();
+const builder = folio.extend<{}, {}, { postProcess: string }>();
 builder.defineTestFixture('postProcess', async ({testInfo}, runTest) => {
   await runTest('');
   console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');

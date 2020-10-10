@@ -140,14 +140,14 @@ builder.defineTestFixture('runTest', async ({ testInfo }, run) => {
 
 builder.defineTestFixture('runInlineTest', async ({ testInfo }, run) => {
   await runInlineTest(testInfo, `
-    const { fixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
-    const { it, test, describe } = fixtures;
+    const { folio, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
+    const { it, test, describe } = folio;
   `, run);
 });
 
 builder.defineTestFixture('runInlineFixturesTest', async ({ testInfo }, run) => {
   await runInlineTest(testInfo, `
-    const { fixtures: baseFixtures, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
+    const { folio: baseFolio, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
   `, run);
 });
 

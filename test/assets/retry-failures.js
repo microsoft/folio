@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-const { fixtures } = require('../../');
-const { it, expect } = fixtures;
+const { folio } = require('../../');
+const { it, expect } = folio;
 
 it('flake', async ({ testInfo }) => {
   // Passes on the second run.

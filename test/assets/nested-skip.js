@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-const { fixtures } = require('../../');
-const { it, describe, expect } = fixtures;
+const { folio } = require('../../');
+const { it, describe, expect } = folio;
 
 describe('skipped', suite => {
   suite.skip(true);

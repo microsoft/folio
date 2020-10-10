@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-const { fixtures } = require('../../');
-const { it, expect } = fixtures;
+const { folio } = require('../../');
+const { it, expect } = folio;
 
 if (new Error().stack.includes('workerRunner'))
   throw new Error('Suite error');

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-const { fixtures } = require('../../');
-const { it, expect } = fixtures;
+const { folio } = require('../../');
+const { it, expect } = folio;
 
 it('succeeds', test => test.fail(), () => {
   expect(1 + 1).toBe(2);

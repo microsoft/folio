@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { fixtures as baseFixtures } from '../..';
+import { folio as baseFolio } from '../..';
 
-const builder = baseFixtures.extend()
+const builder = baseFolio.extend()
     .declareParameters<{ param1: string, param2: string }>()
     .declareTestFixtures<{ fixture1: string, fixture2: string }>();
 builder.defineParameter('param1', 'Custom parameter 1', '');

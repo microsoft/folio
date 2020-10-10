@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { config, fixtures, TestInfo } from '../../';
+import { config, folio, TestInfo } from '../../';
 
-const builder = fixtures.extend<{}, {}, { testInfoForward: TestInfo }>();
+const builder = folio.extend<{}, {}, { testInfoForward: TestInfo }>();
 builder.defineTestFixture('testInfoForward', async ({testInfo}, runTest) => {
   await runTest(testInfo);
   testInfo.data['myname'] = 'myvalue';
