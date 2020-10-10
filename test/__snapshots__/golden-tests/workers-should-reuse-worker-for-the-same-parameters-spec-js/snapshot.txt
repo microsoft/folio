@@ -1,0 +1,91 @@
+{
+  exitCode: 0
+  expectedFlaky: 0
+  failed: 0
+  output: ··
+        |   2 passed (<time>)
+        | 
+        | 
+  passed: 2
+  report: {
+    config: {
+      forbidOnly: false
+      globalTimeout: 0
+      grep: .*
+      maxFailures: 0
+      outputDir: <string>
+      quiet: false
+      repeatEach: 1
+      retries: 0
+      snapshotDir: __snapshots__
+      testDir: workers/should-reuse-worker-for-the-same-parameters.spec.js
+      timeout: 10000
+      updateSnapshots: false
+      workers: 2
+    }
+    suites: [
+      [0]: {
+        file: workers/should-reuse-worker-for-the-same-parameters.spec.js
+        specs: [
+          [0]: {
+            file: workers/should-reuse-worker-for-the-same-parameters.spec.js
+            location: workers/should-reuse-worker-for-the-same-parameters.spec.js:24:1
+            tests: [
+              [0]: {
+                expectedStatus: passed
+                runs: [
+                  [0]: {
+                    duration: <number>
+                    retry: 0
+                    status: passed
+                    workerIndex: 0
+                  }
+                ]
+                slow: false
+                timeout: 10000
+              }
+            ]
+            title: succeeds
+          }
+          [1]: {
+            file: workers/should-reuse-worker-for-the-same-parameters.spec.js
+            location: workers/should-reuse-worker-for-the-same-parameters.spec.js:28:1
+            tests: [
+              [0]: {
+                expectedStatus: passed
+                runs: [
+                  [0]: {
+                    duration: <number>
+                    retry: 0
+                    status: passed
+                    workerIndex: 0
+                  }
+                ]
+                slow: false
+                timeout: 10000
+              }
+            ]
+            title: succeeds
+          }
+        ]
+        title: 
+      }
+    ]
+  }
+  results: [
+    [0]: {
+      duration: <number>
+      retry: 0
+      status: passed
+      workerIndex: 0
+    }
+    [1]: {
+      duration: <number>
+      retry: 0
+      status: passed
+      workerIndex: 0
+    }
+  ]
+  skipped: 0
+  unexpectedFlaky: 0
+}

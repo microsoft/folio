@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-import { fixtures as baseFixtures } from '../..';
+const { fixtures, expect } = require('../../..');
 
-const builder = baseFixtures.extend<{}, { workerWrap: number }, { testWrap: string }>();
+const builder = fixtures.extend();
+builder.defineWorkerFixture('worker1', ({}, runTest) => runTest());
+builder.defineWorkerFixture('worker2', ({}, runTest) => runTest());
+const { it } = builder.build();
 
-builder.defineTestFixture('testWrap', async ({}, runTest) => {
-  await runTest('testWrap');
+it('succeeds', async ({ worker1, testWorkerIndex }) => {
+  expect(testWorkerIndex).toBe(0);
 });
-builder.defineWorkerFixture('workerWrap', async ({}, runTest) => {
-  await runTest(42);
-});
 
-export const fixtures1 = builder.build();
+it('succeeds', async ({ worker2, testWorkerIndex }) => {
+  expect(testWorkerIndex).toBe(0);
+});

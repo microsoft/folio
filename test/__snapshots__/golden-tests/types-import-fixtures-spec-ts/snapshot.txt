@@ -1,0 +1,65 @@
+{
+  exitCode: 0
+  expectedFlaky: 0
+  failed: 0
+  output: ·
+        |   1 passed (<time>)
+        | 
+        | 
+  passed: 1
+  report: {
+    config: {
+      forbidOnly: false
+      globalTimeout: 0
+      grep: .*
+      maxFailures: 0
+      outputDir: <string>
+      quiet: false
+      repeatEach: 1
+      retries: 0
+      snapshotDir: __snapshots__
+      testDir: types/import-fixtures.spec.ts
+      timeout: 10000
+      updateSnapshots: false
+      workers: 2
+    }
+    suites: [
+      [0]: {
+        file: types/import-fixtures.spec.ts
+        specs: [
+          [0]: {
+            file: types/import-fixtures.spec.ts
+            location: types/import-fixtures.spec.ts:29:1
+            tests: [
+              [0]: {
+                expectedStatus: passed
+                runs: [
+                  [0]: {
+                    duration: <number>
+                    retry: 0
+                    status: passed
+                    workerIndex: 0
+                  }
+                ]
+                slow: false
+                timeout: 10000
+              }
+            ]
+            title: ensure that overrides work
+          }
+        ]
+        title: 
+      }
+    ]
+  }
+  results: [
+    [0]: {
+      duration: <number>
+      retry: 0
+      status: passed
+      workerIndex: 0
+    }
+  ]
+  skipped: 0
+  unexpectedFlaky: 0
+}

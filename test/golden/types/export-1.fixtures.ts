@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-import { fixtures } from './fixtures';
-const { it, expect } = fixtures;
+import { fixtures as baseFixtures } from '../../..';
 
-it('should be able to import/export fixtures', async ({ runTest }) => {
-  const { exitCode, passed } = await runTest('import-fixtures-both.ts');
-  expect(passed).toBe(1);
-  expect(exitCode).toBe(0);
+const builder = baseFixtures.extend<{}, { workerWrap: number }, { testWrap: string }>();
+
+builder.defineTestFixture('testWrap', async ({}, runTest) => {
+  await runTest('testWrap');
+});
+builder.defineWorkerFixture('workerWrap', async ({}, runTest) => {
+  await runTest(42);
 });
 
-// TODO: add tests for tsc enforcing various fixture types.
+export const fixtures1 = builder.build();

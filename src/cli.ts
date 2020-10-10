@@ -164,7 +164,7 @@ function collectFiles(testDir: string, dir: string, filters: string[], testMatch
       files.push(...collectFiles(testDir, path.join(dir, name), filters, testMatch, testIgnore));
       continue;
     }
-    if (testIgnore && !isMatch(relativeName, testMatch))
+    if (testMatch && !isMatch(relativeName, testMatch))
       continue;
     const fullName = path.join(testDir, relativeName);
     if (!filters.length) {
