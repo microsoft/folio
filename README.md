@@ -72,7 +72,7 @@ describe('database', () => {
 ```ts
 import { folio } from 'folio';
 
-const builder = folio.extend<{}, { database: Database }, { table: Table }>();
+const builder = folio.extend<{ database: Database }, { table: Table }>();
 
 builder.defineWorkerFixture('database', async ({}, runTest) => {
   const database = await connect();
@@ -142,7 +142,7 @@ type TestFixtures = {
   world: string;
   test: string;
 };
-const builder = base.extend<{}, {}, TestFixtures>();
+const builder = base.extend<{}, TestFixtures>();
 
 builder.defineTestFixture('hello', async ({}, runTest) => {
   // Set up fixture.
@@ -211,7 +211,7 @@ type ExpressWorkerFixtures = {
   port: number;
   express: Express;
 };
-const builder = base.extend<{}, ExpressWorkerFixtures, {}>();
+const builder = base.extend<ExpressWorkerFixtures, {}>();
 
 // Define |port| fixture that has unique value value of the worker process index.
 builder.defineWorkerFixture('port', async ({ testWorkerIndex }, runTest) => {
@@ -265,7 +265,7 @@ Here is how to define the api version parameter:
 import { folio as base } from 'folio';
 export { expect } from 'folio';
 
-const builder = base.extend<{ version: string }, { apiUrl: string }, {}>();
+const builder = base.extend<{ apiUrl: string }, {}, { version: string }>();
 
 builder.defineParameter('version', 'API version', 'v1');
 

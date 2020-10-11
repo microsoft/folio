@@ -62,7 +62,7 @@ type AfterEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtur
 type BeforeAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 type AfterAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 
-export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtures = {}> {
+export class FixturesImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters = {}> {
   it: It<WorkerParameters, WorkerFixtures, TestFixtures>;
   fit: Fit<WorkerParameters, WorkerFixtures, TestFixtures>;
   xit: Xit<WorkerParameters, WorkerFixtures, TestFixtures>;
@@ -102,9 +102,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     this.afterAll = fn => implementation.afterAll(this, fn);
   }
 
-  union<P1, W1, T1>(other1: Fixtures<P1, W1, T1>): Fixtures<WorkerParameters & P1, WorkerFixtures & W1, TestFixtures & T1>;
-  union<P1, W1, T1, P2, W2, T2>(other1: Fixtures<P1, W1, T1>, other2: Fixtures<P2, W2, T2>): Fixtures<WorkerParameters & P1 & P2, WorkerFixtures & W1 & W2, TestFixtures & T1 & T2>;
-  union<P1, W1, T1, P2, W2, T2, P3, W3, T3>(other1: Fixtures<P1, W1, T1>, other2: Fixtures<P2, W2, T2>, other3: Fixtures<P3, W3, T3>): Fixtures<WorkerParameters & P1 & P2 & P3, WorkerFixtures & W1 & W2 & W3, TestFixtures & T1 & T2 & T3>;
+  union<W1, T1, P1>(other: Fixtures<W1, T1, P1>): Fixtures<WorkerFixtures & W1, TestFixtures & T1, WorkerParameters & P1>;
   union(...others) {
     let pool = this._pool;
     for (const other of others)
@@ -113,7 +111,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     return new FixturesImpl(pool);
   }
 
-  extend<P = {}, W = {}, T = {}>(): Builder<WorkerParameters & P, WorkerFixtures & W, TestFixtures & T> {
+  extend<W = {}, T = {}, P = {}>(): Builder<WorkerFixtures & W, TestFixtures & T, WorkerParameters & P> {
     return new BuilderImpl(new FixturePool(this._pool)) as any;
   }
 
@@ -122,22 +120,22 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
   }
 }
 
-export class BuilderImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtures = {}> {
+export class BuilderImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters = {}> {
   _pool: FixturePool;
 
   constructor(pool: FixturePool) {
     this._pool = pool;
   }
 
-  declareTestFixtures<T extends object>(): Builder<WorkerParameters, WorkerFixtures, TestFixtures & T> {
+  declareTestFixtures<T extends object>(): Builder<WorkerFixtures, TestFixtures & T, WorkerParameters> {
     return this as any;
   }
 
-  declareWorkerFixtures<W extends object>(): Builder<WorkerParameters, WorkerFixtures & W, TestFixtures> {
+  declareWorkerFixtures<W extends object>(): Builder<WorkerFixtures & W, TestFixtures, WorkerParameters> {
     return this as any;
   }
 
-  declareParameters<P extends object>(): Builder<WorkerParameters & P, WorkerFixtures, TestFixtures> {
+  declareParameters<P extends object>(): Builder<WorkerFixtures, TestFixtures, WorkerParameters & P> {
     return this as any;
   }
 
@@ -166,16 +164,16 @@ export class BuilderImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixture
     this._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false, false);
   }
 
-  build(): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures> {
+  build(): Fixtures<WorkerFixtures, TestFixtures, WorkerParameters> {
     this._pool.validate();
     return new FixturesImpl(this._pool) as any;
   }
 }
 
 
-export interface Fixtures<P, W, T> extends FixturesImpl<P, W, T> {
+export interface Fixtures<W, T, P> extends FixturesImpl<W, T, P> {
 }
-export interface Builder<P, W, T> extends BuilderImpl<P, W, T> {
+export interface Builder<W, T, P> extends BuilderImpl<W, T, P> {
 }
 
 export const rootFixtures = new FixturesImpl(new FixturePool(undefined)) as Fixtures<{}, {}, {}>;
