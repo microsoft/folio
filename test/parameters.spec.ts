@@ -221,3 +221,30 @@ it('testParametersPathSegment does not throw in non-parametrized test', async ({
   expect(result.report.suites[0].specs[0].tests[0].parameters).toEqual({});
   expect(result.report.suites[0].specs[1].tests[0].parameters).toEqual({ param: 'value' });
 });
+
+it('should not duplicate parameters in configuration', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.ts': `
+      const builder = baseFolio.extend();
+      builder.defineParameter('foo', 'Foo', 'foo');
+      builder.defineTestFixture('f1', async({foo}, runTest) => runTest(foo));
+      builder.defineTestFixture('f2', async({foo}, runTest) => runTest(foo));
+      const folio = builder.build();
+      folio.generateParametrizedTests('foo', ['foo1', 'foo2', 'foo3']);
+
+      const { it } = folio;
+
+      it('runs 3 times', async ({ f1, f2 }) => {
+        expect(f1).toContain('foo');
+        expect(f2).toContain('foo');
+        expect(f1).toBe(f2);
+        console.log(f1 + ':' + f2);
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(3);
+  const outputs = result.results.map(r => r.stdout[0].text.replace(/\s/g, ''));
+  expect(outputs.sort()).toEqual(['foo1:foo1', 'foo2:foo2', 'foo3:foo3']);
+});

@@ -269,7 +269,7 @@ export class FixturePool {
   }
 
   parametersForFunction(fn: Function, prefix: string, allowTestFixtures: boolean): string[] {
-    const result: string[] = [];
+    const result = new Set<string>();
     const visit = (name: string, prefix: string): string | undefined => {
       const registration = this.registrations.get(name);
       if (!registration)
@@ -277,7 +277,7 @@ export class FixturePool {
       if (!allowTestFixtures && registration.scope === 'test')
         return `${prefix} cannot depend on a test fixture "${name}".`;
       if (parameterRegistrations.has(name))
-        result.push(name);
+        result.add(name);
       for (const dep of registration.deps) {
         const error = visit(dep, `Fixture "${name}"`);
         if (error)
@@ -296,7 +296,7 @@ export class FixturePool {
           throw new Error(error);
       }
     }
-    return result;
+    return Array.from(result);
   }
 
   async setupFixture(name: string): Promise<Fixture> {
