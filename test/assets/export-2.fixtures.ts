@@ -18,10 +18,10 @@ import { folio as baseFolio } from '../..';
 
 const builder = baseFolio.extend<{ workerTypeOnly: number }, { testTypeOnly: string }>();
 
-builder.defineTestFixture('testTypeOnly', async ({}, runTest) => {
+builder.setTestFixture('testTypeOnly', async ({}, runTest) => {
   await runTest('testTypeOnly');
 });
-builder.defineWorkerFixture('workerTypeOnly', async ({}, runTest) => {
+builder.setWorkerFixture('workerTypeOnly', async ({}, runTest) => {
   await runTest(42);
 });
 

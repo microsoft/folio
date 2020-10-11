@@ -17,7 +17,7 @@
 import { config, folio, TestInfo } from '../../';
 
 const builder = folio.extend<{}, { testInfoForward: TestInfo }>();
-builder.defineTestFixture('testInfoForward', async ({testInfo}, runTest) => {
+builder.setTestFixture('testInfoForward', async ({testInfo}, runTest) => {
   await runTest(testInfo);
   testInfo.data['myname'] = 'myvalue';
 });
