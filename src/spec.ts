@@ -120,6 +120,10 @@ export class FixturesImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParamete
   }
 }
 
+type FixtureOptions = {
+  auto?: boolean;
+};
+
 export class BuilderImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters = {}> {
   _pool: FixturePool;
 
@@ -127,35 +131,23 @@ export class BuilderImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameter
     this._pool = pool;
   }
 
-  declareTestFixtures<T extends object>(): Builder<WorkerFixtures, TestFixtures & T, WorkerParameters> {
-    return this as any;
+  setTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+    this._pool.registerFixture(name as string, 'test', fixture as any, options.auto, false);
   }
 
-  declareWorkerFixtures<W extends object>(): Builder<WorkerFixtures & W, TestFixtures, WorkerParameters> {
-    return this as any;
+  overrideTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+    this._pool.registerFixture(name as string, 'test', fixture as any, options.auto, true);
   }
 
-  declareParameters<P extends object>(): Builder<WorkerFixtures, TestFixtures, WorkerParameters & P> {
-    return this as any;
+  setWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+    this._pool.registerFixture(name as string, 'worker', fixture as any, options.auto, false);
   }
 
-  defineTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>): void {
-    this._pool.registerFixture(name as string, 'test', fixture as any, (name as string).startsWith('auto'), false);
+  overrideWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+    this._pool.registerFixture(name as string, 'worker', fixture as any, options.auto, true);
   }
 
-  overrideTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>): void {
-    this._pool.registerFixture(name as string, 'test', fixture as any, (name as string).startsWith('auto'), true);
-  }
-
-  defineWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>): void {
-    this._pool.registerFixture(name as string, 'worker', fixture as any, (name as string).startsWith('auto'), false);
-  }
-
-  overrideWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>): void {
-    this._pool.registerFixture(name as string, 'worker', fixture as any, (name as string).startsWith('auto'), true);
-  }
-
-  defineParameter<N extends keyof WorkerParameters>(name: N, description: string, defaultValue: WorkerParameters[N]): void {
+  setParameter<N extends keyof WorkerParameters>(name: N, description: string, defaultValue: WorkerParameters[N]): void {
     this._pool.registerWorkerParameter({
       name: name as string,
       description,

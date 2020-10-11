@@ -216,11 +216,11 @@ export class FixturePool {
       if (previous.scope !== scope)
         throw new Error(`Fixture "${name}" has already been registered as a ${previous.scope} fixture. Use a different name for this ${scope} fixture.`);
       else
-        throw new Error(`Fixture "${name}" has already been registered. Use ${scope === 'test' ? 'overrideTestFixtures' : 'overrideWorkerFixtures'} to override it in a specific test file.`);
+        throw new Error(`Fixture "${name}" has already been registered. Use ${scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} to override it in a specific test file.`);
     } else if (isOverride && !previous) {
-      throw new Error(`Fixture "${name}" has not been registered yet. Use ${scope === 'test' ? 'defineTestFixtures' : 'defineWorkerFixtures'} instead.`);
+      throw new Error(`Fixture "${name}" has not been registered yet. Use ${scope === 'test' ? 'setTestFixture' : 'setWorkerFixture'} instead.`);
     } else if (isOverride && previous && previous.scope !== scope) {
-      throw new Error(`Fixture "${name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixtures' : 'overrideWorkerFixtures'} instead.`);
+      throw new Error(`Fixture "${name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} instead.`);
     }
 
     const deps = fixtureParameterNames(fn);

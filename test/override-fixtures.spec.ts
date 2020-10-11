@@ -21,7 +21,7 @@ it('should respect require order', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixture.js': `
       const builder = baseFolio.extend();
-      builder.defineWorkerFixture('fixture', ({}, runTest) => runTest('base'));
+      builder.setWorkerFixture('fixture', ({}, runTest) => runTest('base'));
       exports.folio = builder.build();
     `,
     'override1.js': `
@@ -80,7 +80,7 @@ it('should respect override order 2', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixture.js': `
       const builder = baseFolio.extend();
-      builder.defineWorkerFixture('fixture', ({}, runTest) => runTest('base'));
+      builder.setWorkerFixture('fixture', ({}, runTest) => runTest('base'));
       module.exports = builder.build();
     `,
     'override1.js': `
@@ -151,11 +151,11 @@ it('should allow overrides in union', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixtures.js': `
       const baseBuilder = baseFolio.extend();
-      baseBuilder.defineTestFixture('foo', ({}, runTest) => runTest('base'));
+      baseBuilder.setTestFixture('foo', ({}, runTest) => runTest('base'));
       const base = baseBuilder.build();
 
       const fixtures1Builder = base.extend();
-      fixtures1Builder.defineTestFixture('bar', ({}, runTest) => runTest('bar'));
+      fixtures1Builder.setTestFixture('bar', ({}, runTest) => runTest('bar'));
       const fixtures1 = fixtures1Builder.build();
 
       const fixtures2Builder = base.extend();

@@ -74,13 +74,13 @@ import { folio } from 'folio';
 
 const builder = folio.extend<{ database: Database }, { table: Table }>();
 
-builder.defineWorkerFixture('database', async ({}, runTest) => {
+builder.setWorkerFixture('database', async ({}, runTest) => {
   const database = await connect();
   await runTest(database);
   await database.dispose();
 });
 
-builder.defineTestFixture('table', async ({ database }, runTest) => {
+builder.setTestFixture('table', async ({ database }, runTest) => {
   const table = await database.createTable();
   await runTest(table);
   await database.dropTable(table);
@@ -144,7 +144,7 @@ type TestFixtures = {
 };
 const builder = base.extend<{}, TestFixtures>();
 
-builder.defineTestFixture('hello', async ({}, runTest) => {
+builder.setTestFixture('hello', async ({}, runTest) => {
   // Set up fixture.
   const value = 'Hello';
   // Run the test with the fixture value.
@@ -152,11 +152,11 @@ builder.defineTestFixture('hello', async ({}, runTest) => {
   // Clean up fixture.
 });
 
-builder.defineTestFixture('world', async ({}, runTest) => {
+builder.setTestFixture('world', async ({}, runTest) => {
   await runTest('World');
 });
 
-builder.defineTestFixture('test', async ({}, runTest) => {
+builder.setTestFixture('test', async ({}, runTest) => {
   await runTest('Test');
 });
 
@@ -214,12 +214,12 @@ type ExpressWorkerFixtures = {
 const builder = base.extend<ExpressWorkerFixtures, {}>();
 
 // Define |port| fixture that has unique value value of the worker process index.
-builder.defineWorkerFixture('port', async ({ testWorkerIndex }, runTest) => {
+builder.setWorkerFixture('port', async ({ testWorkerIndex }, runTest) => {
   await runTest(3000 + testWorkerIndex);
 });
 
 // Define the express worker fixture, make it start automatically for every worker.
-builder.defineWorkerFixture('autoExpress', async ({ port }, runTest) => {
+builder.setWorkerFixture('express', async ({ port }, runTest) => {
   const app = express();
   app.get('/1', (req, res) => {
     res.send('Hello World 1!')
@@ -237,7 +237,7 @@ builder.defineWorkerFixture('autoExpress', async ({ port }, runTest) => {
   console.log('Stopping server...');
   await new Promise(f => server.close(f));
   console.log('Server stopped');
-});
+}, { auto: true });
 
 const folio = builder.build();
 export const it = folio.it;
@@ -267,9 +267,9 @@ export { expect } from 'folio';
 
 const builder = base.extend<{ apiUrl: string }, {}, { version: string }>();
 
-builder.defineParameter('version', 'API version', 'v1');
+builder.setParameter('version', 'API version', 'v1');
 
-builder.defineWorkerFixture('apiUrl', async ({ version }, runTest) => {
+builder.setWorkerFixture('apiUrl', async ({ version }, runTest) => {
   const server = await startServer();
   await runTest(`http://localhost/api/${version}`);
   await server.close();

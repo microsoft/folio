@@ -16,15 +16,13 @@
 
 import { folio as baseFolio } from '../..';
 
-const builder = baseFolio.extend()
-    .declareParameters<{ param1: string, param2: string }>()
-    .declareTestFixtures<{ fixture1: string, fixture2: string }>();
-builder.defineParameter('param1', 'Custom parameter 1', '');
-builder.defineParameter('param2', 'Custom parameter 2', 'value2');
-builder.defineTestFixture('fixture1', async ({testInfo}, runTest) => {
+const builder = baseFolio.extend<{}, { fixture1: string, fixture2: string }, { param1: string, param2: string }>();
+builder.setParameter('param1', 'Custom parameter 1', '');
+builder.setParameter('param2', 'Custom parameter 2', 'value2');
+builder.setTestFixture('fixture1', async ({testInfo}, runTest) => {
   await runTest(testInfo.parameters.param1 as string);
 });
-builder.defineTestFixture('fixture2', async ({testInfo}, runTest) => {
+builder.setTestFixture('fixture2', async ({testInfo}, runTest) => {
   await runTest(testInfo.parameters.param2 as string);
 });
 const { it, expect } = builder.build();

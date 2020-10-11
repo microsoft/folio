@@ -17,7 +17,7 @@
 import { folio } from '../../';
 
 const builder = folio.extend<{}, { postProcess: string }>();
-builder.defineTestFixture('postProcess', async ({testInfo}, runTest) => {
+builder.setTestFixture('postProcess', async ({testInfo}, runTest) => {
   await runTest('');
   console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
 });
