@@ -187,14 +187,15 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--forbid-only', 'Fail if exclusive test(s) encountered', false)
       .option('-g, --grep <grep>', 'Only run tests matching this string or regexp', '.*')
       .option('--global-timeout <timeout>', 'Specify maximum time this test suite can run (in milliseconds), default: 0 for unlimited', '0')
+      .option('-h, --help', 'Display help')
       .option('-j, --workers <workers>', 'Number of concurrent workers, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
-      .option('-j, --jobs <jobs>', 'Number of concurrent jobs, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
       .option('--list', 'Only collect all the test and report them')
       .option('--max-failures <N>', 'Stop after the first N failures', '0')
       .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'));
   if (param)
     program = program.option('-p, --param <name=value...>', 'Specify fixture parameter value');
-  program.option('--quiet', 'Suppress stdio', false)
+  program = program
+      .option('--quiet', 'Suppress stdio', false)
       .option('--repeat-each <repeat-each>', 'Specify how many times to run the tests', '1')
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
       .option('--retries <retries>', 'Specify retry count', '0')
@@ -203,8 +204,7 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
       .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
       .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
-      .option('--update-snapshots', 'Whether to update snapshots with actual results', false)
-      .option('-h, --help', 'display help for command')
+      .option('-u, --update-snapshots', 'Whether to update snapshots with actual results', false)
       .option('-x', 'Stop after the first failure');
 }
 
