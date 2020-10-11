@@ -16,7 +16,7 @@
 
 import { folio as baseFolio } from '../..';
 
-const builder = baseFolio.extend<{}, { workerTypeOnly: number }, { testTypeOnly: string }>();
+const builder = baseFolio.extend<{ workerTypeOnly: number }, { testTypeOnly: string }>();
 
 builder.defineTestFixture('testTypeOnly', async ({}, runTest) => {
   await runTest('testTypeOnly');

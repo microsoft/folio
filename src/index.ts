@@ -34,7 +34,7 @@ type BuiltinTestFixtures = {
   testParametersPathSegment: string;
 };
 
-const builder = rootFixtures.extend<{}, BuiltinWorkerFixtures, BuiltinTestFixtures>();
+const builder = rootFixtures.extend<BuiltinWorkerFixtures, BuiltinTestFixtures>();
 
 builder.defineWorkerFixture('testWorkerIndex', async ({}, runTest) => {
   // Worker injects the value for this one.
