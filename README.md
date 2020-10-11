@@ -15,7 +15,7 @@
   - [In the command line](#in-the-command-line)
   - [Generating tests](#generating-tests)
 - [Parallelism and sharding](#parallelism-and-sharding)
-  - [Workers](#jobs)
+  - [Workers](#workers)
   - [Shards](#shards)
 - [Command line](#command-line)
 
