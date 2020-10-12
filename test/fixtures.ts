@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { config, folio as baseFolio, TestInfo } from 'folio';
+import { config, folio as base, TestInfo } from 'folio';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -115,9 +115,9 @@ type TestState = {
   runInlineFixturesTest: RunInlineTestFunction;
 };
 
-const builder = baseFolio.extend<{}, {}, TestState>();
+const fixtures = base.extend<{}, TestState>();
 
-builder.defineTestFixture('runTest', async ({ testInfo }, run) => {
+fixtures.runTest.initTest(async ({ testInfo }, run) => {
   // Print output on failure.
   let result: RunResult;
   await run(async (filePath, options) => {
@@ -137,14 +137,14 @@ builder.defineTestFixture('runTest', async ({ testInfo }, run) => {
     console.log(result.output);
 });
 
-builder.defineTestFixture('runInlineTest', async ({ testInfo }, run) => {
+fixtures.runInlineTest.initTest(async ({ testInfo }, run) => {
   await runInlineTest(testInfo, `
     const { folio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
     const { it, test, describe } = folio;
   `, run);
 });
 
-builder.defineTestFixture('runInlineFixturesTest', async ({ testInfo }, run) => {
+fixtures.runInlineFixturesTest.initTest(async ({ testInfo }, run) => {
   await runInlineTest(testInfo, `
     const { folio: baseFolio, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
   `, run);
@@ -169,7 +169,7 @@ async function runInlineTest(testInfo: TestInfo, header: string, run: (fn: RunIn
     console.log(result.output);
 }
 
-export const folio = builder.build();
+export const folio = fixtures.build();
 
 const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
 export function stripAscii(str: string): string {
