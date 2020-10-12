@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-import { folio1 } from './export-1.fixtures';
-import { folio2 } from './export-2.fixtures';
+import { folio as folio1 } from './export-1.fixtures';
+import { folio as folio2 } from './export-2.fixtures';
 
 const fixtures = folio1.union(folio2).extend();
-fixtures.overrideTestFixture('testWrap', async ({}, runTest) => {
+
+fixtures.testWrap.override(async ({}, runTest) => {
   await runTest('override');
 });
-fixtures.workerTypeOnly.overrideWorker(async ({}, runTest) => {
+
+fixtures.workerTypeOnly.override(async ({}, runTest) => {
   await runTest(17);
 });
 const { it, expect } = fixtures.build();

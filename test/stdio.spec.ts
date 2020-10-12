@@ -41,11 +41,11 @@ it('should get stdio from worker fixture teardown', async ({runInlineFixturesTes
   const result = await runInlineFixturesTest({
     'a.spec.js': `
       const builder = baseFolio.extend();
-      builder.setWorkerFixture('fixture', async ({}, runTest) => {
+      builder.fixture.init(async ({}, runTest) => {
         console.log('\\n%% worker setup');
         await runTest();
         console.log('\\n%% worker teardown');
-      });
+      }, { scope: 'worker' });
       const { it } = builder.build();
       it('is a test', async ({fixture}) => {});
     `

@@ -17,12 +17,12 @@
 import { folio as baseFolio } from '../..';
 
 const builder = baseFolio.extend<{}, { fixture1: string, fixture2: string }, { param1: string, param2: string }>();
-builder.setParameter('param1', 'Custom parameter 1', '');
-builder.setParameter('param2', 'Custom parameter 2', 'value2');
-builder.setTestFixture('fixture1', async ({testInfo}, runTest) => {
+builder.param1.initParameter('Custom parameter 1', '');
+builder.param2.initParameter('Custom parameter 2', 'value2');
+builder.fixture1.init(async ({testInfo}, runTest) => {
   await runTest(testInfo.parameters.param1 as string);
 });
-builder.setTestFixture('fixture2', async ({testInfo}, runTest) => {
+builder.fixture2.init(async ({testInfo}, runTest) => {
   await runTest(testInfo.parameters.param2 as string);
 });
 const { it, expect } = builder.build();

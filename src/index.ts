@@ -36,17 +36,17 @@ type BuiltinTestFixtures = {
 
 const builder = rootFixtures.extend<BuiltinWorkerFixtures, BuiltinTestFixtures>();
 
-builder.setWorkerFixture('testWorkerIndex', async ({}, runTest) => {
+builder.testWorkerIndex.init(async ({}, runTest) => {
+  // Worker injects the value for this one.
+  await runTest(undefined as any);
+}, { scope: 'worker' });
+
+builder.testInfo.init(async ({}, runTest) => {
   // Worker injects the value for this one.
   await runTest(undefined as any);
 });
 
-builder.setTestFixture('testInfo', async ({}, runTest) => {
-  // Worker injects the value for this one.
-  await runTest(undefined as any);
-});
-
-builder.setTestFixture('testParametersPathSegment', async ({}, runTest) => {
+builder.testParametersPathSegment.init(async ({}, runTest) => {
   await runTest('');
 });
 
