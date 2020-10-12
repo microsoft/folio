@@ -150,9 +150,11 @@ export class Dispatcher {
       const requiredHash = file.hash;
       let worker = await this._obtainWorker();
       while (!this._isStopped && worker.hash && worker.hash !== requiredHash) {
-        this._restartWorker(worker);
+        worker.stop();
         worker = await this._obtainWorker();
       }
+      if (this._isStopped)
+        break;
       jobs.push(this._runJob(worker, file));
     }
     await Promise.all(jobs);
@@ -168,13 +170,14 @@ export class Dispatcher {
       // - we are here not because something failed
       // - no unrecoverable worker error
       if (!params.remaining.length && !params.failedTestId && !params.fatalError) {
-        this._workerAvailable(worker);
+        this._freeWorkers.push(worker);
+        this._notifyWorkerClaimer();
         doneCallback();
         return;
       }
 
-      // When worker encounters error, we will restart it.
-      this._restartWorker(worker);
+      // When worker encounters error, we will stop it and create a new one.
+      worker.stop();
 
       // In case of fatal error, we are done with the entry.
       if (params.fatalError) {
@@ -216,23 +219,32 @@ export class Dispatcher {
   }
 
   async _obtainWorker() {
-    // If there is worker, use it.
-    if (this._freeWorkers.length)
-      return this._freeWorkers.pop();
-    // If we can create worker, create it.
-    if (this._workers.size < this._config.workers)
-      this._createWorker();
-    // Wait for the next available worker.
-    await new Promise(f => this._workerClaimers.push(f));
-    return this._freeWorkers.pop();
+    const claimWorker = (): Promise<Worker> | null => {
+      // Use available worker.
+      if (this._freeWorkers.length)
+        return Promise.resolve(this._freeWorkers.pop());
+      // Create a new worker.
+      if (this._workers.size < this._config.workers)
+        return this._createWorker();
+      return null;
+    };
+
+    // Note: it is important to claim the worker synchronously,
+    // so that we won't miss a _notifyWorkerClaimer call while awaiting.
+    let worker = claimWorker();
+    if (!worker) {
+      // Wait for available or stopped worker.
+      await new Promise(f => this._workerClaimers.push(f));
+      worker = claimWorker();
+    }
+    return worker;
   }
 
-  async _workerAvailable(worker) {
-    this._freeWorkers.push(worker);
-    if (this._workerClaimers.length) {
-      const callback = this._workerClaimers.shift();
-      callback();
-    }
+  async _notifyWorkerClaimer() {
+    if (this._isStopped || !this._workerClaimers.length)
+      return;
+    const callback = this._workerClaimers.shift();
+    callback();
   }
 
   _createWorker() {
@@ -269,18 +281,12 @@ export class Dispatcher {
     });
     worker.on('exit', () => {
       this._workers.delete(worker);
+      this._notifyWorkerClaimer();
       if (this._stopCallback && !this._workers.size)
         this._stopCallback();
     });
     this._workers.add(worker);
-    worker.init().then(() => this._workerAvailable(worker));
-  }
-
-  async _restartWorker(worker) {
-    if (this._isStopped)
-      return;
-    await worker.stop();
-    this._createWorker();
+    return worker.init().then(() => worker);
   }
 
   async stop() {
