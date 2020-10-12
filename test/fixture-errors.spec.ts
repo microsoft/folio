@@ -386,3 +386,36 @@ it('should detect a cycle in the union', async ({ runInlineFixturesTest }) => {
   expect(result.report.errors[0].error.message).toContain('Fixtures "foo" -> "bar" -> "foo" form a dependency cycle.');
   expect(result.report.errors[0].error.stack).toContain('a.test.js:17');
 });
+
+it('should throw for cycle in two overrides', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const builder = baseFolio.extend();
+      builder.setTestFixture('foo', async ({}, test) => await test('foo'));
+      builder.setTestFixture('bar', async ({}, test) => await test('bar'));
+      builder.overrideTestFixture('foo', async ({ foo, bar }, test) => await test(foo + '-' + bar));
+      builder.overrideTestFixture('bar', async ({ bar, foo }, test) => await test(bar + '-' + foo));
+      const { it } = builder.build();
+      it('test', async ({foo, bar}) => {
+        expect(1).toBe(1);
+      });
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('Fixtures "foo" -> "bar" -> "foo" form a dependency cycle.');
+  expect(result.report.errors[0].error.stack).toContain('a.test.js:9');
+});
+
+it('should throw when overriden worker fixture depends on a test fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'f.spec.ts': `
+      const builder = baseFolio.extend();
+      builder.setTestFixture('foo', ({}, run) => run());
+      builder.setWorkerFixture('bar', ({foo}, run) => run());
+      builder.overrideWorkerFixture('bar', ({bar}, run) => run());
+      const { it } = builder.build();
+      it('works', async ({bar}) => {});
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('Worker fixture "bar" cannot depend on a test fixture "foo".');
+  expect(result.exitCode).toBe(1);
+});

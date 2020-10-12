@@ -27,6 +27,7 @@ type FixtureRegistration = {
   auto: boolean;
   isOverride: boolean;
   deps: string[];
+  super?: FixtureRegistration;
 };
 
 export type TestInfo = {
@@ -96,7 +97,7 @@ export function assignConfig(c: Config) {
 class Fixture {
   pool: FixturePool;
   registration: FixtureRegistration;
-  usages: Set<string>;
+  usages: Set<Fixture>;
   hasGeneratorValue: boolean;
   value: any;
   _teardownFenceCallback: (value?: unknown) => void;
@@ -117,14 +118,16 @@ class Fixture {
   async setup() {
     if (this.hasGeneratorValue)
       return;
+    const params = {};
     for (const name of this.registration.deps) {
-      await this.pool.setupFixture(name);
-      this.pool.instances.get(name).usages.add(this.registration.name);
+      const registration = this.pool._resolveDependency(this.registration, name);
+      if (!registration)
+        throw new Error(`Unknown fixture "${name}"`);
+      const dep = await this.pool.setupFixtureForRegistration(registration);
+      dep.usages.add(this);
+      params[name] = dep.value;
     }
 
-    const params = {};
-    for (const n of this.registration.deps)
-      params[n] = this.pool.instances.get(n).value;
     let setupFenceFulfill: { (): void; (value?: unknown): void; };
     let setupFenceReject: { (arg0: any): any; (reason?: any): void; };
     const setupFence = new Promise((f, r) => { setupFenceFulfill = f; setupFenceReject = r; });
@@ -147,24 +150,21 @@ class Fixture {
 
   async teardown() {
     if (this.hasGeneratorValue) {
-      this.pool.instances.delete(this.registration.name);
+      this.pool.instances.delete(this.registration);
       return;
     }
     if (this._teardown)
       return;
     this._teardown = true;
-    for (const name of this.usages) {
-      const fixture = this.pool.instances.get(name);
-      if (!fixture)
-        continue;
+    for (const fixture of this.usages)
       await fixture.teardown();
-    }
+    this.usages.clear();
     if (this._setup) {
       debugLog(`teardown fixture "${this.registration.name}"`);
       this._teardownFenceCallback();
       await this._tearDownComplete;
     }
-    this.pool.instances.delete(this.registration.name);
+    this.pool.instances.delete(this.registration);
   }
 }
 
@@ -174,7 +174,7 @@ let lastFixturePoolId = 0;
 export class FixturePool {
   id: number;
   parentPool: FixturePool | undefined;
-  instances = new Map<string, Fixture>();
+  instances = new Map<FixtureRegistration, Fixture>();
   registrations: Map<string, FixtureRegistration>;
 
   constructor(parentPool: FixturePool | undefined) {
@@ -224,7 +224,7 @@ export class FixturePool {
     }
 
     const deps = fixtureParameterNames(fn);
-    const registration: FixtureRegistration = { name, scope, fn, auto, isOverride, deps };
+    const registration: FixtureRegistration = { name, scope, fn, auto, isOverride, deps, super: previous };
     this.registrations.set(name, registration);
   }
 
@@ -241,9 +241,8 @@ export class FixturePool {
     const visit = (registration: FixtureRegistration): string | undefined => {
       markers.set(registration, 'visiting');
       stack.push(registration);
-      const deps = fixtureParameterNames(registration.fn);
-      for (const name of deps) {
-        const dep = this.registrations.get(name);
+      for (const name of registration.deps) {
+        const dep = this._resolveDependency(registration, name);
         if (!dep)
           return `Fixture "${registration.name}" has unknown parameter "${name}".`;
         if (registration.scope === 'worker' && dep.scope === 'test')
@@ -270,45 +269,44 @@ export class FixturePool {
 
   parametersForFunction(fn: Function, prefix: string, allowTestFixtures: boolean): string[] {
     const result = new Set<string>();
-    const visit = (name: string, prefix: string): string | undefined => {
-      const registration = this.registrations.get(name);
-      if (!registration)
-        return `${prefix} has unknown parameter "${name}".`;
-      if (!allowTestFixtures && registration.scope === 'test')
-        return `${prefix} cannot depend on a test fixture "${name}".`;
-      if (parameterRegistrations.has(name))
-        result.add(name);
-      for (const dep of registration.deps) {
-        const error = visit(dep, `Fixture "${name}"`);
-        if (error)
-          return error;
-      }
+    const visit = (registration: FixtureRegistration) => {
+      if (parameterRegistrations.has(registration.name))
+        result.add(registration.name);
+      for (const name of registration.deps)
+        visit(this._resolveDependency(registration, name)!);
     };
     for (const name of fixtureParameterNames(fn)) {
-      const error = visit(name, prefix);
-      if (error)
-        throw new Error(error);
+      const registration = this.registrations.get(name);
+      if (!registration)
+        throw new Error(`${prefix} has unknown parameter "${name}".`);
+      if (!allowTestFixtures && registration.scope === 'test')
+        throw new Error(`${prefix} cannot depend on a test fixture "${name}".`);
+      visit(registration);
     }
     for (const registration of this.registrations.values()) {
       if (registration.auto) {
-        const error = visit(registration.name, `Fixture "${registration.name}"`);
-        if (error)
-          throw new Error(error);
+        if (!allowTestFixtures && registration.scope === 'test')
+          throw new Error(`${prefix} cannot depend on a test fixture "${registration.name}".`);
+        visit(registration);
       }
     }
     return Array.from(result);
   }
 
   async setupFixture(name: string): Promise<Fixture> {
-    let fixture = this.instances.get(name);
-    if (fixture)
-      return fixture;
-
     const registration = this.registrations.get(name);
     if (!registration)
       throw new Error('Unknown fixture: ' + name);
+    return this.setupFixtureForRegistration(registration);
+  }
+
+  async setupFixtureForRegistration(registration: FixtureRegistration): Promise<Fixture> {
+    let fixture = this.instances.get(registration);
+    if (fixture)
+      return fixture;
+
     fixture = new Fixture(this, registration);
-    this.instances.set(name, fixture);
+    this.instances.set(registration, fixture);
     await fixture.setup();
     return fixture;
   }
@@ -324,17 +322,23 @@ export class FixturePool {
     // Install all automatic fixtures.
     for (const registration of this.registrations.values()) {
       if (registration.auto)
-        await this.setupFixture(registration.name);
+        await this.setupFixtureForRegistration(registration);
     }
 
     // Install used fixtures.
     const names = fixtureParameterNames(fn);
-    for (const name of names)
-      await this.setupFixture(name);
     const params = {};
-    for (const n of names)
-      params[n] = this.instances.get(n).value;
+    for (const name of names) {
+      const fixture = await this.setupFixture(name);
+      params[name] = fixture.value;
+    }
     return fn(params);
+  }
+
+  _resolveDependency(registration: FixtureRegistration, name: string): FixtureRegistration | undefined {
+    if (name === registration.name)
+      return registration.super;
+    return this.registrations.get(name);
   }
 }
 

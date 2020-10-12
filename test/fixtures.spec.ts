@@ -358,3 +358,59 @@ it('should work with fixtures union', async ({ runInlineFixturesTest }) => {
   });
   expect(result.results[0].status).toBe('passed');
 });
+
+it('should work with overrides calling base', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const builder = baseFolio.extend();
+      builder.setTestFixture('dep', async ({}, test) => await test('override'));
+      builder.setTestFixture('foo', async ({}, test) => await test('base'));
+      builder.setTestFixture('bar', async ({foo}, test) => await test(foo + '-bar'));
+      builder.overrideTestFixture('foo', async ({ foo, dep }, test) => await test(foo + '-' + dep + '1'));
+      builder.overrideTestFixture('foo', async ({ foo, dep }, test) => await test(foo + '-' + dep + '2'));
+      const { it } = builder.build();
+      it('test', async ({bar}) => {
+        expect(bar).toBe('base-override1-override2-bar');
+      });
+    `,
+  });
+  expect(result.results[0].status).toBe('passed');
+});
+
+it('should understand parameters in overrides calling base', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const builder = baseFolio.extend();
+      builder.setParameter('param', 'Param', 'param');
+      builder.setTestFixture('foo', async ({}, test) => await test('foo'));
+      builder.setTestFixture('bar', async ({foo}, test) => await test(foo + '-bar'));
+      builder.overrideTestFixture('foo', async ({ foo, param }, test) => await test(foo + '-' + param));
+      builder.overrideTestFixture('foo', async ({ foo }, test) => await test(foo + '-override'));
+      const fixtures = builder.build();
+      fixtures.generateParametrizedTests('param', ['p1', 'p2', 'p3']);
+      fixtures.it('test', async ({ bar }) => {
+        console.log(bar);
+      });
+    `,
+  });
+  const outputs = result.results.map(r => r.stdout[0].text.replace(/\s/g, ''));
+  expect(outputs.sort()).toEqual(['foo-p1-override-bar', 'foo-p2-override-bar', 'foo-p3-override-bar']);
+});
+
+it('should work with two overrides calling base', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const builder = baseFolio.extend();
+      builder.setTestFixture('foo', async ({}, test) => await test('foo'));
+      builder.setTestFixture('bar', async ({}, test) => await test('bar'));
+      builder.setTestFixture('baz', async ({foo, bar}, test) => await test(foo + '-baz-' + bar));
+      builder.overrideTestFixture('foo', async ({ foo, bar }, test) => await test(foo + '-' + bar));
+      builder.overrideTestFixture('bar', async ({ bar }, test) => await test(bar + '-override'));
+      const { it } = builder.build();
+      it('test', async ({baz}) => {
+        expect(baz).toBe('foo-bar-override-baz-bar-override');
+      });
+    `,
+  });
+  expect(result.results[0].status).toBe('passed');
+});
