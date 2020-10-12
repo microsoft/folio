@@ -72,21 +72,21 @@ describe('database', () => {
 ```ts
 import { folio } from 'folio';
 
-const builder = folio.extend<{ database: Database }, { table: Table }>();
+const fixtures = folio.extend<{ database: Database }, { table: Table }>();
 
-builder.setWorkerFixture('database', async ({}, runTest) => {
+fixtures.database.initWorker(async ({}, run) => {
   const database = await connect();
-  await runTest(database);
+  await run(database);
   await database.dispose();
 });
 
-builder.setTestFixture('table', async ({ database }, runTest) => {
+fixtures.table.initTest(async ({ database }, run) => {
   const table = await database.createTable();
-  await runTest(table);
+  await run(table);
   await database.dropTable(table);
 });
 
-const { it } = builder.build();
+const { it } = fixtures.build();
 
 it('create user', ({ table }) => {
   table.insert();
@@ -116,7 +116,7 @@ Test fixtures are set up for each test. Consider the following test file:
 
 ```ts
 // hello.spec.ts
-import { it, expect } from './hello.fixtures';
+import { it, expect } from './hello.folio';
 
 it('hello world', ({ hello, world }) => {
   expect(`${hello}, ${world}!`).toBe('Hello, World!');
@@ -132,7 +132,7 @@ It uses fixtures `hello`, `world` and `test` that are set up by the framework fo
 Here is how test fixtures are declared and defined:
 
 ```ts
-// hello.fixtures.ts
+// hello.folio.ts
 import { folio as base } from 'folio';
 export { expect } from 'folio';
 
@@ -142,25 +142,25 @@ type TestFixtures = {
   world: string;
   test: string;
 };
-const builder = base.extend<{}, TestFixtures>();
+const fixtures = base.extend<{}, TestFixtures>();
 
-builder.setTestFixture('hello', async ({}, runTest) => {
+fixtures.hello.initTest(async ({}, run) => {
   // Set up fixture.
   const value = 'Hello';
   // Run the test with the fixture value.
-  await runTest(value);
+  await run(value);
   // Clean up fixture.
 });
 
-builder.setTestFixture('world', async ({}, runTest) => {
-  await runTest('World');
+fixtures.world.initTest(async ({}, run) => {
+  await run('World');
 });
 
-builder.setTestFixture('test', async ({}, runTest) => {
-  await runTest('Test');
+fixtures.test.initTest(async ({}, run) => {
+  await run('Test');
 });
 
-const folio = builder.build();
+const folio = fixtures.build();
 export const it = folio.it;
 ```
 
@@ -168,8 +168,8 @@ Fixtures can use other fixtures.
 
 ```ts
   ...
-  helloWorld: async ({hello, world}, runTest) => {
-    await runTest(`${hello}, ${world}!`);
+  helloWorld: async ({hello, world}, run) => {
+    await run(`${hello}, ${world}!`);
   }
   ...
 ```
@@ -184,7 +184,7 @@ Folio uses worker processes to run test files. You can specify the maximum numbe
 Here is how the test looks:
 ```ts
 // express.spec.ts
-import { it, expect } from './express.fixtures';
+import { it, expect } from './express.folio';
 import fetch from 'node-fetch';
 
 it('fetch 1', async ({ port }) => {
@@ -200,7 +200,7 @@ it('fetch 2', async ({ port }) => {
 
 And here is how fixtures are declared and defined:
 ```ts
-// express.fixtures.ts
+// express.folio.ts
 import { folio as base } from 'folio';
 export { expect } from 'folio';
 import express from 'express';
@@ -211,15 +211,15 @@ type ExpressWorkerFixtures = {
   port: number;
   express: Express;
 };
-const builder = base.extend<ExpressWorkerFixtures, {}>();
+const fixtures = base.extend<ExpressWorkerFixtures, {}>();
 
-// Define |port| fixture that has unique value value of the worker process index.
-builder.setWorkerFixture('port', async ({ testWorkerIndex }, runTest) => {
-  await runTest(3000 + testWorkerIndex);
+// |port| fixture has a unique value value of the worker process index.
+fixtures.port.initWorker(async ({ testWorkerIndex }, run) => {
+  await run(3000 + testWorkerIndex);
 });
 
-// Define the express worker fixture, make it start automatically for every worker.
-builder.setWorkerFixture('express', async ({ port }, runTest) => {
+// |express| fixture starts automatically for every worker.
+fixtures.express.initWorker(async ({ port }, run) => {
   const app = express();
   app.get('/1', (req, res) => {
     res.send('Hello World 1!')
@@ -233,13 +233,13 @@ builder.setWorkerFixture('express', async ({ port }, runTest) => {
     server = app.listen(port, f);
   });
   console.log('Server ready');
-  await runTest(server);
+  await run(server);
   console.log('Stopping server...');
   await new Promise(f => server.close(f));
   console.log('Server stopped');
 }, { auto: true });
 
-const folio = builder.build();
+const folio = fixtures.build();
 export const it = folio.it;
 ```
 
@@ -250,7 +250,7 @@ It is common to run tests in different configurations, for example when running 
 Consider the following test that uses an API url endpoint:
 ```ts
 // api.spec.ts
-import { it, expect } from './api.fixtures';
+import { it, expect } from './api.folio';
 import fetch from 'node-fetch';
 
 it('fetch 1', async ({ apiUrl }) => {
@@ -261,21 +261,21 @@ it('fetch 1', async ({ apiUrl }) => {
 
 Here is how to define the api version parameter:
 ```ts
-// api.fixtures.ts
+// api.folio.ts
 import { folio as base } from 'folio';
 export { expect } from 'folio';
 
-const builder = base.extend<{ apiUrl: string }, {}, { version: string }>();
+const fixtures = base.extend<{ apiUrl: string }, {}, { version: string }>();
 
-builder.setParameter('version', 'API version', 'v1');
+fixtures.version.initParameter('API version', 'v1');
 
-builder.setWorkerFixture('apiUrl', async ({ version }, runTest) => {
+fixtures.apiUrl.initWorker(async ({ version }, runTest) => {
   const server = await startServer();
   await runTest(`http://localhost/api/${version}`);
   await server.close();
 });
 
-const folio = builder.build();
+const folio = fixtures.build();
 export const it = folio.it;
 ```
 
@@ -285,12 +285,11 @@ Given the example above, it is possible to run tests against the specific api ve
 
 TODO: do not assume this is read top-bottom, each section should be self-contained
 
-TODO: update the npx command.
 ```sh
 # Run against the default version (v1 in our case).
-npx test-runner tests
+npx folio tests
 # Run against the specified version.
-npx test-runner tests -p version=v2
+npx folio tests -p version=v2
 ```
 
 ### Generating tests
@@ -300,14 +299,13 @@ TODO: do not assume this is read top-bottom, each section should be self-contain
 It is also possible to run tests against multiple api versions.
 
 ```ts
-// api.fixtures.ts
+// api.folio.ts
 
 // Generate three versions of each test that directly or indirectly
 // depends on the |version| parameter.
 folio.generateParametrizedTests('version', ['v1', 'v2', 'v3']);
 ```
 
-TODO: update the npx command.
 ```sh
-npx test-runner tests -p version=v1 -p version=v2
+npx folio tests -p version=v1 -p version=v2
 ```

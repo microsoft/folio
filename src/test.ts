@@ -16,7 +16,7 @@
 
 import { Parameters, TestError, TestStatus } from './ipc';
 export { Parameters, TestStatus, TestError } from './ipc';
-import type { FixturesImpl } from './spec';
+import type { FolioImpl } from './spec';
 
 class Base {
   title: string;
@@ -26,14 +26,14 @@ class Base {
 
   _only = false;
   _ordinal: number;
-  _fixtures: FixturesImpl;
+  _folio: FolioImpl;
 
-  constructor(fixtures: FixturesImpl, title: string, parent?: Suite) {
-    this._fixtures = fixtures;
+  constructor(folio: FolioImpl, title: string, parent?: Suite) {
+    this._folio = folio;
     this.title = title;
     this.parent = parent;
     // Root suite has default fixtures that do not match all others.
-    if (parent && parent.parent && parent._fixtures !== fixtures)
+    if (parent && parent.parent && parent._folio !== folio)
       throw new Error(`Mixing different fixture sets in the same suite.\nAre you using it and describe from different fixture files?`);
   }
 
@@ -54,7 +54,7 @@ export class Spec extends Base {
   fn: Function;
   tests: Test[] = [];
 
-  constructor(fixtures: FixturesImpl, title: string, fn: Function, suite: Suite) {
+  constructor(fixtures: FolioImpl, title: string, fn: Function, suite: Suite) {
     super(fixtures, title, suite);
     this.fn = fn;
     suite._addSpec(this);
@@ -71,7 +71,7 @@ export class Suite extends Base {
   _entries: (Suite | Spec)[] = [];
   total = 0;
 
-  constructor(fixtures: FixturesImpl, title: string, parent?: Suite) {
+  constructor(fixtures: FolioImpl, title: string, parent?: Suite) {
     super(fixtures, title, parent);
     if (parent)
       parent._addSuite(this);

@@ -57,7 +57,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
       for (const configuration of generatorConfigurations) {
         for (let i = 0; i < config.repeatEach; ++i) {
           const parametersString = serializeParameters(configuration) +  `#repeat-${i}#`;
-          const workerHash = spec._fixtures._pool.id + '@' + parametersString;
+          const workerHash = spec._folio._pool.id + '@' + parametersString;
           const test = new RunnerTest(spec);
           const parameters = parametersObject(configuration);
           test.parameters = parameters;

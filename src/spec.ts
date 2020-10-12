@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { description } from 'commander';
 import { expect } from './expect';
 import { FixturePool, setParameterValues } from './fixtures';
 import { TestModifier } from './testModifier';
@@ -21,12 +22,12 @@ import { TestModifier } from './testModifier';
 Error.stackTraceLimit = 15;
 
 export type Implementation = {
-  it: (spec: 'default' | 'skip' | 'only', fixtures: FixturesImpl, ...args: any[]) => void;
-  describe: (spec: 'default' | 'skip' | 'only', fixtures: FixturesImpl, ...args: any[]) => void;
-  beforeEach: (fixtures: FixturesImpl, fn: Function) => void;
-  afterEach: (fixtures: FixturesImpl, fn: Function) => void;
-  beforeAll: (fixtures: FixturesImpl, fn: Function) => void;
-  afterAll: (fixtures: FixturesImpl, fn: Function) => void;
+  it: (spec: 'default' | 'skip' | 'only', folio: FolioImpl, ...args: any[]) => void;
+  describe: (spec: 'default' | 'skip' | 'only', folio: FolioImpl, ...args: any[]) => void;
+  beforeEach: (folio: FolioImpl, fn: Function) => void;
+  afterEach: (folio: FolioImpl, fn: Function) => void;
+  beforeAll: (folio: FolioImpl, fn: Function) => void;
+  afterAll: (folio: FolioImpl, fn: Function) => void;
 };
 
 let implementation: Implementation;
@@ -62,7 +63,7 @@ type AfterEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtur
 type BeforeAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 type AfterAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 
-export class FixturesImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters = {}> {
+export class FolioImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters = {}> {
   it: It<WorkerParameters, WorkerFixtures, TestFixtures>;
   fit: Fit<WorkerParameters, WorkerFixtures, TestFixtures>;
   xit: Xit<WorkerParameters, WorkerFixtures, TestFixtures>;
@@ -102,17 +103,17 @@ export class FixturesImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParamete
     this.afterAll = fn => implementation.afterAll(this, fn);
   }
 
-  union<W1, T1, P1>(other: Fixtures<W1, T1, P1>): Fixtures<WorkerFixtures & W1, TestFixtures & T1, WorkerParameters & P1>;
+  union<W1, T1, P1>(other: Folio<W1, T1, P1>): Folio<WorkerFixtures & W1, TestFixtures & T1, WorkerParameters & P1>;
   union(...others) {
     let pool = this._pool;
     for (const other of others)
       pool = pool.union(other._pool);
     pool.validate();
-    return new FixturesImpl(pool);
+    return new FolioImpl(pool);
   }
 
-  extend<W = {}, T = {}, P = {}>(): Builder<WorkerFixtures & W, TestFixtures & T, WorkerParameters & P> {
-    return new BuilderImpl(new FixturePool(this._pool)) as any;
+  extend<W = {}, T = {}, P = {}>(): Fixtures<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> {
+    return new Proxy(new FixturesImpl(new FixturePool(this._pool)), proxyHandler) as any;
   }
 
   generateParametrizedTests<T extends keyof WorkerParameters>(name: T, values: WorkerParameters[T][]) {
@@ -123,64 +124,103 @@ export class FixturesImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParamete
 type FixtureOptions = {
   auto?: boolean;
 };
+type WorkerParameter<R> = {
+  initParameter(description: string, defaultValue: R): void;
+};
+type WorkerFixture<PW, R> = {
+  initWorker(fixture: (params: PW, runTest: (value: R) => Promise<void>) => Promise<void>, options?: FixtureOptions): void;
+};
+type InheritedWorkerFixture<PW, R> = {
+  overrideWorker(fixture: (params: PW, runTest: (value: R) => Promise<void>) => Promise<void>): void;
+};
+type TestFixture<PWT, R> = {
+  initTest(fixture: (params: PWT, runTest: (value: R) => Promise<void>) => Promise<void>, options?: FixtureOptions): void;
+};
+type InheritedTestFixture<PWT, R> = {
+  overrideTest(fixture: (params: PWT, runTest: (value: R) => Promise<void>) => Promise<void>): void;
+};
+type Fixtures<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> = {
+  [X in keyof P]: WorkerParameter<P[X]>;
+} & {
+  [X in keyof W]: WorkerFixture<WorkerParameters & P & WorkerFixtures & W, W[X]>;
+} & {
+  [X in keyof T]: TestFixture<WorkerParameters & P & WorkerFixtures & W & TestFixtures & T, T[X]>;
+} & {
+  [X in keyof WorkerFixtures]: InheritedWorkerFixture<WorkerParameters & P & WorkerFixtures & W, WorkerFixtures[X]>;
+} &  {
+  [X in keyof TestFixtures]: InheritedTestFixture<WorkerParameters & P & WorkerFixtures & W & TestFixtures & T, TestFixtures[X]>;
+} & FixturesImpl<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P>;
 
-export class BuilderImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters = {}> {
-  _pool: FixturePool;
-  _finished: boolean;
+class FixturesImpl<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> {
+  private _pool: FixturePool;
+  private _finished: boolean;
 
   constructor(pool: FixturePool) {
     this._pool = pool;
     this._finished = false;
   }
 
-  setTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+  setTestFixture<N extends keyof T>(name: N, fixture: (params: WorkerParameters & P & WorkerFixtures & W & TestFixtures & T, runTest: (value: T[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
     if (this._finished)
-      throw new Error(`Should not call setTestFixture() after build()`);
+      throw new Error(`Should not modify fixtures after build()`);
     this._pool.registerFixture(name as string, 'test', fixture as any, options.auto, false);
   }
 
-  overrideTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+  overrideTestFixture<N extends keyof(TestFixtures & T)>(name: N, fixture: (params: WorkerParameters & P & WorkerFixtures & W & TestFixtures & T, runTest: (value: (TestFixtures & T)[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
     if (this._finished)
-      throw new Error(`Should not call overrideTestFixture() after build()`);
+      throw new Error(`Should not modify fixtures after build()`);
     this._pool.registerFixture(name as string, 'test', fixture as any, options.auto, true);
   }
 
-  setWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+  setWorkerFixture<N extends keyof W>(name: N, fixture: (params: WorkerParameters & P & WorkerFixtures & W, runTest: (value: W[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
     if (this._finished)
-      throw new Error(`Should not call setWorkerFixture() after build()`);
+      throw new Error(`Should not modify fixtures after build()`);
     this._pool.registerFixture(name as string, 'worker', fixture as any, options.auto, false);
   }
 
-  overrideWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+  overrideWorkerFixture<N extends keyof(WorkerFixtures & W)>(name: N, fixture: (params: WorkerParameters & P & WorkerFixtures & W, runTest: (value: (WorkerFixtures & W)[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
     if (this._finished)
-      throw new Error(`Should not call overrideWorkerFixture() after build()`);
+      throw new Error(`Should not modify fixtures after build()`);
     this._pool.registerFixture(name as string, 'worker', fixture as any, options.auto, true);
   }
 
-  setParameter<N extends keyof WorkerParameters>(name: N, description: string, defaultValue: WorkerParameters[N]): void {
+  setParameter<N extends keyof P>(name: N, description: string, defaultValue: P[N]): void {
     if (this._finished)
-      throw new Error(`Should not call setParameter() after build()`);
+      throw new Error(`Should not modify fixtures after build()`);
+    this._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false, false);
     this._pool.registerWorkerParameter({
       name: name as string,
       description,
       defaultValue: defaultValue as any,
     });
-    this._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false, false);
   }
 
-  build(): Fixtures<WorkerFixtures, TestFixtures, WorkerParameters> {
+  build(): Folio<WorkerFixtures & W, TestFixtures & T, WorkerParameters & P> {
     if (this._finished)
       throw new Error(`Should not call build() twice`);
     this._pool.validate();
     this._finished = true;
-    return new FixturesImpl(this._pool) as any;
+    return new FolioImpl(this._pool) as any;
   }
 }
 
+const proxyHandler: ProxyHandler<FixturesImpl<any, any, any, any, any, any>> = {
+  get: (target, prop, receiver) => {
+    if (prop in target)
+      return target[prop];
+    if (typeof prop !== 'string' || prop === 'then')
+      return undefined;
+    return {
+      initParameter: (description, defaultValue) => target.setParameter(prop as any, description, defaultValue),
+      initWorker: (fn, options) => target.setWorkerFixture(prop as any, fn, options),
+      overrideWorker: fn => target.overrideWorkerFixture(prop as any, fn),
+      initTest: (fn, options) => target.setTestFixture(prop as any, fn, options),
+      overrideTest: fn => target.overrideTestFixture(prop as any, fn),
+    };
+  },
+};
 
-export interface Fixtures<W, T, P> extends FixturesImpl<W, T, P> {
-}
-export interface Builder<W, T, P> extends BuilderImpl<W, T, P> {
+export interface Folio<W, T, P> extends FolioImpl<W, T, P> {
 }
 
-export const rootFixtures = new FixturesImpl(new FixturePool(undefined)) as Fixtures<{}, {}, {}>;
+export const rootFixtures = new FolioImpl(new FixturePool(undefined)) as Folio<{}, {}, {}>;

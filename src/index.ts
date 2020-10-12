@@ -18,7 +18,7 @@
 export { expect } from './expect';
 import { TestInfo } from './fixtures';
 import { rootFixtures } from './spec';
-export { Fixtures } from './spec';
+export { Folio as Fixtures } from './spec';
 export { Config } from './config';
 export { config, TestInfo, currentTestInfo } from './fixtures';
 
