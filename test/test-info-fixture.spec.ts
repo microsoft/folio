@@ -35,7 +35,7 @@ it('should work via fixture', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.setTestFixture('title', async ({testInfo}, test) => await test(testInfo.title));
+      builder.title.init(async ({testInfo}, test) => await test(testInfo.title));
       const { it } = builder.build();
       it('test 1', async ({title}) => {
         expect(title).toBe('test 1');

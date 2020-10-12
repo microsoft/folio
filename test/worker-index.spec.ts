@@ -51,8 +51,8 @@ it('should reuse worker for the same parameters', async ({ runInlineFixturesTest
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.setWorkerFixture('worker1', ({}, runTest) => runTest());
-      builder.setWorkerFixture('worker2', ({}, runTest) => runTest());
+      builder.worker1.init({}, runTest) => runTest(), { scope: 'worker' });
+      builder.worker2.init({}, runTest) => runTest(), { scope: 'worker' });
       const { it } = builder.build();
 
       it('succeeds', async ({ worker1, testWorkerIndex }) => {
@@ -72,8 +72,8 @@ it('should not reuse worker for different parameters', async ({ runInlineFixture
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.setParameter('param', '', '');
-      builder.setWorkerFixture('worker2', ({}, runTest) => runTest());
+      builder.param.initParameter('', '');
+      builder.worker2.init({}, runTest) => runTest(), { scope: 'worker' });
       const { it } = builder.build();
 
       it('succeeds', async ({ testWorkerIndex }) => {

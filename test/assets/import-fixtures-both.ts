@@ -18,10 +18,10 @@ import { folio1 } from './export-1.fixtures';
 import { folio2 } from './export-2.fixtures';
 
 const fixtures = folio1.union(folio2).extend();
-fixtures.overrideTestFixture('testWrap', async ({}, runTest) => {
+fixtures.override('testWrap', async ({}, runTest) => {
   await runTest('override');
 });
-fixtures.workerTypeOnly.overrideWorker(async ({}, runTest) => {
+fixtures.workerTypeOnly.override(async ({}, runTest) => {
   await runTest(17);
 });
 const { it, expect } = fixtures.build();

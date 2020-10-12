@@ -21,8 +21,8 @@ it('should run with each configuration', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.setParameter('foo', 'Foo parameters', 'foo');
-      builder.setParameter('bar', 'Bar parameters', 'bar');
+      builder.foo.initParameter('Foo parameters', 'foo');
+      builder.bar.initParameter('Bar parameters', 'bar');
       const folio = builder.build();
       folio.generateParametrizedTests('foo', ['foo1', 'foo2', 'foo3']);
       folio.generateParametrizedTests('bar', ['bar1', 'bar2']);
@@ -69,10 +69,10 @@ it('should throw on duplicate parameters globally', async ({ runInlineFixturesTe
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
       const builder1 = baseFolio.extend();
-      builder1.setParameter('foo', 'Foo', '');
+      builder1.foo.initParameter('Foo', '');
       const f1 = builder1.build();
       const builder2 = baseFolio.extend();
-      builder2.setParameter('foo', 'Bar', '123');
+      builder2.foo.initParameter('Bar', '123');
       const f2 = builder2.build();
       f1.it('success', async ({}) => {
       });
@@ -89,7 +89,7 @@ it('should use kebab for CLI name', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.setParameter('fooCamelCase', 'Foo parameters', 'foo');
+      builder.fooCamelCase.initParameter('Foo parameters', 'foo');
       const folio = builder.build();
 
       const { it } = folio;
@@ -106,7 +106,7 @@ it('should respect boolean CLI option', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.setParameter('fooCamelCase', 'Foo parameters', false);
+      builder.fooCamelCase.initParameter('Foo parameters', false);
       const fixtures = builder.build();
       const { it } = folio;
       it('test', async ({ fooCamelCase }) => {
@@ -121,8 +121,8 @@ it('should show parameters descriptions', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.setParameter('browserName', 'Browser name', 'chromium');
-      builder.setParameter('headful', 'Whether to show browser window or not', false);
+      builder.browserName.initParameter('Browser name', 'chromium');
+      builder.headful.initParameter('Whether to show browser window or not', false);
       const fixtures = builder.build();
     `
   }, { 'help': true });
@@ -138,7 +138,7 @@ it('should support integer parameter', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.setParameter('integer', 'Some integer', 5);
+      builder.integer.initParameter('Some integer', 5);
       const folio = builder.build();
       const { it } = folio;
       it('success', async ({integer}) => {
@@ -153,7 +153,7 @@ it('should support boolean parameter', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.setParameter('bool', 'Some bool', false);
+      builder.bool.initParameter('Some bool', false);
       const fixtures = builder.build();
       const { it } = folio;
       it('success', async ({bool}) => {
@@ -168,7 +168,7 @@ it('should generate tests from CLI', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.setParameter('bool', 'Some bool', false);
+      builder.bool.initParameter('Some bool', false);
       const folio = builder.build();
       const { it } = folio;
       it('success', async ({bool}) => {
@@ -186,8 +186,8 @@ it('tests respect automatic fixture parameters', async ({ runInlineFixturesTest 
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.setParameter('param', 'Some param', 'value');
-      builder.setTestFixture('automaticTestFixture', async ({param}, runTest) => {
+      builder.param.initParameter('Some param', 'value');
+      builder.automaticTestFixture.init(async ({param}, runTest) => {
         await runTest(param);
       }, { auto: true });
       const { it } = builder.build();
@@ -204,8 +204,8 @@ it('testParametersPathSegment does not throw in non-parametrized test', async ({
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.setParameter('param', 'Some param', 'value');
-      builder.overrideTestFixture('testParametersPathSegment', async ({ param }, runTest) => {
+      builder.param.initParameter('Some param', 'value');
+      builder.override('testParametersPathSegment', async ({ param }, runTest) => {
         await runTest(param);
       });
       const { it } = builder.build();
@@ -226,9 +226,9 @@ it('should not duplicate parameters in configuration', async ({ runInlineFixture
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.setParameter('foo', 'Foo', 'foo');
-      builder.setTestFixture('f1', async({foo}, runTest) => runTest(foo));
-      builder.setTestFixture('f2', async({foo}, runTest) => runTest(foo));
+      builder.foo.initParameter('Foo', 'foo');
+      builder.f1.init(async({foo}, runTest) => runTest(foo));
+      builder.f2.init(async({foo}, runTest) => runTest(foo));
       const folio = builder.build();
       folio.generateParametrizedTests('foo', ['foo1', 'foo2', 'foo3']);
 

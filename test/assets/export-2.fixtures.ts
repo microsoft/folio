@@ -18,11 +18,12 @@ import { folio as base } from '../..';
 
 const fixtures = base.extend<{ workerTypeOnly: number }, { testTypeOnly: string }>();
 
-fixtures.setTestFixture('testTypeOnly', async ({}, runTest) => {
+fixtures.testTypeOnly.init(async ({}, runTest) => {
   await runTest('testTypeOnly');
 });
-fixtures.setWorkerFixture('workerTypeOnly', async ({}, runTest) => {
+
+fixtures.workerTypeOnly.init(async ({}, runTest) => {
   await runTest(42);
-});
+}, { scope: 'worker' });
 
 export const folio2 = fixtures.build();

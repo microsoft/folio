@@ -214,21 +214,27 @@ export class FixturePool {
     return result;
   }
 
-  registerFixture(name: string, scope: Scope, fn: Function, auto: boolean, isOverride: boolean) {
+  registerFixture(name: string, scope: Scope, fn: Function, auto: boolean) {
     const previous = this.registrations.get(name);
-    if (!isOverride && previous) {
+    if (previous) {
       if (previous.scope !== scope)
-        throw new Error(`Fixture "${name}" has already been registered as a ${previous.scope} fixture. Use a different name for this ${scope} fixture.`);
+        throw new Error(`Fixture "${name}" has already been registered as a '{ scope: '${previous.scope}'} fixture. Use a different name for this '${scope}' fixture.`);
       else
-        throw new Error(`Fixture "${name}" has already been registered. Use ${scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} to override it in a specific test file.`);
-    } else if (isOverride && !previous) {
-      throw new Error(`Fixture "${name}" has not been registered yet. Use ${scope === 'test' ? 'setTestFixture' : 'setWorkerFixture'} instead.`);
-    } else if (isOverride && previous && previous.scope !== scope) {
-      throw new Error(`Fixture "${name}" is a ${previous.scope} fixture. Use ${previous.scope === 'test' ? 'overrideTestFixture' : 'overrideWorkerFixture'} instead.`);
+        throw new Error(`Fixture "${name}" has already been registered. Use 'override' to override it in a specific test file.`);
     }
 
     const deps = fixtureParameterNames(fn);
-    const registration: FixtureRegistration = { name, scope, fn, auto, isOverride, deps, super: previous };
+    const registration: FixtureRegistration = { name, scope, fn, auto, isOverride: false, deps, super: previous };
+    this.registrations.set(name, registration);
+  }
+
+  overrideFixture(name: string, fn: Function) {
+    const previous = this.registrations.get(name);
+    if (!previous)
+      throw new Error(`Fixture "${name}" has not been registered yet. Use 'init' instead.`);
+
+    const deps = fixtureParameterNames(fn);
+    const registration: FixtureRegistration = { name, scope: previous.scope, fn, auto: previous.auto, isOverride: true, deps, super: previous };
     this.registrations.set(name, registration);
   }
 
