@@ -54,7 +54,7 @@ export class Runner {
     for (const file of files) {
       const suite = new RunnerSuite(rootFixtures, '');
       suite.file = file;
-      const revertBabelRequire = runnerSpec(suite, config.timeout);
+      const revertBabelRequire = runnerSpec(suite, config);
       try {
         require(file);
         this._suites.push(suite);

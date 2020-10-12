@@ -17,7 +17,7 @@
 import colors from 'colors/safe';
 import * as path from 'path';
 import { Config } from '../config';
-import { BaseReporter, formatFailure } from './base';
+import { BaseReporter, formatFailure, serializeParameters } from './base';
 import { Test, Suite, TestResult } from '../test';
 
 class LineReporter extends BaseReporter {
@@ -58,7 +58,7 @@ class LineReporter extends BaseReporter {
     super.onTestEnd(test, result);
     const spec = test.spec;
     const baseName = path.basename(spec.file);
-    const title = `${baseName} - ${spec.fullTitle()}`;
+    const title = `${baseName} - ${spec.fullTitle()} ${colors.gray('[' + serializeParameters(test.parameters) + ']')}`;
     process.stdout.write(`\u001B[1A\u001B[2K[${++this._current}/${this._total}] ${title}\n`);
     if (!this.willRetry(test, result) && !test.ok()) {
       process.stdout.write(`\u001B[1A\u001B[2K`);

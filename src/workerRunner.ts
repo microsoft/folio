@@ -148,6 +148,7 @@ export class WorkerRunner extends EventEmitter {
       status: 'passed',
       stdout: [],
       stderr: [],
+      timeout,
       data: {},
       relativeArtifactsPath: '',
       outputPath: () => '',

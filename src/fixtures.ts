@@ -46,6 +46,7 @@ export type TestInfo = {
   // Modifiers
   expectedStatus: TestStatus;
   deadline: number;
+  timeout: number;
 
   // Results
   duration: number;
