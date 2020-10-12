@@ -430,7 +430,7 @@ it('should throw when modifying builder after calling build', async ({ runInline
       it('works', async ({foo}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Should not call setTestFixture() after build()');
+  expect(result.report.errors[0].error.message).toContain('Should not modify fixtures after build()');
   expect(result.exitCode).toBe(1);
 });
 

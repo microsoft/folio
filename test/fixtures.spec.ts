@@ -414,3 +414,20 @@ it('should work with two overrides calling base', async ({ runInlineFixturesTest
   });
   expect(result.results[0].status).toBe('passed');
 });
+
+it('should work with proxy syntax', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
+    'a.test.js': `
+      const builder = baseFolio.extend();
+      builder.t.initTest(async ({}, run) => await run('t'));
+      builder.w.initWorker(async ({}, run) => await run('w'));
+      builder.t.overrideTest(async ({}, run) => await run('override'));
+      const { it } = builder.build();
+      it('should work', async ({t, w}) => {
+        expect(t).toBe('override');
+        expect(w).toBe('w');
+      });
+    `,
+  });
+  expect(results[0].status).toBe('passed');
+});

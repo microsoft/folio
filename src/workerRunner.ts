@@ -99,7 +99,7 @@ export class WorkerRunner extends EventEmitter {
   private async _runSuite(suite: WorkerSuite) {
     if (this._isStopped)
       return;
-    fixturePool = suite._fixtures._pool;
+    fixturePool = suite._folio._pool;
     try {
       await this._runHooks(suite, 'beforeAll', 'before');
     } catch (e) {
@@ -131,7 +131,7 @@ export class WorkerRunner extends EventEmitter {
 
     const testId = test._id;
     this._testId = testId;
-    fixturePool = test._fixtures._pool;
+    fixturePool = test._folio._pool;
 
     this._setCurrentTestInfo({
       title: test.title,
