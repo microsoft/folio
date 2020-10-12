@@ -130,10 +130,14 @@ class Fixture {
 
     let setupFenceFulfill: { (): void; (value?: unknown): void; };
     let setupFenceReject: { (arg0: any): any; (reason?: any): void; };
+    let called = false;
     const setupFence = new Promise((f, r) => { setupFenceFulfill = f; setupFenceReject = r; });
     const teardownFence = new Promise(f => this._teardownFenceCallback = f);
     debugLog(`setup fixture "${this.registration.name}"`);
     this._tearDownComplete = this.registration.fn(params, async (value: any) => {
+      if (called)
+        throw new Error(`Cannot provide fixture value for the second time`);
+      called = true;
       this.value = value;
       setupFenceFulfill();
       return await teardownFence;

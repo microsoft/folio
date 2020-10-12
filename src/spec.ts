@@ -126,28 +126,40 @@ type FixtureOptions = {
 
 export class BuilderImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters = {}> {
   _pool: FixturePool;
+  _finished: boolean;
 
   constructor(pool: FixturePool) {
     this._pool = pool;
+    this._finished = false;
   }
 
   setTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+    if (this._finished)
+      throw new Error(`Should not call setTestFixture() after build()`);
     this._pool.registerFixture(name as string, 'test', fixture as any, options.auto, false);
   }
 
   overrideTestFixture<N extends keyof TestFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures & TestFixtures, runTest: (value: TestFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+    if (this._finished)
+      throw new Error(`Should not call overrideTestFixture() after build()`);
     this._pool.registerFixture(name as string, 'test', fixture as any, options.auto, true);
   }
 
   setWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+    if (this._finished)
+      throw new Error(`Should not call setWorkerFixture() after build()`);
     this._pool.registerFixture(name as string, 'worker', fixture as any, options.auto, false);
   }
 
   overrideWorkerFixture<N extends keyof WorkerFixtures>(name: N, fixture: (params: WorkerParameters & WorkerFixtures, runTest: (value: WorkerFixtures[N]) => Promise<void>) => Promise<void>, options: FixtureOptions = {}): void {
+    if (this._finished)
+      throw new Error(`Should not call overrideWorkerFixture() after build()`);
     this._pool.registerFixture(name as string, 'worker', fixture as any, options.auto, true);
   }
 
   setParameter<N extends keyof WorkerParameters>(name: N, description: string, defaultValue: WorkerParameters[N]): void {
+    if (this._finished)
+      throw new Error(`Should not call setParameter() after build()`);
     this._pool.registerWorkerParameter({
       name: name as string,
       description,
@@ -157,7 +169,10 @@ export class BuilderImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameter
   }
 
   build(): Fixtures<WorkerFixtures, TestFixtures, WorkerParameters> {
+    if (this._finished)
+      throw new Error(`Should not call build() twice`);
     this._pool.validate();
+    this._finished = true;
     return new FixturesImpl(this._pool) as any;
   }
 }
