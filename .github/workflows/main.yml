@@ -16,7 +16,7 @@ jobs:
       with:
         node-version: '10.x'
     - name: preinstall
-      run: npm run roll-stable
+      run: npm run roll-dogfood
     - name: install
       run: npm i
     - name: build
@@ -36,7 +36,7 @@ jobs:
       with:
         node-version: '10.x'
     - name: preinstall
-      run: npm run roll-stable
+      run: npm run roll-dogfood
     - name: install
       run: npm i
     - name: build
