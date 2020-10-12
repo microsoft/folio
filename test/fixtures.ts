@@ -52,8 +52,7 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
   ], {
     env: {
       ...process.env,
-      PW_OUTPUT_DIR: outputDir,
-      PTR_JSON_OUTPUT_NAME: reportFile,
+      FOLIO_JSON_OUTPUT_NAME: reportFile,
     },
     cwd: baseDir
   });
@@ -140,7 +139,7 @@ builder.defineTestFixture('runTest', async ({ testInfo }, run) => {
 
 builder.defineTestFixture('runInlineTest', async ({ testInfo }, run) => {
   await runInlineTest(testInfo, `
-    const { folio, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
+    const { folio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
     const { it, test, describe } = folio;
   `, run);
 });

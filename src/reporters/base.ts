@@ -26,7 +26,7 @@ import { Test, Suite, TestResult, Parameters } from '../test';
 
 const stackUtils = new StackUtils();
 
-export const ENV_PREFIX = 'PTR';
+export const ENV_PREFIX = 'FOLIO';
 
 export class BaseReporter implements Reporter  {
   duration = 0;

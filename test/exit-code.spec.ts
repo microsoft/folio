@@ -54,8 +54,16 @@ it('should repeat each', async ({ runTest }) => {
   expect(report.suites[0].specs[0].tests.length).toBe(3);
 });
 
-it('should allow flaky', async ({ runTest }) => {
-  const result = await runTest('allow-flaky.js', { retries: 1 });
+it('should allow flaky', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      it('flake', test => {
+        test.flaky();
+      }, async ({ testInfo }) => {
+        expect(testInfo.retry).toBe(1);
+      });
+    `,
+  }, { retries: 1 });
   expect(result.exitCode).toBe(0);
   expect(result.expectedFlaky).toBe(1);
   expect(result.unexpectedFlaky).toBe(0);

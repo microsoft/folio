@@ -92,7 +92,6 @@ export class Runner {
 
   async run(): Promise<RunResult> {
     await removeFolderAsync(config.outputDir).catch(e => {});
-    fs.mkdirSync(config.outputDir, { recursive: true });
 
     if (config.forbidOnly) {
       const hasOnly = this._rootSuite.findSpec(t => t._only) || this._rootSuite.findSuite(s => s._only);
