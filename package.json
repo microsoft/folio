@@ -14,7 +14,7 @@
     "watch": "tsc --build tsconfig.json --watch",
     "test": "folio test/ --test-ignore=assets/**",
     "prepare": "npm run build",
-    "roll-stable": "cd stable-test-runner && npm install"
+    "roll-dogfood": "cd dogfood && npm install"
   },
   "dependencies": {
     "@babel/code-frame": "^7.10.4",
@@ -38,7 +38,7 @@
     "stack-utils": "^2.0.2"
   },
   "devDependencies": {
-    "folio": "./stable-test-runner/node_modules/folio",
+    "folio": "./dogfood/node_modules/folio",
     "@types/babel__core": "^7.1.9",
     "@types/micromatch": "^4.0.1",
     "@types/xml2js": "^0.4.5",
