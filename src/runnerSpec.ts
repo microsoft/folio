@@ -19,8 +19,9 @@ import { RunnerSuite, RunnerSpec } from './runnerTest';
 import { extractLocation } from './util';
 import { FolioImpl, setImplementation } from './spec';
 import { TestModifier } from './testModifier';
+import { Config } from './config';
 
-export function runnerSpec(suite: RunnerSuite, timeout: number): () => void {
+export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
   const suites = [suite];
 
   const it = (spec: 'default' | 'skip' | 'only', folio: FolioImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
@@ -40,7 +41,7 @@ export function runnerSpec(suite: RunnerSuite, timeout: number): () => void {
       if (spec === 'skip')
         modifier.skip();
       if (!modifier._timeout)
-        modifier.setTimeout(timeout);
+        modifier.setTimeout(config.timeout);
       if (modifierFn)
         modifierFn(modifier, parameters);
     };
@@ -62,7 +63,7 @@ export function runnerSpec(suite: RunnerSuite, timeout: number): () => void {
       if (spec === 'skip')
         modifier.skip();
       if (!modifier._timeout)
-        modifier.setTimeout(timeout);
+        modifier.setTimeout(config.timeout);
       if (modifierFn)
         modifierFn(modifier, parameters);
     };

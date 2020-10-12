@@ -236,7 +236,7 @@ function positionInFile(stack: string, file: string): { column: number; line: nu
   return null;
 }
 
-function serializeParameters(parameters: Parameters): string {
+export function serializeParameters(parameters: Parameters): string {
   const tokens = [];
   for (const name of Object.keys(parameters))
     tokens.push(`${name}=${parameters[name]}`);

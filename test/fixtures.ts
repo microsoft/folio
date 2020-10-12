@@ -146,7 +146,7 @@ fixtures.runInlineTest.init(async ({ testInfo }, run) => {
 
 fixtures.runInlineFixturesTest.init(async ({ testInfo }, run) => {
   await runInlineTest(testInfo, `
-    const { folio: baseFolio, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
+    const { folio: baseFolio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
   `, run);
 });
 
