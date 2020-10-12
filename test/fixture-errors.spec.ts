@@ -419,3 +419,47 @@ it('should throw when overriden worker fixture depends on a test fixture', async
   expect(result.report.errors[0].error.message).toContain('Worker fixture "bar" cannot depend on a test fixture "foo".');
   expect(result.exitCode).toBe(1);
 });
+
+it('should throw when modifying builder after calling build', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'f.spec.ts': `
+      const builder = baseFolio.extend();
+      builder.setTestFixture('foo', ({}, run) => run());
+      const { it } = builder.build();
+      builder.setTestFixture('bar', ({}, run) => run());
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('Should not call setTestFixture() after build()');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when building twice', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'f.spec.ts': `
+      const builder = baseFolio.extend();
+      builder.setTestFixture('foo', ({}, run) => run());
+      const { it } = builder.build();
+      builder.build();
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.report.errors[0].error.message).toContain('Should not call build() twice');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should throw when calling runTest twice', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'f.spec.ts': `
+      const builder = baseFolio.extend();
+      builder.setTestFixture('foo', async ({}, runTest) => {
+        await runTest();
+        await runTest();
+      });
+      const { it } = builder.build();
+      it('works', async ({foo}) => {});
+    `,
+  });
+  expect(result.results[0].error.message).toBe('Cannot provide fixture value for the second time');
+  expect(result.exitCode).toBe(1);
+});
