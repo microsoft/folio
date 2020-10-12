@@ -117,7 +117,7 @@ type TestState = {
 
 const fixtures = base.extend<{}, TestState>();
 
-fixtures.runTest.initTest(async ({ testInfo }, run) => {
+fixtures.runTest.init(async ({ testInfo }, run) => {
   // Print output on failure.
   let result: RunResult;
   await run(async (filePath, options) => {
@@ -137,14 +137,14 @@ fixtures.runTest.initTest(async ({ testInfo }, run) => {
     console.log(result.output);
 });
 
-fixtures.runInlineTest.initTest(async ({ testInfo }, run) => {
+fixtures.runInlineTest.init(async ({ testInfo }, run) => {
   await runInlineTest(testInfo, `
     const { folio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
     const { it, test, describe } = folio;
   `, run);
 });
 
-fixtures.runInlineFixturesTest.initTest(async ({ testInfo }, run) => {
+fixtures.runInlineFixturesTest.init(async ({ testInfo }, run) => {
   await runInlineTest(testInfo, `
     const { folio: baseFolio, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
   `, run);
