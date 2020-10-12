@@ -102,28 +102,13 @@ it('should use kebab for CLI name', async ({ runInlineFixturesTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should respect boolean CLI option', async ({ runInlineFixturesTest }) => {
-  const result = await runInlineFixturesTest({
-    'a.test.ts': `
-      const builder = baseFolio.extend();
-      builder.fooCamelCase.initParameter('Foo parameters', false);
-      const fixtures = builder.build();
-      const { it } = folio;
-      it('test', async ({ fooCamelCase }) => {
-        expect(fooCamelCase).toBeTruthy();
-      });
-    `
-  }, { 'param': 'fooCamelCase' });
-  expect(result.exitCode).toBe(0);
-});
-
 it('should show parameters descriptions', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
       builder.browserName.initParameter('Browser name', 'chromium');
       builder.headful.initParameter('Whether to show browser window or not', false);
-      const fixtures = builder.build();
+      const folio = builder.build();
     `
   }, { 'help': true });
   expect(result.output).toContain(`-p, --param browserName=<value>`);
@@ -154,7 +139,7 @@ it('should support boolean parameter', async ({ runInlineFixturesTest }) => {
     'a.test.ts': `
       const builder = baseFolio.extend();
       builder.bool.initParameter('Some bool', false);
-      const fixtures = builder.build();
+      const folio = builder.build();
       const { it } = folio;
       it('success', async ({bool}) => {
         expect(bool).toBe(true);

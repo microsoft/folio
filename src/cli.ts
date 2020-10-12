@@ -95,7 +95,8 @@ async function runTests(command) {
   const parameterRegistrations = runner.loadFiles(files).parameters;
   const parameters: { [key: string]: (string | boolean | number)[] } = {};
   for (const param of command.param || []) {
-    const [_, name, value] = param.match(/([^=]+)=(.*)/);
+    const match = param.match(/([^=]+)=(.*)/);
+    const [_, name, value] = match ? match : ['', param, 'true'];
     if (!parameterRegistrations.has(name)) {
       console.error(`unknown parameter '${name}'`);
       process.exit(1);
