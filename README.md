@@ -74,13 +74,13 @@ import { folio } from 'folio';
 
 const fixtures = folio.extend<{ database: Database }, { table: Table }>();
 
-fixtures.database.initWorker(async ({}, run) => {
+fixtures.database.init(async ({}, run) => {
   const database = await connect();
   await run(database);
   await database.dispose();
-});
+}, { scope: 'worker' });
 
-fixtures.table.initTest(async ({ database }, run) => {
+fixtures.table.init(async ({ database }, run) => {
   const table = await database.createTable();
   await run(table);
   await database.dropTable(table);
@@ -144,7 +144,7 @@ type TestFixtures = {
 };
 const fixtures = base.extend<{}, TestFixtures>();
 
-fixtures.hello.initTest(async ({}, run) => {
+fixtures.hello.init(async ({}, run) => {
   // Set up fixture.
   const value = 'Hello';
   // Run the test with the fixture value.
@@ -152,11 +152,11 @@ fixtures.hello.initTest(async ({}, run) => {
   // Clean up fixture.
 });
 
-fixtures.world.initTest(async ({}, run) => {
+fixtures.world.init(async ({}, run) => {
   await run('World');
 });
 
-fixtures.test.initTest(async ({}, run) => {
+fixtures.test.init(async ({}, run) => {
   await run('Test');
 });
 
@@ -214,12 +214,12 @@ type ExpressWorkerFixtures = {
 const fixtures = base.extend<ExpressWorkerFixtures, {}>();
 
 // |port| fixture has a unique value value of the worker process index.
-fixtures.port.initWorker(async ({ testWorkerIndex }, run) => {
+fixtures.port.init(async ({ testWorkerIndex }, run) => {
   await run(3000 + testWorkerIndex);
-});
+}, { scope: 'worker' });
 
 // |express| fixture starts automatically for every worker.
-fixtures.express.initWorker(async ({ port }, run) => {
+fixtures.express.init(async ({ port }, run) => {
   const app = express();
   app.get('/1', (req, res) => {
     res.send('Hello World 1!')
@@ -237,7 +237,7 @@ fixtures.express.initWorker(async ({ port }, run) => {
   console.log('Stopping server...');
   await new Promise(f => server.close(f));
   console.log('Server stopped');
-}, { auto: true });
+}, { scope: 'worker', auto: true });
 
 const folio = fixtures.build();
 export const it = folio.it;
@@ -269,11 +269,11 @@ const fixtures = base.extend<{ apiUrl: string }, {}, { version: string }>();
 
 fixtures.version.initParameter('API version', 'v1');
 
-fixtures.apiUrl.initWorker(async ({ version }, runTest) => {
+fixtures.apiUrl.init(async ({ version }, runTest) => {
   const server = await startServer();
   await runTest(`http://localhost/api/${version}`);
   await server.close();
-});
+}, { scope: 'worker' });
 
 const folio = fixtures.build();
 export const it = folio.it;

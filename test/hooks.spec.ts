@@ -22,12 +22,12 @@ it('hooks should work with fixtures', async ({ runInlineFixturesTest }) => {
     'a.test.js': `
       const logs = [];
       const builder = baseFolio.extend();
-      builder.setWorkerFixture('w', async ({}, test) => {
+      builder.w.init(async ({}, test) => {
         logs.push('+w');
         await test(17);
         logs.push('-w');
-      });
-      builder.setTestFixture('t', async ({}, test) => {
+      }, { scope: 'worker' });
+      builder.t.init(async ({}, test) => {
         logs.push('+t');
         await test(42);
         logs.push('-t');
@@ -79,7 +79,7 @@ it('afterEach failure should not prevent other hooks and fixture teardown', asyn
   const report = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.setTestFixture('t', async ({}, test) => {
+      builder.t.init(async ({}, test) => {
         console.log('+t');
         await test(42);
         console.log('-t');
@@ -173,7 +173,7 @@ it('should throw when beforeAll hook depends on test fixture', async ({ runInlin
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
       const builder = baseFolio.extend();
-      builder.setTestFixture('foo', async ({}, runTest) => {
+      builder.foo.init(async ({}, runTest) => {
         await runTest();
       });
       const { it, beforeAll, describe } = builder.build();
@@ -192,7 +192,7 @@ it('should throw when afterAll hook depends on test fixture', async ({ runInline
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
       const builder = baseFolio.extend();
-      builder.setTestFixture('foo', async ({}, runTest) => {
+      builder.foo.init(async ({}, runTest) => {
         await runTest();
       });
       const { it, afterAll, describe } = builder.build();
@@ -211,13 +211,13 @@ it('should throw when hook uses different fixtures set than describe', async ({ 
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
       const builder1 = baseFolio.extend();
-      builder1.setTestFixture('foo', async ({}, runTest) => {
+      builder1.foo.init(async ({}, runTest) => {
         await runTest();
       });
       const f1 = builder1.build();
 
       const builder2 = baseFolio.extend();
-      builder2.setTestFixture('bar', async ({}, runTest) => {
+      builder2.bar.init(async ({}, runTest) => {
         await runTest();
       });
       const f2 = builder2.build();

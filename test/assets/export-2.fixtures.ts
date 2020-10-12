@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-import { folio as base } from '../..';
+import { folio as baseFolio } from '../..';
 
-const fixtures = base.extend<{ workerTypeOnly: number }, { testTypeOnly: string }>();
+const fixtures = baseFolio.extend<{ workerTypeOnly: number }, { testTypeOnly: string }>();
 
-fixtures.setTestFixture('testTypeOnly', async ({}, runTest) => {
+fixtures.testTypeOnly.init(async ({}, runTest) => {
   await runTest('testTypeOnly');
 });
-fixtures.setWorkerFixture('workerTypeOnly', async ({}, runTest) => {
-  await runTest(42);
-});
 
-export const folio2 = fixtures.build();
+fixtures.workerTypeOnly.init(async ({}, runTest) => {
+  await runTest(42);
+}, { scope: 'worker' });
+
+export const folio = fixtures.build();
