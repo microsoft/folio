@@ -1,4 +1,9 @@
-# Content
+# Folio ![npm](https://img.shields.io/npm/v/folio)
+
+A customizable test framework to build your own test frameworks. Foundation for [@playwright/test](https://github.com/microsoft/playwright-test).
+
+## Docs
+
 - [Fixtures](#fixtures)
   - [Base concepts](#base-concepts)
   - [Test fixtures](#test-fixtures)
@@ -19,13 +24,13 @@
   - [Shards](#shards)
 - [Command line](#command-line)
 
-# Fixtures
+## Fixtures
 
 ### Base concepts
 
 Folio is based on the concept of the test fixtures. Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else. Here is how typical test environment setup differs between traditional BDD and the fixture-based one:
 
-### Without fixtures:
+#### Without fixtures
 
 ```ts
 describe('database', () => {
@@ -67,7 +72,7 @@ describe('database', () => {
 });
 ```
 
-### With fixtures:
+#### With fixtures
 
 ```ts
 import { folio } from 'folio';
@@ -110,7 +115,7 @@ You declare exact fixtures that the test needs and the runner initializes them f
 
 There are two types of fixtures: `test` and `worker`. Test fixtures are set up for each test and worker fixtures are set up for each process that runs test files.
 
-# Test fixtures
+### Test fixtures
 
 Test fixtures are set up for each test. Consider the following test file:
 
@@ -177,7 +182,7 @@ Fixtures can use other fixtures.
 With fixtures, test organization becomes flexible - you can put tests that make sense next to each other based on what they test, not based on the environment they need.
 
 
-# Worker fixtures
+### Worker fixtures
 
 Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Folio will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
 
@@ -243,7 +248,7 @@ const folio = fixtures.build();
 export const it = folio.it;
 ```
 
-# Parameters
+## Parameters
 
 It is common to run tests in different configurations, for example when running web app tests against multiple browsers or testing two different versions of api endpoint. Folio supports this via parameters - define the parameter and start using it in a test or a fixture.
 
