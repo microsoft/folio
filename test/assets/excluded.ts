@@ -15,7 +15,7 @@
  */
 
 import { folio } from '../..';
-const { it, expect, xit, describe, xdescribe } = folio;
+const { it, expect, xit, describe } = folio;
 
 it('included test', () => {
   expect(1 + 1).toBe(2);
@@ -35,7 +35,7 @@ describe('included describe', () => {
   });
 });
 
-xdescribe('excluded describe', () => {
+describe.skip('excluded describe', () => {
   it('excluded describe test', () => {
     expect(1 + 1).toBe(3);
   });

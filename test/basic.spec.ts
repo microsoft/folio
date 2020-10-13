@@ -69,6 +69,6 @@ it('should respect excluded tests', async ({ runTest }) => {
 
 it('should respect focused tests', async ({ runTest }) => {
   const { exitCode, passed } = await runTest('focused.ts');
-  expect(passed).toBe(4);
+  expect(passed).toBe(5);
   expect(exitCode).toBe(0);
 });

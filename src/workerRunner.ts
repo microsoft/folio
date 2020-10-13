@@ -141,7 +141,6 @@ export class WorkerRunner extends EventEmitter {
       parameters,
       repeatEachIndex: this._repeatEachIndex,
       workerIndex: this._workerIndex,
-      deadline,
       retry,
       expectedStatus,
       duration: 0,

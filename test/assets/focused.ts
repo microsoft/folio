@@ -15,7 +15,7 @@
  */
 
 import { folio } from '../..';
-const { it, fit, expect, describe, fdescribe } = folio;
+const { it, fit, expect, describe } = folio;
 
 it('included test', () => {
   expect(1 + 1).toBe(3);
@@ -29,7 +29,7 @@ it.only('focused only test', () => {
   expect(1 + 1).toBe(2);
 });
 
-fdescribe('focused describe', () => {
+describe.only('focused describe', () => {
   it('describe test', () => {
     expect(1 + 1).toBe(2);
   });
@@ -42,7 +42,16 @@ describe('non-focused describe', () => {
 });
 
 describe.only('focused describe', () => {
-  it('describe test', () => {
+  it('test1', () => {
+    expect(1 + 1).toBe(2);
+  });
+  it.only('test2', () => {
+    expect(1 + 1).toBe(2);
+  });
+  it('test3', () => {
+    expect(1 + 1).toBe(2);
+  });
+  it.only('test4', () => {
     expect(1 + 1).toBe(2);
   });
 });

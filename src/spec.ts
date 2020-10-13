@@ -17,6 +17,7 @@
 import { expect } from './expect';
 import { FixturePool, setParameterValues } from './fixtures';
 import { TestModifier } from './testModifier';
+import { errorWithCallLocation } from './util';
 
 Error.stackTraceLimit = 15;
 
@@ -55,8 +56,6 @@ type Describe<WorkerParameters> = DescribeFunction<WorkerParameters> & {
   only: DescribeFunction<WorkerParameters>;
   skip: DescribeFunction<WorkerParameters>;
 };
-type FDescribe<WorkerParameters> = DescribeFunction<WorkerParameters>;
-type XDescribe<WorkerParameters> = DescribeFunction<WorkerParameters>;
 type BeforeEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtures: WorkerParameters & WorkerFixtures & TestFixtures) => Promise<void>) => void;
 type AfterEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtures: WorkerParameters & WorkerFixtures & TestFixtures) => Promise<void>) => void;
 type BeforeAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
@@ -68,8 +67,6 @@ export class FolioImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters 
   xit: Xit<WorkerParameters, WorkerFixtures, TestFixtures>;
   test: It<WorkerParameters, WorkerFixtures, TestFixtures>;
   describe: Describe<WorkerParameters>;
-  fdescribe: FDescribe<WorkerParameters>;
-  xdescribe: XDescribe<WorkerParameters>;
   beforeEach: BeforeEach<WorkerParameters, WorkerFixtures, TestFixtures>;
   afterEach: AfterEach<WorkerParameters, WorkerFixtures, TestFixtures>;
   beforeAll: BeforeAll<WorkerFixtures>;
@@ -94,8 +91,6 @@ export class FolioImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters 
     }) as any;
     this.describe.skip = (...args: any[]) => implementation.describe('skip', this, ...args);
     this.describe.only = (...args: any[]) => implementation.describe('only', this, ...args);
-    this.fdescribe = this.describe.only;
-    this.xdescribe = this.describe.skip;
     this.beforeEach = fn => implementation.beforeEach(this, fn);
     this.afterEach = fn => implementation.afterEach(this, fn);
     this.beforeAll = fn => implementation.beforeAll(this, fn);
@@ -176,19 +171,19 @@ class FixturesImpl<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> {
 
   _init(name: string, fixture: (params: any, runTest: (value: any) => Promise<void>) => Promise<void>, options?: FixtureOptions): void {
     if (this._finished)
-      throw new Error(`Should not modify fixtures after build()`);
+      throw errorWithCallLocation(`Should not modify fixtures after build()`);
     this._pool.registerFixture(name as string, options && options.scope === 'worker' ? 'worker' : 'test', fixture as any, options && options.auto);
   }
 
   _override(name: string, fixture: (params: any, runTest: (value: any) => Promise<void>) => Promise<void>): void {
     if (this._finished)
-      throw new Error(`Should not modify fixtures after build()`);
+      throw errorWithCallLocation(`Should not modify fixtures after build()`);
     this._pool.overrideFixture(name as string, fixture as any);
   }
 
   _initParameter<N extends keyof P>(name: N, description: string, defaultValue: P[N]): void {
     if (this._finished)
-      throw new Error(`Should not modify fixtures after build()`);
+      throw errorWithCallLocation(`Should not modify fixtures after build()`);
     this._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false);
     this._pool.registerWorkerParameter({
       name: name as string,
@@ -199,7 +194,7 @@ class FixturesImpl<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> {
 
   build(): Folio<WorkerFixtures & W, TestFixtures & T, WorkerParameters & P> {
     if (this._finished)
-      throw new Error(`Should not call build() twice`);
+      throw errorWithCallLocation(`Should not call build() twice`);
     this._pool.validate();
     this._finished = true;
     return new FolioImpl(this._pool) as any;

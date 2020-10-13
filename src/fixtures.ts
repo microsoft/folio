@@ -17,6 +17,7 @@
 import { Config } from './config';
 import { TestStatus, Parameters } from './test';
 import { debugLog } from './debug';
+import { errorWithCallLocation } from './util';
 
 type Scope = 'test' | 'worker';
 
@@ -45,7 +46,6 @@ export type TestInfo = {
 
   // Modifiers
   expectedStatus: TestStatus;
-  deadline: number;
   timeout: number;
 
   // Results
@@ -86,7 +86,7 @@ export function assignParameters(params: any) {
 export const matrix: { [name: string]: any } = {};
 export function setParameterValues(name: string, values: any[]) {
   if (!(name in matrix))
-    throw new Error(`Unregistered parameter '${name}' was set.`);
+    throw errorWithCallLocation(`Unregistered parameter '${name}' was set.`);
   matrix[name] = values;
 }
 
@@ -113,7 +113,7 @@ class Fixture {
     this.hasGeneratorValue = registration.name in parameters;
     this.value = this.hasGeneratorValue ? parameters[registration.name] : null;
     if (this.hasGeneratorValue && this.registration.deps.length)
-      throw new Error(`Parameter fixture "${this.registration.name}" should not have dependencies`);
+      throw errorWithCallLocation(`Parameter fixture "${this.registration.name}" should not have dependencies`);
   }
 
   async setup() {
@@ -123,7 +123,7 @@ class Fixture {
     for (const name of this.registration.deps) {
       const registration = this.pool._resolveDependency(this.registration, name);
       if (!registration)
-        throw new Error(`Unknown fixture "${name}"`);
+        throw errorWithCallLocation(`Unknown fixture "${name}"`);
       const dep = await this.pool.setupFixtureForRegistration(registration);
       dep.usages.add(this);
       params[name] = dep.value;
@@ -137,7 +137,7 @@ class Fixture {
     debugLog(`setup fixture "${this.registration.name}"`);
     this._tearDownComplete = this.registration.fn(params, async (value: any) => {
       if (called)
-        throw new Error(`Cannot provide fixture value for the second time`);
+        throw errorWithCallLocation(`Cannot provide fixture value for the second time`);
       called = true;
       this.value = value;
       setupFenceFulfill();
@@ -209,7 +209,7 @@ export class FixturePool {
         result.registrations.set(name, otherRegistration);
       } else {
         // Both |this| and |other| have a different override - throw.
-        throw new Error(`Fixture "${name}" is defined in both fixture sets.`);
+        throw errorWithCallLocation(`Fixture "${name}" is defined in both fixture sets.`);
       }
     }
     return result;
@@ -219,9 +219,9 @@ export class FixturePool {
     const previous = this.registrations.get(name);
     if (previous) {
       if (previous.scope !== scope)
-        throw new Error(`Fixture "${name}" has already been registered as a { scope: '${previous.scope}' } fixture. Use a different name for this ${scope} fixture.`);
+        throw errorWithCallLocation(`Fixture "${name}" has already been registered as a { scope: '${previous.scope}' } fixture. Use a different name for this ${scope} fixture.`);
       else
-        throw new Error(`Fixture "${name}" has already been registered. Use 'override' to override it in a specific test file.`);
+        throw errorWithCallLocation(`Fixture "${name}" has already been registered. Use 'override' to override it in a specific test file.`);
     }
 
     const deps = fixtureParameterNames(fn);
@@ -232,7 +232,7 @@ export class FixturePool {
   overrideFixture(name: string, fn: Function) {
     const previous = this.registrations.get(name);
     if (!previous)
-      throw new Error(`Fixture "${name}" has not been registered yet. Use 'init' instead.`);
+      throw errorWithCallLocation(`Fixture "${name}" has not been registered yet. Use 'init' instead.`);
 
     const deps = fixtureParameterNames(fn);
     const registration: FixtureRegistration = { name, scope: previous.scope, fn, auto: previous.auto, isOverride: true, deps, super: previous };
@@ -241,7 +241,7 @@ export class FixturePool {
 
   registerWorkerParameter(parameter: ParameterRegistration) {
     if (parameterRegistrations.has(parameter.name))
-      throw new Error(`Parameter "${parameter.name}" has been already registered`);
+      throw errorWithCallLocation(`Parameter "${parameter.name}" has been already registered`);
     parameterRegistrations.set(parameter.name, parameter);
     matrix[parameter.name] = [parameter.defaultValue];
   }
@@ -249,33 +249,28 @@ export class FixturePool {
   validate() {
     const markers = new Map<FixtureRegistration, VisitMarker>();
     const stack: FixtureRegistration[] = [];
-    const visit = (registration: FixtureRegistration): string | undefined => {
+    const visit = (registration: FixtureRegistration) => {
       markers.set(registration, 'visiting');
       stack.push(registration);
       for (const name of registration.deps) {
         const dep = this._resolveDependency(registration, name);
         if (!dep)
-          return `Fixture "${registration.name}" has unknown parameter "${name}".`;
+          throw errorWithCallLocation(`Fixture "${registration.name}" has unknown parameter "${name}".`);
         if (registration.scope === 'worker' && dep.scope === 'test')
-          return `Worker fixture "${registration.name}" cannot depend on a test fixture "${name}".`;
+          throw errorWithCallLocation(`Worker fixture "${registration.name}" cannot depend on a test fixture "${name}".`);
         if (!markers.has(dep)) {
-          const error = visit(dep);
-          if (error)
-            return error;
+          visit(dep);
         } else if (markers.get(dep) === 'visiting') {
           const index = stack.indexOf(dep);
           const names = stack.slice(index, stack.length).map(r => `"${r.name}"`);
-          return `Fixtures ${names.join(' -> ')} -> "${dep.name}" form a dependency cycle.`;
+          throw errorWithCallLocation(`Fixtures ${names.join(' -> ')} -> "${dep.name}" form a dependency cycle.`);
         }
       }
       markers.set(registration, 'visited');
       stack.pop();
     };
-    for (const registration of this.registrations.values()) {
-      const error = visit(registration);
-      if (error)
-        throw new Error(error);
-    }
+    for (const registration of this.registrations.values())
+      visit(registration);
   }
 
   parametersForFunction(fn: Function, prefix: string, allowTestFixtures: boolean): string[] {
@@ -289,15 +284,15 @@ export class FixturePool {
     for (const name of fixtureParameterNames(fn)) {
       const registration = this.registrations.get(name);
       if (!registration)
-        throw new Error(`${prefix} has unknown parameter "${name}".`);
+        throw errorWithCallLocation(`${prefix} has unknown parameter "${name}".`);
       if (!allowTestFixtures && registration.scope === 'test')
-        throw new Error(`${prefix} cannot depend on a test fixture "${name}".`);
+        throw errorWithCallLocation(`${prefix} cannot depend on a test fixture "${name}".`);
       visit(registration);
     }
     for (const registration of this.registrations.values()) {
       if (registration.auto) {
         if (!allowTestFixtures && registration.scope === 'test')
-          throw new Error(`${prefix} cannot depend on a test fixture "${registration.name}".`);
+          throw errorWithCallLocation(`${prefix} cannot depend on a test fixture "${registration.name}".`);
         visit(registration);
       }
     }
@@ -307,7 +302,7 @@ export class FixturePool {
   async setupFixture(name: string): Promise<Fixture> {
     const registration = this.registrations.get(name);
     if (!registration)
-      throw new Error('Unknown fixture: ' + name);
+      throw errorWithCallLocation('Unknown fixture: ' + name);
     return this.setupFixtureForRegistration(registration);
   }
 
@@ -370,7 +365,7 @@ function innerFixtureParameterNames(fn: Function): string[] {
   if (!trimmedParams)
     return [];
   if (trimmedParams && trimmedParams[0] !== '{')
-    throw new Error('First argument must use the object destructuring pattern: '  + trimmedParams);
+    throw errorWithCallLocation('First argument must use the object destructuring pattern: '  + trimmedParams);
   const signature = trimmedParams.substring(1).trim();
   if (!signature)
     return [];

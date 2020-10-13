@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
+import { folio, firstStackFrame } from './fixtures';
 const { it, expect } = folio;
 
 it('should handle fixture timeout', async ({ runInlineFixturesTest }) => {
@@ -118,7 +118,7 @@ it('should throw when defining worker fixture twice', async ({ runInlineFixtures
       }, { scope: 'worker' });
       builder.foo.init(async ({}, runTest) => {
         await runTest();
-      }, { scope: 'worker' });      
+      }, { scope: 'worker' });
       const { it } = builder.build();
       it('works', async ({foo}) => {});
     `
@@ -278,7 +278,7 @@ it('should throw when fixture is redefined in union', async ({ runInlineFixtures
     `,
   });
   expect(result.report.errors[0].error.message).toContain('Fixture "foo" is defined in both fixture sets.');
-  expect(result.report.errors[0].error.stack).toContain('a.test.js:10');
+  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:10');
 });
 
 it('should throw when mixing different fixture objects', async ({ runInlineFixturesTest }) => {
@@ -301,7 +301,7 @@ it('should throw when mixing different fixture objects', async ({ runInlineFixtu
     `,
   });
   expect(result.report.errors[0].error.message).toContain('Mixing different fixture sets in the same suite.');
-  expect(result.report.errors[0].error.stack).toContain('a.test.js:14');
+  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:14');
 });
 
 it('should not reuse fixtures from one file in another one', async ({ runInlineFixturesTest }) => {
@@ -319,7 +319,7 @@ it('should not reuse fixtures from one file in another one', async ({ runInlineF
     `,
   });
   expect(result.report.errors[0].error.message).toBe('Test has unknown parameter "foo".');
-  expect(result.report.errors[0].error.stack).toContain('b.spec.ts:6');
+  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('b.spec.ts:6');
   expect(result.results.length).toBe(1);
 });
 
@@ -347,7 +347,7 @@ it('should detect a cycle in the union', async ({ runInlineFixturesTest }) => {
     `,
   });
   expect(result.report.errors[0].error.message).toContain('Fixtures "foo" -> "bar" -> "foo" form a dependency cycle.');
-  expect(result.report.errors[0].error.stack).toContain('a.test.js:17');
+  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:17');
 });
 
 it('should throw for cycle in two overrides', async ({ runInlineFixturesTest }) => {
@@ -365,7 +365,7 @@ it('should throw for cycle in two overrides', async ({ runInlineFixturesTest }) 
     `,
   });
   expect(result.report.errors[0].error.message).toContain('Fixtures "foo" -> "bar" -> "foo" form a dependency cycle.');
-  expect(result.report.errors[0].error.stack).toContain('a.test.js:9');
+  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:9');
 });
 
 it('should throw when overridden worker fixture depends on a test fixture', async ({ runInlineFixturesTest }) => {
