@@ -54,7 +54,7 @@ function toMatchSnapshot(received: Buffer | string, options?: string | { name?: 
       extension = '.dat';
     name = 'snapshot' + (ordinal ? '_' + ordinal : '') + extension;
   }
-  const { pass, message } = compare(received, name, testInfo.snapshotPath, testInfo.outputPath, config.updateSnapshots);
+  const { pass, message } = compare(received, name, testInfo.snapshotPath, testInfo.outputPath, config.updateSnapshots, options);
   return { pass, message: () => message };
 }
 
