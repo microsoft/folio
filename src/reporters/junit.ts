@@ -31,8 +31,11 @@ class JUnitReporter extends EmptyReporter {
   private totalFailures = 0;
   private totalSkipped = 0;
 
-  onBegin(config: Config, suite: Suite) {
+  onConfig(config: Config) {
     this.config = config;
+  }
+
+  onBegin(suite: Suite) {
     this.suite = suite;
     this.timestamp = Date.now();
     this.startTime = monotonicTime();

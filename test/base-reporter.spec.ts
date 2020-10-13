@@ -17,7 +17,7 @@
 import { folio, stripAscii } from './fixtures';
 const { it, expect } = folio;
 
-it('handle long test names', async ({ runInlineTest }) => {
+it('should handle long test names', async ({ runInlineTest }) => {
   const title = 'title'.repeat(30);
   const result = await runInlineTest({
     'a.test.js': `
@@ -27,5 +27,15 @@ it('handle long test names', async ({ runInlineTest }) => {
     `,
   });
   expect(stripAscii(result.output)).toContain('expect(1).toBe');
+  expect(result.exitCode).toBe(1);
+});
+
+it('should print file name with top-level error', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      throw new Error('Oh my');
+    `,
+  });
+  expect(stripAscii(result.output)).toContain('Error while reading a.test.js:');
   expect(result.exitCode).toBe(1);
 });

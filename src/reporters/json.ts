@@ -40,8 +40,11 @@ class JSONReporter extends EmptyReporter {
   suite: Suite;
   private _errors: { file: string, error: TestError }[] = [];
 
-  onBegin(config: Config, suite: Suite) {
+  onConfig(config: Config) {
     this.config = config;
+  }
+
+  onBegin(suite: Suite) {
     this.suite = suite;
   }
 

@@ -18,7 +18,8 @@ import { Config } from './config';
 import { Test, Suite, TestResult, TestError } from './test';
 
 export interface Reporter {
-  onBegin(config: Config, suite: Suite): void;
+  onConfig(config: Config): void;
+  onBegin(suite: Suite): void;
   onTestBegin(test: Test): void;
   onStdOut(chunk: string | Buffer, test?: Test): void;
   onStdErr(chunk: string | Buffer, test?: Test): void;
@@ -29,12 +30,13 @@ export interface Reporter {
 }
 
 export class EmptyReporter implements Reporter {
-  onBegin(config: Config, suite: Suite) {}
+  onConfig(config: Config) {}
+  onBegin(suite: Suite) {}
   onTestBegin(test: Test) {}
   onStdOut(chunk: string | Buffer, test?: Test) {}
   onStdErr(chunk: string | Buffer, test?: Test) {}
   onTestEnd(test: Test, result: TestResult) {}
   onTimeout(timeout: number) {}
-  onError(error: any, file?: string) {}
+  onError(error: TestError, file?: string) {}
   onEnd() {}
 }

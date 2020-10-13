@@ -17,7 +17,6 @@
 import colors from 'colors/safe';
 import milliseconds from 'ms';
 import { BaseReporter } from './base';
-import { Config } from '../config';
 import { Suite, Test, TestResult } from '../test';
 
 class ListReporter extends BaseReporter {
@@ -25,8 +24,8 @@ class ListReporter extends BaseReporter {
   private _lastRow = 0;
   private _testRows = new Map<Test, number>();
 
-  onBegin(config: Config, suite: Suite) {
-    super.onBegin(config, suite);
+  onBegin(suite: Suite) {
+    super.onBegin(suite);
     console.log();
   }
 

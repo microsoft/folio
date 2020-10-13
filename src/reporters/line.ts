@@ -16,7 +16,6 @@
 
 import colors from 'colors/safe';
 import * as path from 'path';
-import { Config } from '../config';
 import { BaseReporter, formatFailure, serializeParameters } from './base';
 import { Test, Suite, TestResult, Parameters } from '../test';
 
@@ -28,8 +27,8 @@ class LineReporter extends BaseReporter {
   private _parameterSnapshot: Parameters;
   private _parametersToPreview = new Set<string>();
 
-  onBegin(config: Config, suite: Suite) {
-    super.onBegin(config, suite);
+  onBegin(suite: Suite) {
+    super.onBegin(suite);
     this._total = suite.total;
     console.log();
   }

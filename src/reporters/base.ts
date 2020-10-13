@@ -39,9 +39,12 @@ export class BaseReporter implements Reporter  {
   constructor() {
   }
 
-  onBegin(config: Config, suite: Suite) {
-    this.monotonicStartTime = monotonicTime();
+  onConfig(config: Config) {
     this.config = config;
+  }
+
+  onBegin(suite: Suite) {
+    this.monotonicStartTime = monotonicTime();
     this.suite = suite;
   }
 
@@ -66,6 +69,10 @@ export class BaseReporter implements Reporter  {
   }
 
   onError(error: TestError, file?: string) {
+    if (file) {
+      const fileName = path.relative(this.config.testDir, file) || path.basename(file);
+      console.log(colors.bold(colors.red(`Error while reading ${fileName}:`)));
+    }
     console.log(formatError(error, file));
   }
 

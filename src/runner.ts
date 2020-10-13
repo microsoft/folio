@@ -46,6 +46,7 @@ export class Runner {
   constructor(config: Config, reporter: Reporter) {
     assignConfig(config);
     this._reporter = reporter;
+    this._reporter.onConfig(config);
   }
 
   loadFiles(files: string[]): { parameters: Map<string, ParameterRegistration> } {
@@ -86,7 +87,7 @@ export class Runner {
   }
 
   list() {
-    this._reporter.onBegin(config, this._rootSuite);
+    this._reporter.onBegin(this._rootSuite);
     this._reporter.onEnd();
   }
 
@@ -123,7 +124,7 @@ export class Runner {
       sigintCallback();
     };
     process.on('SIGINT', sigintHandler);
-    this._reporter.onBegin(config, suite);
+    this._reporter.onBegin(suite);
     await Promise.race([runner.run(), sigIntPromise]);
     await runner.stop();
     this._reporter.onEnd();
