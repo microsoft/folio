@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { folio, firstStackFrame } from './fixtures';
+import { folio, firstStackFrame, stripAscii } from './fixtures';
 const { it, expect } = folio;
 
 it('should handle fixture timeout', async ({ runInlineFixturesTest }) => {
@@ -105,7 +105,7 @@ it('should throw when overriding non-defined worker fixture', async ({ runInline
       it('works', async ({foo}) => {});
     `
   });
-  expect(result.report.errors[0].error.message).toContain(`Fixture "foo" has not been registered yet. Use 'init' instead.`);
+  expect(stripAscii(result.output)).toContain(`Fixture "foo" has not been registered yet. Use 'init' instead.`);
   expect(result.exitCode).toBe(1);
 });
 
@@ -123,7 +123,7 @@ it('should throw when defining worker fixture twice', async ({ runInlineFixtures
       it('works', async ({foo}) => {});
     `
   });
-  expect(result.report.errors[0].error.message).toContain(`Fixture "foo" has already been registered. Use 'override' to override it in a specific test file.`);
+  expect(stripAscii(result.output)).toContain(`Fixture "foo" has already been registered. Use 'override' to override it in a specific test file.`);
   expect(result.exitCode).toBe(1);
 });
 
@@ -138,7 +138,7 @@ it('should throw when overriding non-defined test fixture', async ({ runInlineFi
       it('works', async ({foo}) => {});
     `
   });
-  expect(result.report.errors[0].error.message).toContain(`Fixture "foo" has not been registered yet. Use 'init' instead.`);
+  expect(stripAscii(result.output)).toContain(`Fixture "foo" has not been registered yet. Use 'init' instead.`);
   expect(result.exitCode).toBe(1);
 });
 
@@ -156,7 +156,7 @@ it('should throw when defining test fixture twice', async ({ runInlineFixturesTe
       it('works', async ({foo}) => {});
     `
   });
-  expect(result.report.errors[0].error.message).toContain(`Fixture "foo" has already been registered. Use 'override' to override it in a specific test file.`);
+  expect(stripAscii(result.output)).toContain(`Fixture "foo" has already been registered. Use 'override' to override it in a specific test file.`);
   expect(result.exitCode).toBe(1);
 });
 
@@ -174,7 +174,7 @@ it('should throw when defining test fixture with the same name as a worker fixtu
       it('works', async ({foo}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toContain(`Fixture "foo" has already been registered as a { scope: 'worker' } fixture. Use a different name for this test fixture.`);
+  expect(stripAscii(result.output)).toContain(`Fixture "foo" has already been registered as a { scope: 'worker' } fixture. Use a different name for this test fixture.`);
   expect(result.exitCode).toBe(1);
 });
 
@@ -192,7 +192,7 @@ it('should throw when defining worker fixture with the same name as a test fixtu
       it('works', async ({foo}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toContain(`Fixture "foo" has already been registered as a { scope: 'test' } fixture. Use a different name for this worker fixture.`);
+  expect(stripAscii(result.output)).toContain(`Fixture "foo" has already been registered as a { scope: 'test' } fixture. Use a different name for this worker fixture.`);
   expect(result.exitCode).toBe(1);
 });
 
@@ -210,7 +210,7 @@ it('should throw when worker fixture depends on a test fixture', async ({ runInl
       it('works', async ({bar}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Worker fixture "bar" cannot depend on a test fixture "foo".');
+  expect(stripAscii(result.output)).toContain('Worker fixture "bar" cannot depend on a test fixture "foo".');
   expect(result.exitCode).toBe(1);
 });
 
@@ -257,7 +257,7 @@ it('should detect fixture dependency cycle', async ({ runInlineFixturesTest }) =
       it('works', async ({foo}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Fixtures "foo" -> "bar" -> "baz" -> "qux" -> "foo" form a dependency cycle.');
+  expect(stripAscii(result.output)).toContain('Fixtures "foo" -> "bar" -> "baz" -> "qux" -> "foo" form a dependency cycle.');
   expect(result.exitCode).toBe(1);
 });
 
@@ -277,8 +277,8 @@ it('should throw when fixture is redefined in union', async ({ runInlineFixtures
       });
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Fixture "foo" is defined in both fixture sets.');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:10');
+  expect(stripAscii(result.output)).toContain('Fixture "foo" is defined in both fixture sets.');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('a.test.js:10');
 });
 
 it('should throw when mixing different fixture objects', async ({ runInlineFixturesTest }) => {
@@ -300,8 +300,8 @@ it('should throw when mixing different fixture objects', async ({ runInlineFixtu
       });
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Mixing different fixture sets in the same suite.');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:14');
+  expect(stripAscii(result.output)).toContain('Mixing different fixture sets in the same suite.');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('a.test.js:14');
 });
 
 it('should not reuse fixtures from one file in another one', async ({ runInlineFixturesTest }) => {
@@ -318,9 +318,8 @@ it('should not reuse fixtures from one file in another one', async ({ runInlineF
       it('test2', async ({foo}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toBe('Test has unknown parameter "foo".');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('b.spec.ts:6');
-  expect(result.results.length).toBe(1);
+  expect(stripAscii(result.output)).toContain('Test has unknown parameter "foo".');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('b.spec.ts:6');
 });
 
 it('should detect a cycle in the union', async ({ runInlineFixturesTest }) => {
@@ -346,8 +345,8 @@ it('should detect a cycle in the union', async ({ runInlineFixturesTest }) => {
       });
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Fixtures "foo" -> "bar" -> "foo" form a dependency cycle.');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:17');
+  expect(stripAscii(result.output)).toContain('Fixtures "foo" -> "bar" -> "foo" form a dependency cycle.');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('a.test.js:17');
 });
 
 it('should throw for cycle in two overrides', async ({ runInlineFixturesTest }) => {
@@ -364,8 +363,8 @@ it('should throw for cycle in two overrides', async ({ runInlineFixturesTest }) 
       });
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Fixtures "foo" -> "bar" -> "foo" form a dependency cycle.');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:9');
+  expect(stripAscii(result.output)).toContain('Fixtures "foo" -> "bar" -> "foo" form a dependency cycle.');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('a.test.js:9');
 });
 
 it('should throw when overridden worker fixture depends on a test fixture', async ({ runInlineFixturesTest }) => {
@@ -379,7 +378,7 @@ it('should throw when overridden worker fixture depends on a test fixture', asyn
       it('works', async ({bar}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Worker fixture "bar" cannot depend on a test fixture "foo".');
+  expect(stripAscii(result.output)).toContain('Worker fixture "bar" cannot depend on a test fixture "foo".');
   expect(result.exitCode).toBe(1);
 });
 
@@ -393,7 +392,7 @@ it('should throw when modifying builder after calling build', async ({ runInline
       it('works', async ({foo}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Should not modify fixtures after build()');
+  expect(stripAscii(result.output)).toContain('Should not modify fixtures after build()');
   expect(result.exitCode).toBe(1);
 });
 
@@ -407,7 +406,7 @@ it('should throw when building twice', async ({ runInlineFixturesTest }) => {
       it('works', async ({foo}) => {});
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Should not call build() twice');
+  expect(stripAscii(result.output)).toContain('Should not call build() twice');
   expect(result.exitCode).toBe(1);
 });
 

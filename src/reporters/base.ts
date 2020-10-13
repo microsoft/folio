@@ -63,8 +63,8 @@ export class BaseReporter implements Reporter  {
     this.fileDurations.set(spec.file, duration);
   }
 
-  onError(error: TestError, file?: string) {
-    console.log(formatError(error, file));
+  onError(error: TestError) {
+    console.log(formatError(error));
   }
 
   onTimeout(timeout: number) {

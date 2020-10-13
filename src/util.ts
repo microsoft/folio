@@ -97,3 +97,14 @@ export function monotonicTime(): number {
   const [seconds, nanoseconds] = process.hrtime();
   return seconds * 1000 + (nanoseconds / 1000000 | 0);
 }
+
+export function prependErrorMessage(e: Error, message: string) {
+  let stack = e.stack || '';
+  if (stack.includes(e.message))
+    stack = stack.substring(stack.indexOf(e.message) + e.message.length);
+  let m = e.message;
+  if (m.startsWith('Error:'))
+    m = m.substring('Error:'.length);
+  e.message = message + m;
+  e.stack = e.message + stack;
+}

@@ -22,7 +22,7 @@ import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrat
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
-import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
+import { monotonicTime, prependErrorMessage, raceAgainstDeadline } from './util';
 import { RunnerSuite } from './runnerTest';
 import { runnerSpec } from './runnerSpec';
 import { debugLog } from './debug';
@@ -39,7 +39,6 @@ type RunResult = 'passed' | 'failed' | 'sigint' | 'forbid-only' | 'no-tests';
 export class Runner {
   private _reporter: Reporter;
   private _rootSuite: RunnerSuite;
-  private _hasBadFiles = false;
   private _suites: RunnerSuite[] = [];
 
   constructor(config: Config, reporter: Reporter) {
@@ -56,13 +55,12 @@ export class Runner {
       const revertBabelRequire = runnerSpec(suite, config);
       try {
         require(file);
-        this._suites.push(suite);
-      } catch (error) {
-        this._reporter.onError(serializeError(error), file);
-        this._hasBadFiles = true;
-      } finally {
-        revertBabelRequire();
+      } catch (e) {
+        prependErrorMessage(e, `Error while reading ${file}:\n`);
+        throw e;
       }
+      this._suites.push(suite);
+      revertBabelRequire();
     }
 
     // Set default values
@@ -99,7 +97,7 @@ export class Runner {
     }
 
     const total = this._rootSuite.total;
-    if (!total && !this._hasBadFiles)
+    if (!total)
       return 'no-tests';
     const globalDeadline = config.globalTimeout ? config.globalTimeout + monotonicTime() : 0;
     const { result, timedOut } = await raceAgainstDeadline(this._runTests(this._rootSuite), globalDeadline);
@@ -128,6 +126,6 @@ export class Runner {
     this._reporter.onEnd();
     if (sigint)
       return 'sigint';
-    return this._hasBadFiles || runner.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
+    return runner.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
   }
 }
