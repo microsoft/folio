@@ -16,7 +16,7 @@
 
 import { config, folio, TestInfo } from '../../';
 
-const builder = folio.extend<{}, { testInfoForward: TestInfo }>();
+const builder = folio.extend<{ testInfoForward: TestInfo }>();
 builder.testInfoForward.init(async ({testInfo}, runTest) => {
   await runTest(testInfo);
   testInfo.data['myname'] = 'myvalue';

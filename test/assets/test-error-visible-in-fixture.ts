@@ -16,7 +16,7 @@
 
 import { folio } from '../../';
 
-const builder = folio.extend<{}, { postProcess: string }>();
+const builder = folio.extend<{ postProcess: string }>();
 builder.postProcess.init(async ({testInfo}, runTest) => {
   await runTest('');
   console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');

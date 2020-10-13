@@ -18,7 +18,7 @@
 export { expect } from './expect';
 import { TestInfo } from './fixtures';
 import { rootFixtures } from './spec';
-export { Folio as Fixtures } from './spec';
+export { Folio } from './spec';
 export { Config } from './config';
 export { config, TestInfo, currentTestInfo } from './fixtures';
 
@@ -34,7 +34,7 @@ type BuiltinTestFixtures = {
   testParametersPathSegment: string;
 };
 
-const builder = rootFixtures.extend<BuiltinWorkerFixtures, BuiltinTestFixtures>();
+const builder = rootFixtures.extend<BuiltinTestFixtures, BuiltinWorkerFixtures>();
 
 builder.testWorkerIndex.init(async ({}, runTest) => {
   // Worker injects the value for this one.

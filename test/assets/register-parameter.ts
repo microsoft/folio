@@ -16,7 +16,7 @@
 
 import { folio as baseFolio } from '../..';
 
-const builder = baseFolio.extend<{}, { fixture1: string, fixture2: string }, { param1: string, param2: string }>();
+const builder = baseFolio.extend<{ fixture1: string, fixture2: string }, {}, { param1: string, param2: string }>();
 builder.param1.initParameter('Custom parameter 1', '');
 builder.param2.initParameter('Custom parameter 2', 'value2');
 builder.fixture1.init(async ({testInfo}, runTest) => {
