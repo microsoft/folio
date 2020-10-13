@@ -61,7 +61,7 @@ type AfterEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtur
 type BeforeAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 type AfterAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 
-export class FolioImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters = {}> {
+export class FolioImpl<TestFixtures = {}, WorkerFixtures = {}, WorkerParameters = {}> {
   it: It<WorkerParameters, WorkerFixtures, TestFixtures>;
   fit: Fit<WorkerParameters, WorkerFixtures, TestFixtures>;
   xit: Xit<WorkerParameters, WorkerFixtures, TestFixtures>;
@@ -97,16 +97,13 @@ export class FolioImpl<WorkerFixtures = {}, TestFixtures = {}, WorkerParameters 
     this.afterAll = fn => implementation.afterAll(this, fn);
   }
 
-  union<W1, T1, P1>(other: Folio<W1, T1, P1>): Folio<WorkerFixtures & W1, TestFixtures & T1, WorkerParameters & P1>;
-  union(...others) {
-    let pool = this._pool;
-    for (const other of others)
-      pool = pool.union(other._pool);
+  union<T, W, P>(other: Folio<T, W, P>): Folio<TestFixtures & T, WorkerFixtures & W, WorkerParameters & P> {
+    const pool = this._pool.union(other._pool);
     pool.validate();
-    return new FolioImpl(pool);
+    return new FolioImpl(pool) as any;
   }
 
-  extend<W = {}, T = {}, P = {}>(): Fixtures<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> {
+  extend<T = {}, W = {}, P = {}>(): Fixtures<TestFixtures, WorkerFixtures, WorkerParameters, T, W, P> {
     return new Proxy(new FixturesImpl(new FixturePool(this._pool)), proxyHandler) as any;
   }
 
@@ -146,7 +143,7 @@ type TestFixtureOverrider<PWT, R> = {
   override(fixture: (params: PWT, runTest: (value: R) => Promise<void>) => Promise<void>): void;
 };
 
-type Fixtures<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> = {
+type Fixtures<TestFixtures, WorkerFixtures, WorkerParameters, T, W, P> = {
   [X in keyof P]: WorkerParameterInitializer<P[X]>;
 } & {
   [X in keyof W]: WorkerFixtureInitializer<WorkerParameters & P & WorkerFixtures & W, W[X]>;
@@ -157,10 +154,10 @@ type Fixtures<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> = {
 } &  {
   [X in keyof TestFixtures]: TestFixtureOverrider<WorkerParameters & P & WorkerFixtures & W & TestFixtures & T, TestFixtures[X]>;
 } & {
-  build(): Folio<WorkerFixtures & W, TestFixtures & T, WorkerParameters & P>
+  build(): Folio<TestFixtures & T, WorkerFixtures & W, WorkerParameters & P>
 };
 
-class FixturesImpl<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> {
+class FixturesImpl<TestFixtures, WorkerFixtures, WorkerParameters, T, W, P> {
   private _pool: FixturePool;
   private _finished: boolean;
 
@@ -192,7 +189,7 @@ class FixturesImpl<WorkerFixtures, TestFixtures, WorkerParameters, W, T, P> {
     });
   }
 
-  build(): Folio<WorkerFixtures & W, TestFixtures & T, WorkerParameters & P> {
+  build(): Folio<TestFixtures & T, WorkerFixtures & W, WorkerParameters & P> {
     if (this._finished)
       throw errorWithCallLocation(`Should not call build() twice`);
     this._pool.validate();
@@ -215,7 +212,7 @@ const proxyHandler: ProxyHandler<FixturesImpl<any, any, any, any, any, any>> = {
   },
 };
 
-export interface Folio<W, T, P> extends FolioImpl<W, T, P> {
+export interface Folio<T, W, P> extends FolioImpl<T, W, P> {
 }
 
 export const rootFixtures = new FolioImpl(new FixturePool(undefined)) as Folio<{}, {}, {}>;

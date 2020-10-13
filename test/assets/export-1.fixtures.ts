@@ -16,7 +16,7 @@
 
 import { folio as baseFolio } from '../..';
 
-const fixtures = baseFolio.extend<{ workerWrap: number }, { testWrap: string }>();
+const fixtures = baseFolio.extend<{ testWrap: string }, { workerWrap: number }>();
 
 fixtures.testWrap.init(async ({}, runTest) => {
   await runTest('testWrap');

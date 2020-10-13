@@ -16,7 +16,7 @@
 
 import { folio as baseFolio } from '../..';
 
-const fixtures = baseFolio.extend<{ workerTypeOnly: number }, { testTypeOnly: string }>();
+const fixtures = baseFolio.extend<{ testTypeOnly: string }, { workerTypeOnly: number }>();
 
 fixtures.testTypeOnly.init(async ({}, runTest) => {
   await runTest('testTypeOnly');
