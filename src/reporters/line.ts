@@ -18,13 +18,15 @@ import colors from 'colors/safe';
 import * as path from 'path';
 import { Config } from '../config';
 import { BaseReporter, formatFailure, serializeParameters } from './base';
-import { Test, Suite, TestResult } from '../test';
+import { Test, Suite, TestResult, Parameters } from '../test';
 
 class LineReporter extends BaseReporter {
   private _total: number;
   private _current = 0;
   private _failures = 0;
   private _lastTest: Test;
+  private _parameterSnapshot: Parameters;
+  private _parametersToPreview = new Set<string>();
 
   onBegin(config: Config, suite: Suite) {
     super.onBegin(config, suite);
@@ -58,7 +60,7 @@ class LineReporter extends BaseReporter {
     super.onTestEnd(test, result);
     const spec = test.spec;
     const baseName = path.basename(spec.file);
-    const title = `${baseName} - ${spec.fullTitle()} ${colors.gray('[' + serializeParameters(test.parameters) + ']')}`;
+    const title = `${baseName} - ${spec.fullTitle()} ${colors.gray(this._parametersString(test))}`;
     process.stdout.write(`\u001B[1A\u001B[2K[${++this._current}/${this._total}] ${title}\n`);
     if (!this.willRetry(test, result) && !test.ok()) {
       process.stdout.write(`\u001B[1A\u001B[2K`);
@@ -71,6 +73,27 @@ class LineReporter extends BaseReporter {
     process.stdout.write(`\u001B[1A\u001B[2K`);
     super.onEnd();
     this.epilogue(false);
+  }
+
+  private _parametersString(test: Test): string {
+    if (!this._parameterSnapshot) {
+      this._parameterSnapshot = { ...test.parameters };
+      return '';
+    }
+
+    // Collect names of parameters that have different values.
+    for (const key of Object.keys(test.parameters)) {
+      if (this._parameterSnapshot[key] !== test.parameters[key])
+        this._parametersToPreview.add(key);
+    }
+
+    const preview: Parameters = {};
+    for (const key of this._parametersToPreview)
+      preview[key] = test.parameters[key];
+    if (Object.keys(preview).length)
+      return '[' + serializeParameters(preview) + ']';
+    else
+      return '';
   }
 }
 
