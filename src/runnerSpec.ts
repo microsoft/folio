@@ -16,7 +16,7 @@
 
 import { installTransform } from './transform';
 import { RunnerSuite, RunnerSpec } from './runnerTest';
-import { extractLocation } from './util';
+import { callLocation, errorWithCallLocation } from './util';
 import { FolioImpl, setImplementation } from './spec';
 import { TestModifier } from './testModifier';
 import { Config } from './config';
@@ -33,7 +33,7 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
     const test = new RunnerSpec(folio, title, fn, suite);
     test._usedParameters = folio._pool.parametersForFunction(fn, `Test`, true);
     test.file = suite.file;
-    test.location = extractLocation(new Error());
+    test.location = callLocation();
     if (spec === 'only')
       test._only = true;
 
@@ -55,7 +55,7 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
     }
     const child = new RunnerSuite(folio, title, suites[0]);
     child.file = suite.file;
-    child.location = extractLocation(new Error());
+    child.location = callLocation();
     if (spec === 'only')
       child._only = true;
 
@@ -76,9 +76,9 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
   const hook = (hookName: string, folio: FolioImpl, fn: Function) => {
     const suite = suites[0];
     if (!suite.parent)
-      throw new Error(`${hookName} hook should be called inside a describe block. Consider using an auto fixture.`);
+      throw errorWithCallLocation(`${hookName} hook should be called inside a describe block. Consider using an auto fixture.`);
     if (suite._folio !== folio)
-      throw new Error(`Using ${hookName} hook from a different fixture set.\nAre you using describe and ${hookName} from different fixture files?`);
+      throw errorWithCallLocation(`Using ${hookName} hook from a different fixture set.\nAre you using describe and ${hookName} from different fixture files?`);
     folio._pool.parametersForFunction(fn, `${hookName} hook`, hookName === 'beforeEach' || hookName === 'afterEach');
   };
 

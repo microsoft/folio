@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';

@@ -19,7 +19,9 @@ import util from 'util';
 import StackUtils from 'stack-utils';
 import { TestError } from './ipc';
 
-const stackUtils = new StackUtils();
+const FOLIO_DIRS = [__dirname, path.join(__dirname, '..', 'src')];
+const cwd = process.cwd();
+const stackUtils = new StackUtils({ cwd });
 
 export async function raceAgainstDeadline<T>(promise: Promise<T>, deadline: number): Promise<{ result?: T, timedOut?: boolean }> {
   if (!deadline)
@@ -67,9 +69,28 @@ export function serializeError(error: Error | any): TestError {
   };
 }
 
-export function extractLocation(error: Error): string {
-  const location = stackUtils.parseLine(error.stack.split('\n')[3]);
-  return `${path.resolve(process.cwd(), location.file)}:${location.line}:${location.column}`;
+function callFrames(): string[] {
+  const obj = { stack: '' };
+  Error.captureStackTrace(obj);
+  const frames = obj.stack.split('\n').slice(1);
+  while (frames.length && FOLIO_DIRS.some(dir => frames[0].includes(dir)))
+    frames.shift();
+  return frames;
+}
+
+export function callLocation(): string {
+  const frames = callFrames();
+  if (!frames.length)
+    return '';
+  const location = stackUtils.parseLine(frames[0]);
+  return `${path.resolve(cwd, location.file)}:${location.line}:${location.column}`;
+}
+
+export function errorWithCallLocation(message: string): Error {
+  const frames = callFrames();
+  const error = new Error(message);
+  error.stack = 'Error: ' + message + '\n' + frames.join('\n');
+  return error;
 }
 
 export function monotonicTime(): number {

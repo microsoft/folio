@@ -16,7 +16,7 @@
 
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { installTransform } from './transform';
-import { extractLocation } from './util';
+import { callLocation } from './util';
 import { FolioImpl, setImplementation } from './spec';
 import { TestModifier } from './testModifier';
 
@@ -30,7 +30,7 @@ export function workerSpec(suite: WorkerSuite): () => void {
     fn = fn || modifierFn;
     const test = new WorkerSpec(folio, title, fn, suites[0]);
     test.file = suite.file;
-    test.location = extractLocation(new Error());
+    test.location = callLocation();
     return test;
   };
 
@@ -38,7 +38,7 @@ export function workerSpec(suite: WorkerSuite): () => void {
     fn = fn || modifierFn;
     const child = new WorkerSuite(folio, title, suites[0]);
     child.file = suite.file;
-    child.location = extractLocation(new Error());
+    child.location = callLocation();
     suites.unshift(child);
     fn();
     suites.shift();

@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from 'folio';
-import { folio } from './fixtures';
-const { it } = folio;
+import { firstStackFrame, folio } from './fixtures';
+const { it, expect } = folio;
 
 it('should work', async ({ runInlineFixturesTest }) => {
   const { results } = await runInlineFixturesTest({
@@ -102,7 +101,7 @@ it('should fail if parameters are not destructured', async ({ runInlineFixturesT
     `,
   });
   expect(result.report.errors[0].error.message).toBe('First argument must use the object destructuring pattern: abc');
-  expect(result.report.errors[0].error.stack).toContain('a.test.js:10');
+  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:10');
   expect(result.results.length).toBe(0);
 });
 
@@ -115,7 +114,7 @@ it('should fail with an unknown fixture', async ({ runInlineTest }) => {
     `,
   });
   expect(result.report.errors[0].error.message).toBe('Test has unknown parameter "asdf".');
-  expect(result.report.errors[0].error.stack).toContain('a.test.js:5');
+  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.test.js:5');
   expect(result.results.length).toBe(0);
 });
 

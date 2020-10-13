@@ -17,6 +17,7 @@
 import { Parameters, TestError, TestStatus } from './ipc';
 export { Parameters, TestStatus, TestError } from './ipc';
 import type { FolioImpl } from './spec';
+import { errorWithCallLocation } from './util';
 
 class Base {
   title: string;
@@ -34,7 +35,7 @@ class Base {
     this.parent = parent;
     // Root suite has default fixtures that do not match all others.
     if (parent && parent.parent && parent._folio !== folio)
-      throw new Error(`Mixing different fixture sets in the same suite.\nAre you using it and describe from different fixture files?`);
+      throw errorWithCallLocation(`Mixing different fixture sets in the same suite.\nAre you using it and describe from different fixture files?`);
   }
 
   titlePath(): string[] {
