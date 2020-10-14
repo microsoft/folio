@@ -406,8 +406,11 @@ The following information is accessible after the test body has finished (e.g. a
 
 Here is an example fixture that automatically saves debug logs on the test failure:
 ```ts
+import { folio as base } from 'folio';
 import * as debug from 'debug';
 import * as fs from 'fs';
+
+const fixtures = base.extend<{ saveLogsOnFailure: void }>();
 
 fixtures.saveLogsOnFailure.init(async ({ testInfo }, runTest) => {
   const logs = [];
@@ -417,6 +420,8 @@ fixtures.saveLogsOnFailure.init(async ({ testInfo }, runTest) => {
   if (testInfo.status !== testInfo.expectedStatus)
     fs.writeFileSync(testInfo.outputPath('logs.txt'), logs.join('\n'), 'utf8');
 }, { auto: true );
+
+export const folio = fixtures.build();
 ```
 
 ## Parameters
