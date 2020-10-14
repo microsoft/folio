@@ -19,7 +19,6 @@ import path from 'path';
 import { Config } from '../config';
 import { EmptyReporter } from '../reporter';
 import { Test, Suite, Spec, TestResult, TestError } from '../test';
-import { ENV_PREFIX } from './base';
 
 export interface SerializedSuite {
   title: string;
@@ -111,7 +110,7 @@ class JSONReporter extends EmptyReporter {
 
 function outputReport(report: ReportFormat) {
   const reportString = JSON.stringify(report, undefined, 2);
-  const outputName = process.env[`${ENV_PREFIX}_JSON_OUTPUT_NAME`];
+  const outputName = process.env[`FOLIO_JSON_OUTPUT_NAME`];
   if (outputName) {
     fs.mkdirSync(path.dirname(outputName), { recursive: true });
     fs.writeFileSync(outputName, reportString);
