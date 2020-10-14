@@ -1,6 +1,6 @@
 # Folio ![npm](https://img.shields.io/npm/v/folio)
 
-A customizable test framework to build your own test frameworks. Foundation for [@playwright/test](https://github.com/microsoft/playwright-test).
+A customizable test framework to build your own test frameworks. Foundation for the [Playwright test runner](https://github.com/microsoft/playwright-test).
 
 ## Docs
 
