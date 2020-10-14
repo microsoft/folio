@@ -111,7 +111,7 @@ it('delete user', ({ table }) => {
 });
 ```
 
-You declare exact fixtures that the test needs and the runner initializes them for each test individually. Tests can use any combinations of the fixtures to tailor precise environment they need. You no longer need to wrap tests in `describe`s that set up environment, everything is declarative and typed.
+You declare exact fixtures that the test needs and the runner initializes them for each test individually. This is achieved by statically analysing the function paramater, so it needs to be an ES6 destructured object. Tests can use any combinations of the fixtures to tailor precise environment they need. You no longer need to wrap tests in `describe`s that set up environment, everything is declarative and typed. If you want to always initialize a fixture even when it is not referenced in a test, set the `auto` option to `true`.
 
 There are two types of fixtures: `test` and `worker`. Test fixtures are set up for each test and worker fixtures are set up for each process that runs test files.
 
