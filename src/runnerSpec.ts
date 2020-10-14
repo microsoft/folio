@@ -79,7 +79,7 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
       throw errorWithCallLocation(`${hookName} hook should be called inside a describe block. Consider using an auto fixture.`);
     if (suite._folio !== folio)
       throw errorWithCallLocation(`Using ${hookName} hook from a different fixture set.\nAre you using describe and ${hookName} from different fixture files?`);
-    folio._pool.parametersForFunction(fn, `${hookName} hook`, hookName === 'beforeEach' || hookName === 'afterEach');
+    suite._usedParameters.push(...folio._pool.parametersForFunction(fn, `${hookName} hook`, hookName === 'beforeEach' || hookName === 'afterEach'));
   };
 
   setImplementation({

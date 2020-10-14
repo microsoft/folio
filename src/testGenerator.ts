@@ -40,7 +40,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
       const generatorConfigurations: Configuration[] = [];
       // For generator fixtures, collect all variants of the fixture values
       // to build different workers for them.
-      for (const name of spec._usedParameters) {
+      for (const name of spec._allUsedParameters()) {
         const values = matrix[name];
         const state = generatorConfigurations.length ? generatorConfigurations.slice() : [[]];
         generatorConfigurations.length = 0;
