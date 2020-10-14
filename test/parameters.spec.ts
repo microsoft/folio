@@ -233,3 +233,31 @@ it('should not duplicate parameters in configuration', async ({ runInlineFixture
   const outputs = result.results.map(r => r.stdout[0].text.replace(/\s/g, ''));
   expect(outputs.sort()).toEqual(['foo1:foo1', 'foo2:foo2', 'foo3:foo3']);
 });
+
+it('should generate tests when parameters are in beforeEach', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.js': `
+      const fixtures = baseFolio.extend();
+      fixtures.foo.initParameter('Foo', 'foo');
+      const folio = fixtures.build();
+      folio.generateParametrizedTests('foo', ['foo1', 'foo2', 'foo3']);
+
+      const { it, describe, beforeEach } = folio;
+
+      describe('suite', () => {
+        let fooValue;
+        beforeEach(({ foo }) => {
+          fooValue = foo;
+        });
+        it('runs 3 times', async ({}) => {
+          console.log(fooValue);
+        });
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(3);
+  const outputs = result.results.map(r => r.stdout[0].text.replace(/\s/g, ''));
+  expect(outputs.sort()).toEqual(['foo1', 'foo2', 'foo3']);
+});

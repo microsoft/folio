@@ -14,7 +14,8 @@
     "watch": "tsc --build tsconfig.json --watch",
     "test": "folio test/ --test-ignore=assets/**",
     "prepare": "npm run build",
-    "roll-dogfood": "cd dogfood && npm install"
+    "roll-dogfood": "cd dogfood && npm install",
+    "prepublishOnly": "rm tsconfig.tsbuildinfo && rm -rf out && npm run build"
   },
   "dependencies": {
     "@babel/code-frame": "^7.10.4",
