@@ -250,7 +250,7 @@ export const it = folio.it;
 
 ## Annotations
 
-Unfortunately, tests do not always pass. Folio supports test annotations to deal with failures, flakiness and tests that are not yet ready. Pass an additional callback to annotate the test.
+Unfortunately, tests do not always pass. Folio supports test annotations to deal with failures, flakiness and tests that are not yet ready. Pass an additional callback to annotate a test or a suite.
 
 ```ts
 it('my test', test => {
@@ -331,6 +331,92 @@ If the test passes on the second retry, Folio will report something like this:
 Running 1 test using 1 worker
 ××±
   1 expected flaky
+```
+
+## Built-in fixtures
+
+Folio provides a few built-in fixtures with information about tests.
+
+### testWorkerIndex
+
+This is a worker fixture - a unique number assigned to the worker process. Depending on the configuration and failures, Folio might use different number of worker processes to run all the tests. For example, Folio will always start a new worker process after a failing test. To differentiate between workers, use `testWorkerIndex`. Consider an example where we run a new http server per worker process, and use `testWorkerIndex` to produce a unique port number:
+
+```ts
+import { folio as base } from 'folio';
+import * as http from 'http';
+
+const fixtures = base.extend<{}, { server: http.Server }>();
+
+fixtures.server.init(async ({ testWorkerIndex }, runTest) => {
+  const server = await http.createServer();
+  server.listen(9000 + testWorkerIndex);
+  await new Promise(ready => server.once('listening', ready));
+  await runTest(server);
+  await new Promise(done => server.close(done));
+}, { scope: 'worker' });
+
+export const folio = fixtures.build();
+```
+
+### testInfo
+
+This is a test fixture that contains information about the currently running test. It can be used in any test fixture, for example:
+
+```ts
+import { folio as base } from 'folio';
+import * as sqlite3 from 'sqlite3';
+
+const fixtures = base.extend<{ db: sqlite3.Database }>();
+
+// Create a database per test.
+fixtures.db.init(async ({ testInfo }, runTest) => {
+  const dbFile = testInfo.outputPath('db.sqlite');
+  let db;
+  await new Promise(ready => {
+    db = new sqlite3.Database(dbFile, ready);
+  });
+  await runTest(db);
+  await new Promise(done => db.close(done));
+});
+
+export const folio = fixtures.build();
+```
+
+The following information is accessible to test fixtures when running the test:
+- `title: string` - test title.
+- `file: string` - full path to the test file.
+- `location: string` - full path, line and column numbers of the test declaration.
+- `fn: Function` - test body funnction.
+- `parameters: object` - parameter values used in this particular test run.
+- `workerIndex: number` - unique number assigned to the worker process, same as `testWorkerIndex` fixture.
+- `repeatEachIndex: number` - the sequential repeat index, when running with `--repeat-each=<number>` option.
+- `retry: number` - the sequential number of the test retry (zero means first run), when running with `--retries=<number>` option.
+- `expectedStatus: 'passed' | 'failed' | 'timedOut'` - whether this test is expected to pass, fail or timeout.
+- `timeout: number` - test timeout. Defaults to `--timeout=<ms>` option, but also affected by `test.slow()` annotation.
+- `relativeArtifactsPath: string` - relative path, used to store snapshots and output for the test.
+- `snapshotPath(...pathSegments: string[])` - function that returns the full path to a particular snapshot for the test.
+- `outputPath(...pathSegments: string[])` - function that returns the full path to a particular output artifact for the test.
+
+The following information is accessible after the test body has finished (e.g. after calling `runTest`):
+- `duration: number` - test running time in milliseconds.
+- `status: 'passed' | 'failed' | 'timedOut'` - the actual test result.
+- `error` - any error thrown by the test body.
+- `stdout: (string | Buffer)[]` - array of stdout chunks collected during the test run.
+- `stderr: (string | Buffer)[]` - array of stderr chunks collected during the test run.
+
+Here is an example fixture that automatically saves debug logs on the test failure:
+```ts
+import * as debug from 'debug';
+import * as fs from 'fs';
+
+fixtures.saveLogsOnFailure.init(async ({ testInfo }, runTest) => {
+  const logs = [];
+  debug.log = (...args) => logs.push(args.map(String).join(''));
+  debug.enable('mycomponent');
+  await runTest();
+  if (testInfo.status !== testInfo.expectedStatus)
+    fs.writeFileSync(testInfo.outputPath('logs.txt'), logs.join('\n'), 'utf8');
+}, { auto: true );
 ```
 
 ## Parameters
