@@ -248,6 +248,91 @@ const folio = fixtures.build();
 export const it = folio.it;
 ```
 
+## Annotations
+
+Unfortunately, tests do not always pass. Folio supports test annotations to deal with failures, flakiness and tests that are not yet ready. Pass an additional callback to annotate the test.
+
+```ts
+it('my test', test => {
+  test.skip(!!process.env.SKIP_MY_TESTS, 'Do not run this test when SKIP_MY_TESTS is set');
+  test.slow('This increases test timeout 3x.');
+}, async ({ table }) => {
+  // Test goes here.
+});
+```
+
+### Annotation API
+
+There are multiple annotation methods, each supports an optional condition and description. Respective annotation applies only when the condition is truthy.
+Annotations may depend on the parameters. There could be multiple annotations on the same test, possibly in different configurations. For example, to skip a test in unsupported api version, and mark it slow otherwise:
+
+```ts
+it('my test', (test, { version }) => {
+  test.fixme(version === 'v2', 'This test should be passing, but it crashes the database server v2. Better not run it.');
+  test.slow('The table is very large');
+}, async ({ table }) => {
+  // Test goes here.
+});
+```
+
+Possible annotations include:
+- `skip` marks the test as irrelevant. Folio does not run such a test. Use this annotation when the test is not applicable in some configuration.
+   ```ts
+   test.skip(version === 'v1', 'Not supported in version 1.');
+   ```
+- `fail` marks the test as failing. Folio will run this test and ensure it does indeed fail. If the test does not fail, Folio will complain.
+   ```ts
+   test.fail('We have a bug.');
+   ```
+- `slow` marks the test as slow, increasing the timeout 3x.
+   ```ts
+   test.slow(version === 'v2', 'Version 2 is slow with sequential updates.');
+   ```
+- `fixme` marks the test as failing. Folio will not run this test, as opposite to the `fail` annotation. Use `fixme` when running the test is slow or crashy.
+   ```ts
+   test.fixme('Crashes the database server. Better not run it. We should fix that.');
+   ```
+- `flaky` marks the test as either passing or failing. Folio will run this test, and consider it passing if at least one retry succeeds.
+   ```ts
+   test.flaky('Oh well...');
+   ```
+
+### Flaky tests
+
+Folio deals with flaky tests with retries and `flaky` annotations. Pass the maximum number of retries when running the tests:
+```sh
+npx folio test/ --retries 3
+```
+
+Failing tests will be retried multiple times until they pass, or the maximium number of retries is reached. By default, if the test fails at least once, Folio will report it as "unexpected flaky". For example, if the test passes on the second retry, Folio will report something like this:
+
+```sh
+Running 1 test using 1 worker
+××±
+1 unexpected flaky
+  1) my.test.js:1:1
+    <Error from the first run>
+    Retry #1
+    <Error from the first retry>
+```
+
+However, known flaky tests can be marked as `flaky`, so that Folio reports them as "expected flaky" and succeeds the test run.
+
+```ts
+it('my test', test => {
+  test.flaky('Database sometimes fails with the large table.');
+}, async ({ table }) => {
+  // Test goes here.
+});
+```
+
+If the test passes on the second retry, Folio will report something like this:
+```sh
+Running 1 test using 1 worker
+××±
+  1 expected flaky
+```
+
 ## Parameters
 
 It is common to run tests in different configurations, for example when running web app tests against multiple browsers or testing two different versions of api endpoint. Folio supports this via parameters - define the parameter and start using it in a test or a fixture.
