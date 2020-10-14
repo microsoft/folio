@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { matrix } from './fixtures';
 import { Configuration } from './ipc';
 import { Config } from './config';
 import { RunnerSuite, RunnerSpec, RunnerTest, ModifierFn } from './runnerTest';
@@ -38,10 +37,9 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
         continue;
 
       const generatorConfigurations: Configuration[] = [];
-      // For generator fixtures, collect all variants of the fixture values
-      // to build different workers for them.
+      // Collect all parameter values to build different workers for them.
       for (const name of spec._allUsedParameters()) {
-        const values = matrix[name];
+        const values = spec._folio._pool.parameters.get(name).values;
         const state = generatorConfigurations.length ? generatorConfigurations.slice() : [[]];
         generatorConfigurations.length = 0;
         for (const gen of state) {
@@ -50,7 +48,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
         }
       }
 
-      // No generator fixtures for test, include empty set.
+      // No parameters used in the test, include empty set.
       if (!generatorConfigurations.length)
         generatorConfigurations.push([]);
 

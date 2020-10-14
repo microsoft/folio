@@ -17,8 +17,8 @@
 import { folio as baseFolio } from '../..';
 
 const builder = baseFolio.extend<{ fixture1: string, fixture2: string }, {}, { param1: string, param2: string }>();
-builder.param1.initParameter('Custom parameter 1', '');
-builder.param2.initParameter('Custom parameter 2', 'value2');
+builder.param1.init(['value1'], 'Custom parameter 1');
+builder.param2.init(['value2'], 'Custom parameter 2');
 builder.fixture1.init(async ({testInfo}, runTest) => {
   await runTest(testInfo.parameters.param1 as string);
 });

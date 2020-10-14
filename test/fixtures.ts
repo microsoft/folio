@@ -33,7 +33,7 @@ export type RunResult = {
   results: any[],
 };
 
-async function innerRunTest(baseDir: string, filePath: string, outputDir: string, params: any = {}): Promise<RunResult> {
+async function innerRunTest(baseDir: string, filePath: string, outputDir: string, params: any = {}, env: any = {}): Promise<RunResult> {
   const paramList = [];
   for (const key of Object.keys(params)) {
     for (const value of  Array.isArray(params[key]) ? params[key] : [params[key]]) {
@@ -53,6 +53,7 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
     env: {
       ...process.env,
       FOLIO_JSON_OUTPUT_NAME: reportFile,
+      ...env,
     },
     cwd: baseDir
   });
@@ -108,9 +109,9 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
   };
 }
 
-type RunInlineTestFunction = (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
+type RunInlineTestFunction = (files: { [key: string]: string | Buffer }, options?: any, env?: any) => Promise<RunResult>;
 type TestState = {
-  runTest: (filePath: string, options?: any) => Promise<RunResult>;
+  runTest: (filePath: string, options?: any, env?: any) => Promise<RunResult>;
   runInlineTest: RunInlineTestFunction;
   runInlineFixturesTest: RunInlineTestFunction;
 };
@@ -120,7 +121,7 @@ const fixtures = base.extend<{}, TestState>();
 fixtures.runTest.init(async ({ testInfo }, run) => {
   // Print output on failure.
   let result: RunResult;
-  await run(async (filePath, options) => {
+  await run(async (filePath, options, env) => {
     const target = path.join(config.testDir, 'assets', filePath);
     let isDir = false;
     try {
@@ -128,9 +129,9 @@ fixtures.runTest.init(async ({ testInfo }, run) => {
     } catch (e) {
     }
     if (isDir)
-      result = await innerRunTest(path.join(config.testDir, 'assets', filePath), '.', testInfo.outputPath('output'), options);
+      result = await innerRunTest(path.join(config.testDir, 'assets', filePath), '.', testInfo.outputPath('output'), options, env);
     else
-      result = await innerRunTest(path.join(config.testDir, 'assets'), filePath, testInfo.outputPath('output'), options);
+      result = await innerRunTest(path.join(config.testDir, 'assets'), filePath, testInfo.outputPath('output'), options, env);
     return result;
   });
   if (testInfo.status !== testInfo.expectedStatus)
@@ -153,7 +154,7 @@ fixtures.runInlineFixturesTest.init(async ({ testInfo }, run) => {
 async function runInlineTest(testInfo: TestInfo, header: string, run: (fn: RunInlineTestFunction) => Promise<void>) {
   const baseDir = testInfo.outputPath();
   let result: RunResult;
-  await run(async (files, options) => {
+  await run(async (files, options, env) => {
     await Promise.all(Object.keys(files).map(async name => {
       const fullName = path.join(baseDir, name);
       await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
@@ -162,7 +163,7 @@ async function runInlineTest(testInfo: TestInfo, header: string, run: (fn: RunIn
       else
         await fs.promises.writeFile(fullName, files[name]);
     }));
-    result = await innerRunTest(baseDir, '.', path.join(baseDir, 'test-results'), options);
+    result = await innerRunTest(baseDir, '.', path.join(baseDir, 'test-results'), options, env);
     return result;
   });
   if (testInfo.status !== testInfo.expectedStatus)

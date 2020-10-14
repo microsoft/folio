@@ -15,7 +15,7 @@
  */
 
 import { expect } from './expect';
-import { FixturePool, setParameterValues } from './fixtures';
+import { FixturePool } from './fixtures';
 import { TestModifier } from './testModifier';
 import { errorWithCallLocation } from './util';
 
@@ -106,10 +106,6 @@ export class FolioImpl<TestFixtures = {}, WorkerFixtures = {}, WorkerParameters 
   extend<T = {}, W = {}, P = {}>(): Fixtures<TestFixtures, WorkerFixtures, WorkerParameters, T, W, P> {
     return new Proxy(new FixturesImpl(new FixturePool(this._pool)), proxyHandler) as any;
   }
-
-  generateParametrizedTests<T extends keyof WorkerParameters>(name: T, values: WorkerParameters[T][]) {
-    setParameterValues(name as string, values);
-  }
 }
 
 type FixtureOptions = {
@@ -128,7 +124,10 @@ type WorkerFixtureOptions = {
 };
 
 type WorkerParameterInitializer<R> = {
-  initParameter(description: string, defaultValue: R): void;
+  init(values: R[], description?: string): void;
+};
+type WorkerParameterOverrider<R> = {
+  override(values: R[]): void;
 };
 type WorkerFixtureInitializer<PW, R> = {
   init(fixture: (params: PW, runTest: (value: R) => Promise<void>) => Promise<void>, options: WorkerFixtureOptions): void;
@@ -149,6 +148,8 @@ type Fixtures<TestFixtures, WorkerFixtures, WorkerParameters, T, W, P> = {
   [X in keyof W]: WorkerFixtureInitializer<WorkerParameters & P & WorkerFixtures & W, W[X]>;
 } & {
   [X in keyof T]: TestFixtureInitializer<WorkerParameters & P & WorkerFixtures & W & TestFixtures & T, T[X]>;
+} & {
+  [X in keyof WorkerParameters]: WorkerParameterOverrider<WorkerParameters[X]>;
 } & {
   [X in keyof WorkerFixtures]: WorkerFixtureOverrider<WorkerParameters & P & WorkerFixtures & W, WorkerFixtures[X]>;
 } &  {
@@ -178,15 +179,16 @@ class FixturesImpl<TestFixtures, WorkerFixtures, WorkerParameters, T, W, P> {
     this._pool.overrideFixture(name as string, fixture as any);
   }
 
-  _initParameter<N extends keyof P>(name: N, description: string, defaultValue: P[N]): void {
+  _initParameter(name: string, values: any[]): void {
     if (this._finished)
       throw errorWithCallLocation(`Should not modify fixtures after build()`);
-    this._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false);
-    this._pool.registerWorkerParameter({
-      name: name as string,
-      description,
-      defaultValue: defaultValue as any,
-    });
+    this._pool.registerParameter(name as string, values);
+  }
+
+  _overrideParameter(name: string, values: any[]): void {
+    if (this._finished)
+      throw errorWithCallLocation(`Should not modify fixtures after build()`);
+    this._pool.overrideParameter(name as string, values);
   }
 
   build(): Folio<TestFixtures & T, WorkerFixtures & W, WorkerParameters & P> {
@@ -205,9 +207,18 @@ const proxyHandler: ProxyHandler<FixturesImpl<any, any, any, any, any, any>> = {
     if (typeof prop !== 'string' || prop === 'then')
       return undefined;
     return {
-      initParameter: (description, defaultValue) => target._initParameter(prop as any, description, defaultValue),
-      init: (fn, options) => target._init(prop as any, fn, options),
-      override: fn => target._override(prop as any, fn),
+      init: (fnOrValues, options) => {
+        if (typeof fnOrValues === 'function')
+          target._init(prop as any, fnOrValues, options);
+        else
+          target._initParameter(prop as any, fnOrValues);
+      },
+      override: fnOrValues => {
+        if (typeof fnOrValues === 'function')
+          target._override(prop as any, fnOrValues);
+        else
+          target._overrideParameter(prop as any, fnOrValues);
+      },
     };
   },
 };

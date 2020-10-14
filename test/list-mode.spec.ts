@@ -21,9 +21,8 @@ it('should work with parameters', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'fixtures.js': `
       const builder = baseFolio.extend();
-      builder.worker.initParameter('', '');
+      builder.worker.init(['A', 'B', 'C'], '');
       const fixtures = builder.build();
-      fixtures.generateParametrizedTests('worker', ['A', 'B', 'C']);
       module.exports = fixtures;
     `,
     'a.test.js': `

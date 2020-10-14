@@ -294,13 +294,13 @@ it('should teardown fixtures after timeout', async ({ runInlineFixturesTest, tes
   require('fs').writeFileSync(file, '', 'utf8');
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
+      const file = process.env.FILE;
       const builder = baseFolio.extend();
-      builder.file.initParameter('File', '');
-      builder.t.init(async ({ file }, runTest) => {
+      builder.t.init(async ({}, runTest) => {
         await runTest('t');
         require('fs').appendFileSync(file, 'test fixture teardown\\n', 'utf8');
       });
-      builder.w.init(async ({ file }, runTest) => {
+      builder.w.init(async ({}, runTest) => {
         await runTest('w');
         require('fs').appendFileSync(file, 'worker fixture teardown\\n', 'utf8');
       }, { scope: 'worker' });
@@ -311,7 +311,7 @@ it('should teardown fixtures after timeout', async ({ runInlineFixturesTest, tes
         await new Promise(() => {});
       });
     `,
-  }, { timeout: 1000, param: 'file=' + file });
+  }, { timeout: 1000 }, { FILE: file });
   expect(result.results[0].status).toBe('timedOut');
   const content = require('fs').readFileSync(file, 'utf8');
   expect(content).toContain('worker fixture teardown');
@@ -380,13 +380,12 @@ it('should understand parameters in overrides calling base', async ({ runInlineF
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.param.initParameter('Param', 'param');
+      builder.param.init(['p1', 'p2', 'p3'], 'Param');
       builder.foo.init(async ({}, test) => await test('foo'));
       builder.bar.init(async ({foo}, test) => await test(foo + '-bar'));
       builder.foo.override(async ({ foo, param }, test) => await test(foo + '-' + param));
       builder.foo.override(async ({ foo }, test) => await test(foo + '-override'));
       const fixtures = builder.build();
-      fixtures.generateParametrizedTests('param', ['p1', 'p2', 'p3']);
       fixtures.it('test', async ({ bar }) => {
         console.log(bar);
       });

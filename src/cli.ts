@@ -26,7 +26,6 @@ import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
 import { Multiplexer } from './reporters/multiplexer';
 import { Runner, Config } from './runner';
-import { ParameterRegistration } from './fixtures';
 
 export const reporters = {
   'dot': DotReporter,
@@ -40,8 +39,7 @@ export const reporters = {
 const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
 
 const loadProgram = new commander.Command();
-addRunnerOptions(loadProgram, true);
-loadProgram.helpOption(false);
+addRunnerOptions(loadProgram);
 loadProgram.action(async command => {
   try {
     await runTests(command);
@@ -91,35 +89,8 @@ async function runTests(command) {
 
   const reporter = new Multiplexer(reporterObjects);
   const runner = new Runner(config, reporter);
-  const parameterRegistrations = runner.loadFiles(files).parameters;
-  const parameters: { [key: string]: (string | boolean | number)[] } = {};
-  for (const param of command.param || []) {
-    const match = param.match(/([^=]+)=(.*)/);
-    const [_, name, value] = match ? match : ['', param, 'true'];
-    if (!parameterRegistrations.has(name)) {
-      console.error(`unknown parameter '${name}'`);
-      process.exit(1);
-    }
-    const registration = parameterRegistrations.get(name);
-    let list = parameters[name];
-    if (!list) {
-      list = [];
-      parameters[name] = list;
-    }
-    if (typeof registration.defaultValue === 'string')
-      list.push(value);
-    else if (typeof registration.defaultValue === 'number')
-      list.push(parseFloat(value));
-    else if (typeof registration.defaultValue === 'boolean')
-      list.push(value === 'true');
-  }
+  runner.loadFiles(files);
 
-  if (command.help === undefined) {
-    printParametersHelp([...parameterRegistrations.values()]);
-    process.exit(0);
-  }
-
-  runner.generateTests({ parameters });
   if (command.list) {
     runner.list();
     return;
@@ -176,7 +147,7 @@ function collectFiles(testDir: string, dir: string, filters: string[], testMatch
   return files;
 }
 
-function addRunnerOptions(program: commander.Command, param: boolean) {
+function addRunnerOptions(program: commander.Command) {
   program = program
       .version('Version ' + /** @type {any} */ (require)('../package.json').version)
       .option('--forbid-only', 'Fail if exclusive test(s) encountered', false)
@@ -186,10 +157,7 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('-j, --workers <workers>', 'Number of concurrent workers, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
       .option('--list', 'Only collect all the test and report them')
       .option('--max-failures <N>', 'Stop after the first N failures', '0')
-      .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'));
-  if (param)
-    program = program.option('-p, --param <name=value...>', 'Specify fixture parameter value');
-  program = program
+      .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'))
       .option('--quiet', 'Suppress stdio', false)
       .option('--repeat-each <repeat-each>', 'Specify how many times to run the tests', '1')
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
@@ -201,16 +169,4 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
       .option('-u, --update-snapshots', 'Whether to update snapshots with actual results', false)
       .option('-x', 'Stop after the first failure');
-}
-
-function printParametersHelp(parameterRegistrations: ParameterRegistration[]) {
-  const program = new commander.Command();
-  for (const registration of parameterRegistrations) {
-    if (typeof registration.defaultValue === 'boolean')
-      program.option(`-p, --param*${registration.name}`, registration.description, registration.defaultValue);
-    else
-      program.option(`-p, --param*${registration.name}=<value>`, registration.description, String(registration.defaultValue));
-  }
-  addRunnerOptions(program, false);
-  console.log(program.helpInformation().replace(/--param\*/g, '--param '));
 }

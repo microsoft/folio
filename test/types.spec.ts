@@ -23,4 +23,9 @@ it('should be able to import/export fixtures', async ({ runTest }) => {
   expect(exitCode).toBe(0);
 });
 
+it('should allow parameters', async ({ runTest }) => {
+  const result = await runTest('register-parameter.ts');
+  expect(result.exitCode).toBe(0);
+});
+
 // TODO: add tests for tsc enforcing various fixture types.
