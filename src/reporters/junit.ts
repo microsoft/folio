@@ -20,7 +20,7 @@ import { Config } from '../config';
 import { EmptyReporter } from '../reporter';
 import { Suite, Test } from '../test';
 import { monotonicTime } from '../util';
-import { ENV_PREFIX, formatFailure, stripAscii } from './base';
+import { formatFailure, stripAscii } from './base';
 
 class JUnitReporter extends EmptyReporter {
   private config: Config;
@@ -49,8 +49,8 @@ class JUnitReporter extends EmptyReporter {
     const root: XMLEntry = {
       name: 'testsuites',
       attributes: {
-        id: process.env[`${ENV_PREFIX}_JUNIT_SUITE_ID`] || '',
-        name: process.env[`${ENV_PREFIX}_JUNIT_SUITE_NAME`] || '',
+        id: process.env[`FOLIO_JUNIT_SUITE_ID`] || '',
+        name: process.env[`FOLIO_JUNIT_SUITE_NAME`] || '',
         tests: self.totalTests,
         failures: self.totalFailures,
         skipped: self.totalSkipped,
@@ -62,7 +62,7 @@ class JUnitReporter extends EmptyReporter {
 
     serializeXML(root, tokens);
     const reportString = tokens.join('\n');
-    const outputName = process.env[`${ENV_PREFIX}_JUNIT_OUTPUT_NAME`];
+    const outputName = process.env[`FOLIO_JUNIT_OUTPUT_NAME`];
     if (outputName) {
       fs.mkdirSync(path.dirname(outputName), { recursive: true });
       fs.writeFileSync(outputName, reportString);
