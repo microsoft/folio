@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { firstStackFrame, folio } from './fixtures';
+import { firstStackFrame, folio, stripAscii } from './fixtures';
 const { it, expect } = folio;
 
 it('hooks should work with fixtures', async ({ runInlineFixturesTest }) => {
@@ -128,7 +128,7 @@ it('beforeEach failure should prevent the test, but not other hooks', async ({ r
 });
 
 it('should throw when hook is called in fixutres file', async ({ runInlineTest }) => {
-  const report = await runInlineTest({
+  const result = await runInlineTest({
     'fixture.js': `
       folio.beforeEach(async ({}) => {});
     `,
@@ -138,11 +138,11 @@ it('should throw when hook is called in fixutres file', async ({ runInlineTest }
       });
     `,
   });
-  expect(report.report.errors[0].error.message).toContain('beforeEach hook should be called inside a describe block. Consider using an auto fixture.');
+  expect(stripAscii(result.output)).toContain('beforeEach hook should be called inside a describe block. Consider using an auto fixture.');
 });
 
 it('should throw when hook is called without describe', async ({ runInlineFixturesTest }) => {
-  const report = await runInlineFixturesTest({
+  const result = await runInlineFixturesTest({
     'a.test.js': `
       const { it, beforeEach } = baseFolio;
       beforeEach(async ({}) => {});
@@ -150,7 +150,7 @@ it('should throw when hook is called without describe', async ({ runInlineFixtur
       });
     `,
   });
-  expect(report.report.errors[0].error.message).toContain('beforeEach hook should be called inside a describe block. Consider using an auto fixture.');
+  expect(stripAscii(result.output)).toContain('beforeEach hook should be called inside a describe block. Consider using an auto fixture.');
 });
 
 it('should throw when hook depends on unknown fixture', async ({ runInlineFixturesTest }) => {
@@ -163,8 +163,8 @@ it('should throw when hook depends on unknown fixture', async ({ runInlineFixtur
       });
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('beforeEach hook has unknown parameter "foo".');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.spec.ts:6');
+  expect(stripAscii(result.output)).toContain('beforeEach hook has unknown parameter "foo".');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('a.spec.ts:6');
   expect(result.exitCode).toBe(1);
 });
 
@@ -182,8 +182,8 @@ it('should throw when beforeAll hook depends on test fixture', async ({ runInlin
       });
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('beforeAll hook cannot depend on a test fixture "foo".');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.spec.ts:10');
+  expect(stripAscii(result.output)).toContain('beforeAll hook cannot depend on a test fixture "foo".');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('a.spec.ts:10');
   expect(result.exitCode).toBe(1);
 });
 
@@ -201,8 +201,8 @@ it('should throw when afterAll hook depends on test fixture', async ({ runInline
       });
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('afterAll hook cannot depend on a test fixture "foo".');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.spec.ts:10');
+  expect(stripAscii(result.output)).toContain('afterAll hook cannot depend on a test fixture "foo".');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('a.spec.ts:10');
   expect(result.exitCode).toBe(1);
 });
 
@@ -227,7 +227,7 @@ it('should throw when hook uses different fixtures set than describe', async ({ 
       });
     `,
   });
-  expect(result.report.errors[0].error.message).toContain('Using afterAll hook from a different fixture set.');
-  expect(firstStackFrame(result.report.errors[0].error.stack)).toContain('a.spec.ts:17');
+  expect(stripAscii(result.output)).toContain('Using afterAll hook from a different fixture set.');
+  expect(firstStackFrame(stripAscii(result.output))).toContain('a.spec.ts:17');
   expect(result.exitCode).toBe(1);
 });

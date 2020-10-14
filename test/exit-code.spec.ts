@@ -15,7 +15,7 @@
  */
 
 import path from 'path';
-import { folio } from './fixtures';
+import { folio, stripAscii } from './fixtures';
 const { it, expect } = folio;
 
 function monotonicTime(): number {
@@ -34,10 +34,7 @@ it('should collect stdio', async ({ runTest }) => {
 
 it('should work with not defined errors', async ({runTest}) => {
   const result = await runTest('is-not-defined-error.ts');
-  const { errors } = result.report;
-  expect(errors.length).toBe(1);
-  expect(errors[0].file).toContain('assets' + path.sep + 'is-not-defined-error.ts');
-  expect(errors[0].error.message).toContain('foo is not defined');
+  expect(stripAscii(result.output)).toContain('foo is not defined');
   expect(result.exitCode).toBe(1);
 });
 

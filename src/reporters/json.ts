@@ -30,14 +30,15 @@ export interface SerializedSuite {
 
 export type ReportFormat = {
   config: Config;
-  errors?: { file: string, error: TestError }[];
+  // TODO: remove the extra object wrapper.
+  errors?: { error: TestError }[];
   suites?: SerializedSuite[];
 };
 
 class JSONReporter extends EmptyReporter {
   config: Config;
   suite: Suite;
-  private _errors: { file: string, error: TestError }[] = [];
+  private _errors: { error: TestError }[] = [];
 
   onBegin(config: Config, suite: Suite) {
     this.config = config;
@@ -48,8 +49,8 @@ class JSONReporter extends EmptyReporter {
     this.onEnd();
   }
 
-  onError(error: TestError, file?: string): void {
-    this._errors.push({ file, error });
+  onError(error: TestError): void {
+    this._errors.push({ error });
   }
 
   onEnd() {

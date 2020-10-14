@@ -24,7 +24,7 @@ export interface Reporter {
   onStdErr(chunk: string | Buffer, test?: Test): void;
   onTestEnd(test: Test, result: TestResult): void;
   onTimeout(timeout: number): void;
-  onError(error: TestError, file?: string): void;
+  onError(error: TestError): void;
   onEnd(): void;
 }
 
@@ -35,6 +35,6 @@ export class EmptyReporter implements Reporter {
   onStdErr(chunk: string | Buffer, test?: Test) {}
   onTestEnd(test: Test, result: TestResult) {}
   onTimeout(timeout: number) {}
-  onError(error: any, file?: string) {}
+  onError(error: TestError) {}
   onEnd() {}
 }

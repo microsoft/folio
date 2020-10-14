@@ -42,7 +42,14 @@ const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
 const loadProgram = new commander.Command();
 addRunnerOptions(loadProgram, true);
 loadProgram.helpOption(false);
-loadProgram.action(command => runTests(command));
+loadProgram.action(async command => {
+  try {
+    await runTests(command);
+  } catch (e) {
+    console.log(e);
+    process.exit(1);
+  }
+});
 loadProgram.parse(process.argv);
 
 async function runTests(command) {
@@ -80,15 +87,7 @@ async function runTests(command) {
       process.exit(1);
     }
   });
-  let files = [];
-  try {
-    files = collectFiles(testDir, '', command.args.slice(1), command.testMatch, command.testIgnore);
-  } catch (e) {
-    // FIXME: figure out where to report fatal errors such as no file / folder.
-    // Collecting files failure is a CLI-level error, report it into the console.
-    console.log(e);
-    process.exit(1);
-  }
+  const files = collectFiles(testDir, '', command.args.slice(1), command.testMatch, command.testIgnore);
 
   const reporter = new Multiplexer(reporterObjects);
   const runner = new Runner(config, reporter);
@@ -126,28 +125,23 @@ async function runTests(command) {
     return;
   }
 
-  try {
-    const result = await runner.run();
-    if (result === 'sigint')
-      process.exit(130);
+  const result = await runner.run();
+  if (result === 'sigint')
+    process.exit(130);
 
-    if (result === 'forbid-only') {
-      console.error('=====================================');
-      console.error(' --forbid-only found a focused test.');
-      console.error('=====================================');
-      process.exit(1);
-    }
-    if (result === 'no-tests') {
-      console.error('=================');
-      console.error(' no tests found.');
-      console.error('=================');
-      process.exit(1);
-    }
-    process.exit(result === 'failed' ? 1 : 0);
-  } catch (err) {
-    console.error(err);
+  if (result === 'forbid-only') {
+    console.error('=====================================');
+    console.error(' --forbid-only found a focused test.');
+    console.error('=====================================');
     process.exit(1);
   }
+  if (result === 'no-tests') {
+    console.error('=================');
+    console.error(' no tests found.');
+    console.error('=================');
+    process.exit(1);
+  }
+  process.exit(result === 'failed' ? 1 : 0);
 }
 
 function collectFiles(testDir: string, dir: string, filters: string[], testMatch: string, testIgnore: string): string[] {
