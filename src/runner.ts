@@ -18,7 +18,7 @@
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
+import { config, assignConfig, ParameterDescription, globalParameterDescriptions } from './fixtures';
 import { Reporter } from './reporter';
 import { Config } from './config';
 import { generateTests } from './testGenerator';
@@ -46,7 +46,7 @@ export class Runner {
     this._reporter = reporter;
   }
 
-  loadFiles(files: string[]): { parameters: Map<string, ParameterRegistration> } {
+  loadFiles(files: string[]): { parameters: Map<string, ParameterDescription> } {
     debugLog(`loadFiles`, files);
     // First traverse tests.
     for (const file of files) {
@@ -62,23 +62,12 @@ export class Runner {
       this._suites.push(suite);
       revertBabelRequire();
     }
-
-    // Set default values
-    for (const param of parameterRegistrations.values()) {
-      if (!(param.name in matrix))
-        setParameterValues(param.name, [param.defaultValue]);
-    }
-    return { parameters: parameterRegistrations };
+    return { parameters: globalParameterDescriptions };
   }
 
   generateTests(options: { parameters?: { [key: string]: (string | boolean | number)[] } } = {}): Suite {
-    if (options.parameters) {
-      for (const name of Object.keys(options.parameters))
-        setParameterValues(name, options.parameters[name]);
-    }
-
     // We can only generate tests after parameters have been assigned.
-    this._rootSuite = generateTests(this._suites, config);
+    this._rootSuite = generateTests(this._suites, config, options.parameters);
     return this._rootSuite;
   }
 

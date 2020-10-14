@@ -20,11 +20,11 @@ import { EventEmitter } from 'events';
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { Config } from './config';
 import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
-import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
+import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, Parameters } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
 import { rootFixtures } from './spec';
-import { assignConfig, assignParameters, config, FixturePool, setCurrentTestInfo, TestInfo, parameters } from './fixtures';
+import { assignConfig, config, FixturePool, setCurrentTestInfo, TestInfo } from './fixtures';
 
 // We rely on the fact that worker only receives tests with the same FixturePool.
 export let fixturePool: FixturePool = rootFixtures._pool;
@@ -35,7 +35,7 @@ export class WorkerRunner extends EventEmitter {
   private _entries: Map<string, TestEntry>;
   private _remaining: Map<string, TestEntry>;
   private _isStopped: any;
-  private _parsedParameters: any = {};
+  private _parsedParameters: Parameters = {};
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
   private _suite: WorkerSuite;
@@ -55,7 +55,6 @@ export class WorkerRunner extends EventEmitter {
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._parsedParameters = runPayload.parameters;
-    this._parsedParameters['testWorkerIndex'] = workerIndex;
   }
 
   stop() {
@@ -80,8 +79,6 @@ export class WorkerRunner extends EventEmitter {
   }
 
   async run() {
-    assignParameters(this._parsedParameters);
-
     const revertBabelRequire = workerSpec(this._suite);
 
     require(this._suite.file);
@@ -96,10 +93,17 @@ export class WorkerRunner extends EventEmitter {
     this._reportDoneAndStop();
   }
 
+  private _setFixturePool(pool: FixturePool) {
+    fixturePool = pool;
+    for (const [name, value] of Object.entries(this._parsedParameters))
+      fixturePool.setBulitinValue(name, value);
+    fixturePool.setBulitinValue('testWorkerIndex', this._workerIndex);
+  }
+
   private async _runSuite(suite: WorkerSuite) {
     if (this._isStopped)
       return;
-    fixturePool = suite._folio._pool;
+    this._setFixturePool(suite._folio._pool);
     try {
       await this._runHooks(suite, 'beforeAll', 'before');
     } catch (e) {
@@ -131,14 +135,14 @@ export class WorkerRunner extends EventEmitter {
 
     const testId = test._id;
     this._testId = testId;
-    fixturePool = test._folio._pool;
+    this._setFixturePool(test._folio._pool);
 
     this._setCurrentTestInfo({
       title: test.title,
       file: test.file,
       location: test.location,
       fn: test.fn,
-      parameters,
+      parameters: this._parsedParameters,
       repeatEachIndex: this._repeatEachIndex,
       workerIndex: this._workerIndex,
       retry,
@@ -153,7 +157,7 @@ export class WorkerRunner extends EventEmitter {
       outputPath: () => '',
       snapshotPath: () => ''
     });
-    assignParameters({ 'testInfo': this._testInfo });
+    fixturePool.setBulitinValue('testInfo', this._testInfo);
 
     this.emit('testBegin', buildTestBeginPayload(testId, this._testInfo));
 

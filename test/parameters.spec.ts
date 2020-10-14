@@ -21,11 +21,9 @@ it('should run with each configuration', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.foo.initParameter('Foo parameters', 'foo');
-      builder.bar.initParameter('Bar parameters', 'bar');
+      builder.foo.init(['foo1', 'foo2', 'foo3'], 'Foo parameters');
+      builder.bar.init(['bar1', 'bar2'], 'Bar parameters');
       const folio = builder.build();
-      folio.generateParametrizedTests('foo', ['foo1', 'foo2', 'foo3']);
-      folio.generateParametrizedTests('bar', ['bar1', 'bar2']);
 
       const { it } = folio;
 
@@ -51,28 +49,14 @@ it('should run with each configuration', async ({ runInlineFixturesTest }) => {
   }
 });
 
-it('should fail on invalid parameters', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'a.spec.ts': `
-      folio.generateParametrizedTests('invalid', ['value']);
-
-      it('success', async ({}) => {
-      });
-    `
-  });
-  expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('a.spec.ts');
-  expect(result.output).toContain(`Unregistered parameter 'invalid' was set.`);
-});
-
 it('should throw on duplicate parameters globally', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
       const builder1 = baseFolio.extend();
-      builder1.foo.initParameter('Foo', '');
+      builder1.foo.init([''], 'Foo');
       const f1 = builder1.build();
       const builder2 = baseFolio.extend();
-      builder2.foo.initParameter('Bar', '123');
+      builder2.foo.init(['123'], 'Bar');
       const f2 = builder2.build();
       f1.it('success', async ({}) => {
       });
@@ -89,7 +73,7 @@ it('should use kebab for CLI name', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.fooCamelCase.initParameter('Foo parameters', 'foo');
+      builder.fooCamelCase.init(['foo'], 'Foo parameters');
       const folio = builder.build();
 
       const { it } = folio;
@@ -106,13 +90,13 @@ it('should show parameters descriptions', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.browserName.initParameter('Browser name', 'chromium');
-      builder.headful.initParameter('Whether to show browser window or not', false);
+      builder.browserName.init(['chromium'], 'Browser name');
+      builder.headful.init([false], 'Whether to show browser window or not');
       const folio = builder.build();
     `
   }, { 'help': true });
   expect(result.output).toContain(`-p, --param browserName=<value>`);
-  expect(result.output).toContain(`Browser name (default: "chromium")`);
+  expect(result.output).toContain(`Browser name`);
   expect(result.output).toContain(`-p, --param headful`);
   expect(result.output).toContain(`Whether to show browser window or not`);
 
@@ -123,7 +107,7 @@ it('should support integer parameter', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.integer.initParameter('Some integer', 5);
+      builder.integer.init([5], 'Some integer');
       const folio = builder.build();
       const { it } = folio;
       it('success', async ({integer}) => {
@@ -138,7 +122,7 @@ it('should support boolean parameter', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.bool.initParameter('Some bool', false);
+      builder.bool.init([false], 'Some bool');
       const folio = builder.build();
       const { it } = folio;
       it('success', async ({bool}) => {
@@ -153,7 +137,7 @@ it('should generate tests from CLI', async ({ runInlineFixturesTest }) => {
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.bool.initParameter('Some bool', false);
+      builder.bool.init([false], 'Some bool');
       const folio = builder.build();
       const { it } = folio;
       it('success', async ({bool}) => {
@@ -171,7 +155,7 @@ it('tests respect automatic fixture parameters', async ({ runInlineFixturesTest 
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.param.initParameter('Some param', 'value');
+      builder.param.init(['value'], 'Some param');
       builder.automaticTestFixture.init(async ({param}, runTest) => {
         await runTest(param);
       }, { auto: true });
@@ -189,7 +173,7 @@ it('testParametersPathSegment does not throw in non-parametrized test', async ({
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.param.initParameter('Some param', 'value');
+      builder.param.init(['value'], 'Some param');
       builder.testParametersPathSegment.override(async ({ param }, runTest) => {
         await runTest(param);
       });
@@ -211,11 +195,10 @@ it('should not duplicate parameters in configuration', async ({ runInlineFixture
   const result = await runInlineFixturesTest({
     'a.test.ts': `
       const builder = baseFolio.extend();
-      builder.foo.initParameter('Foo', 'foo');
+      builder.foo.init(['foo1', 'foo2', 'foo3'], 'Foo');
       builder.f1.init(async({foo}, runTest) => runTest(foo));
       builder.f2.init(async({foo}, runTest) => runTest(foo));
       const folio = builder.build();
-      folio.generateParametrizedTests('foo', ['foo1', 'foo2', 'foo3']);
 
       const { it } = folio;
 
@@ -232,4 +215,41 @@ it('should not duplicate parameters in configuration', async ({ runInlineFixture
   expect(result.passed).toBe(3);
   const outputs = result.results.map(r => r.stdout[0].text.replace(/\s/g, ''));
   expect(outputs.sort()).toEqual(['foo1:foo1', 'foo2:foo2', 'foo3:foo3']);
+});
+
+it('should use different parameter values in different folios', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'a.test.ts': `
+      const builder = baseFolio.extend();
+      builder.foo.init(['foo1', 'foo2', 'foo3'], 'Foo');
+      const base = builder.build();
+
+      const builder1 = base.extend();
+      builder1.foo.override(['bar1', 'bar2']);
+      const folio1 = builder1.build();
+
+      const builder2 = base.extend();
+      builder2.foo.override(['baz1']);
+      const folio2 = builder2.build();
+
+      base.it('runs 3 times', async ({ foo }) => {
+        console.log('base:' + foo);
+      });
+      folio1.it('runs 2 times', async ({ foo }) => {
+        console.log('folio1:' + foo);
+      });
+      folio2.it('runs 1 time', async ({ foo }) => {
+        console.log('folio2:' + foo);
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(6);
+  const outputs = result.results.map(r => r.stdout[0].text.replace(/\s/g, ''));
+  expect(outputs.sort()).toEqual([
+    'base:foo1', 'base:foo2', 'base:foo3',
+    'folio1:bar1', 'folio1:bar2',
+    'folio2:baz1',
+  ]);
 });

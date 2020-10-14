@@ -72,7 +72,7 @@ it('should not reuse worker for different parameters', async ({ runInlineFixture
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.param.initParameter('', '');
+      builder.param.init([''], '');
       builder.worker2.init(({}, runTest) => runTest(), { scope: 'worker' });
       const { it } = builder.build();
 

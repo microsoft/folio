@@ -18,6 +18,7 @@ import * as commander from 'commander';
 import * as fs from 'fs';
 import { isMatch } from 'micromatch';
 import * as path from 'path';
+import { ParameterDescription } from './fixtures';
 import { Reporter, EmptyReporter } from './reporter';
 import DotReporter from './reporters/dot';
 import JSONReporter from './reporters/json';
@@ -26,7 +27,6 @@ import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
 import { Multiplexer } from './reporters/multiplexer';
 import { Runner, Config } from './runner';
-import { ParameterRegistration } from './fixtures';
 
 export const reporters = {
   'dot': DotReporter,
@@ -91,35 +91,35 @@ async function runTests(command) {
 
   const reporter = new Multiplexer(reporterObjects);
   const runner = new Runner(config, reporter);
-  const parameterRegistrations = runner.loadFiles(files).parameters;
-  const parameters: { [key: string]: (string | boolean | number)[] } = {};
+  const parameterDescriptions = runner.loadFiles(files).parameters;
+  const parameterFilters: { [key: string]: (string | boolean | number)[] } = {};
   for (const param of command.param || []) {
     const match = param.match(/([^=]+)=(.*)/);
     const [_, name, value] = match ? match : ['', param, 'true'];
-    if (!parameterRegistrations.has(name)) {
+    if (!parameterDescriptions.has(name)) {
       console.error(`unknown parameter '${name}'`);
       process.exit(1);
     }
-    const registration = parameterRegistrations.get(name);
-    let list = parameters[name];
+    const description = parameterDescriptions.get(name);
+    let list = parameterFilters[name];
     if (!list) {
       list = [];
-      parameters[name] = list;
+      parameterFilters[name] = list;
     }
-    if (typeof registration.defaultValue === 'string')
+    if (description.type === 'string')
       list.push(value);
-    else if (typeof registration.defaultValue === 'number')
+    else if (description.type === 'number')
       list.push(parseFloat(value));
-    else if (typeof registration.defaultValue === 'boolean')
+    else if (description.type === 'boolean')
       list.push(value === 'true');
   }
 
   if (command.help === undefined) {
-    printParametersHelp([...parameterRegistrations.values()]);
+    printParametersHelp([...parameterDescriptions.values()]);
     process.exit(0);
   }
 
-  runner.generateTests({ parameters });
+  runner.generateTests({ parameters: parameterFilters });
   if (command.list) {
     runner.list();
     return;
@@ -203,13 +203,13 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('-x', 'Stop after the first failure');
 }
 
-function printParametersHelp(parameterRegistrations: ParameterRegistration[]) {
+function printParametersHelp(parameterDescriptions: ParameterDescription[]) {
   const program = new commander.Command();
-  for (const registration of parameterRegistrations) {
-    if (typeof registration.defaultValue === 'boolean')
-      program.option(`-p, --param*${registration.name}`, registration.description, registration.defaultValue);
+  for (const description of parameterDescriptions) {
+    if (description.type === 'boolean')
+      program.option(`-p, --param*${description.name}`, description.description);
     else
-      program.option(`-p, --param*${registration.name}=<value>`, registration.description, String(registration.defaultValue));
+      program.option(`-p, --param*${description.name}=<value>`, description.description);
   }
   addRunnerOptions(program, false);
   console.log(program.helpInformation().replace(/--param\*/g, '--param '));

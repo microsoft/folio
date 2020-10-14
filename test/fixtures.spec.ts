@@ -295,7 +295,7 @@ it('should teardown fixtures after timeout', async ({ runInlineFixturesTest, tes
   const result = await runInlineFixturesTest({
     'a.spec.ts': `
       const builder = baseFolio.extend();
-      builder.file.initParameter('File', '');
+      builder.file.init([''], 'File');
       builder.t.init(async ({ file }, runTest) => {
         await runTest('t');
         require('fs').appendFileSync(file, 'test fixture teardown\\n', 'utf8');
@@ -380,13 +380,12 @@ it('should understand parameters in overrides calling base', async ({ runInlineF
   const result = await runInlineFixturesTest({
     'a.test.js': `
       const builder = baseFolio.extend();
-      builder.param.initParameter('Param', 'param');
+      builder.param.init(['p1', 'p2', 'p3'], 'Param');
       builder.foo.init(async ({}, test) => await test('foo'));
       builder.bar.init(async ({foo}, test) => await test(foo + '-bar'));
       builder.foo.override(async ({ foo, param }, test) => await test(foo + '-' + param));
       builder.foo.override(async ({ foo }, test) => await test(foo + '-override'));
       const fixtures = builder.build();
-      fixtures.generateParametrizedTests('param', ['p1', 'p2', 'p3']);
       fixtures.it('test', async ({ bar }) => {
         console.log(bar);
       });

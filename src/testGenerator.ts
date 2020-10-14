@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { matrix } from './fixtures';
 import { Configuration } from './ipc';
 import { Config } from './config';
 import { RunnerSuite, RunnerSpec, RunnerTest, ModifierFn } from './runnerTest';
 import { TestModifier } from './testModifier';
 import { rootFixtures } from './spec';
 
-export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuite {
+export function generateTests(suites: RunnerSuite[], config: Config, parameters?: { [key: string]: (string | boolean | number)[] }): RunnerSuite {
   const rootSuite = new RunnerSuite(rootFixtures, '');
   let grep: RegExp = null;
   if (config.grep) {
@@ -38,10 +37,12 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
         continue;
 
       const generatorConfigurations: Configuration[] = [];
-      // For generator fixtures, collect all variants of the fixture values
-      // to build different workers for them.
+      // Collect all parameter values to build different workers for them.
       for (const name of spec._usedParameters) {
-        const values = matrix[name];
+        let values = spec._folio._pool.parameters.get(name).values;
+        // Override with parameters from the cli.
+        if (parameters && (name in parameters))
+          values = parameters[name];
         const state = generatorConfigurations.length ? generatorConfigurations.slice() : [[]];
         generatorConfigurations.length = 0;
         for (const gen of state) {
@@ -50,7 +51,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
         }
       }
 
-      // No generator fixtures for test, include empty set.
+      // No parameters used in the test, include empty set.
       if (!generatorConfigurations.length)
         generatorConfigurations.push([]);
 
