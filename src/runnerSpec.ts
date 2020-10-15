@@ -17,14 +17,14 @@
 import { installTransform } from './transform';
 import { RunnerSuite, RunnerSpec } from './runnerTest';
 import { callLocation, errorWithCallLocation } from './util';
-import { FolioImpl, setImplementation } from './spec';
+import { FolioImpl, setImplementation, SpecType } from './spec';
 import { TestModifier } from './testModifier';
 import { Config } from './config';
 
 export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
   const suites = [suite];
 
-  const it = (spec: 'default' | 'skip' | 'only', folio: FolioImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const it = (spec: SpecType, folio: FolioImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     const suite = suites[0];
     if (typeof fn !== 'function') {
       fn = modifierFn;
@@ -48,7 +48,7 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
     return test;
   };
 
-  const describe = (spec: 'default' | 'skip' | 'only', folio: FolioImpl, title: string, modifierFn: (suite: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const describe = (spec: SpecType, folio: FolioImpl, title: string, modifierFn: (suite: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     if (typeof fn !== 'function') {
       fn = modifierFn;
       modifierFn = null;

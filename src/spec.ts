@@ -21,9 +21,11 @@ import { errorWithCallLocation } from './util';
 
 Error.stackTraceLimit = 15;
 
+export type SpecType = 'default' | 'skip' | 'only';
+
 export type Implementation = {
-  it: (spec: 'default' | 'skip' | 'only', folio: FolioImpl, ...args: any[]) => void;
-  describe: (spec: 'default' | 'skip' | 'only', folio: FolioImpl, ...args: any[]) => void;
+  it: (spec: SpecType, folio: FolioImpl, ...args: any[]) => void;
+  describe: (spec: SpecType, folio: FolioImpl, ...args: any[]) => void;
   beforeEach: (folio: FolioImpl, fn: Function) => void;
   afterEach: (folio: FolioImpl, fn: Function) => void;
   beforeAll: (folio: FolioImpl, fn: Function) => void;
