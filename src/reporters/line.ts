@@ -60,8 +60,10 @@ class LineReporter extends BaseReporter {
     super.onTestEnd(test, result);
     const spec = test.spec;
     const baseName = path.basename(spec.file);
-    const title = `${baseName} - ${spec.fullTitle()} ${colors.gray(this._parametersString(test))}`;
-    process.stdout.write(`\u001B[1A\u001B[2K[${++this._current}/${this._total}] ${title}\n`);
+    const width = process.stdout.columns - 1;
+    const title = `[${++this._current}/${this._total}] ${baseName} - ${spec.fullTitle()}`.substring(0, width);
+    const params = title.length < width ? this._parametersString(test).substring(0, width - title.length) : '';
+    process.stdout.write(`\u001B[1A\u001B[2K${title}${colors.gray(params)}\n`);
     if (!this.willRetry(test, result) && !test.ok()) {
       process.stdout.write(`\u001B[1A\u001B[2K`);
       console.log(formatFailure(this.config, test, ++this._failures));
@@ -91,7 +93,7 @@ class LineReporter extends BaseReporter {
     for (const key of this._parametersToPreview)
       preview[key] = test.parameters[key];
     if (Object.keys(preview).length)
-      return '[' + serializeParameters(preview) + ']';
+      return ' [' + serializeParameters(preview) + ']';
     else
       return '';
   }
