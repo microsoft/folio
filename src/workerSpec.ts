@@ -17,7 +17,7 @@
 import { WorkerSpec, WorkerSuite } from './workerTest';
 import { installTransform } from './transform';
 import { callLocation } from './util';
-import { FolioImpl, setImplementation } from './spec';
+import { FolioImpl, setImplementation, SpecType } from './spec';
 import { TestModifier } from './testModifier';
 
 let currentRunSuites: WorkerSuite[];
@@ -26,7 +26,7 @@ export function workerSpec(suite: WorkerSuite): () => void {
   const suites = [suite];
   currentRunSuites = suites;
 
-  const it = (spec: 'default' | 'skip' | 'only', folio: FolioImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const it = (spec: SpecType, folio: FolioImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     fn = fn || modifierFn;
     const test = new WorkerSpec(folio, title, fn, suites[0]);
     test.file = suite.file;
@@ -34,7 +34,7 @@ export function workerSpec(suite: WorkerSuite): () => void {
     return test;
   };
 
-  const describe = (spec: 'default' | 'skip' | 'only', folio: FolioImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const describe = (spec: SpecType, folio: FolioImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     fn = fn || modifierFn;
     const child = new WorkerSuite(folio, title, suites[0]);
     child.file = suite.file;
