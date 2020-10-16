@@ -149,6 +149,15 @@ export class Suite extends Base {
     for (const spec of this.specs)
       this.total += spec.tests.length;
   }
+
+  _hasOnly(): boolean {
+    if (this._only)
+      return true;
+    if (this.suites.find(suite => suite._hasOnly()))
+      return true;
+    if (this.specs.find(spec => spec._only))
+      return true;
+  }
 }
 
 export class Test {
