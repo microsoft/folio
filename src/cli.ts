@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+import { default as ignore } from 'fstream-ignore';
 import * as commander from 'commander';
 import * as fs from 'fs';
-import { isMatch } from 'micromatch';
+import { default as minimatch } from 'minimatch';
 import * as path from 'path';
 import { Reporter, EmptyReporter } from './reporter';
 import DotReporter from './reporters/dot';
@@ -87,7 +88,16 @@ async function runTests(command) {
       process.exit(1);
     }
   });
-  const files = collectFiles(testDir, '', command.args.slice(1), command.testMatch, command.testIgnore);
+
+  if (!fs.existsSync(testDir))
+    throw new Error(`${testDir} does not exist`);
+
+  let files: string[];
+  if (fs.statSync(testDir).isDirectory())
+    files = filterFiles(testDir, await collectFiles(testDir), command.args.slice(1), command.testMatch, command.testIgnore);
+  else
+    files = [testDir];
+
 
   const reporter = new Multiplexer(reporterObjects);
   const runner = new Runner(config, reporter);
@@ -144,36 +154,31 @@ async function runTests(command) {
   process.exit(result === 'failed' ? 1 : 0);
 }
 
-function collectFiles(testDir: string, dir: string, filters: string[], testMatch: string, testIgnore: string): string[] {
-  const fullDir = path.join(testDir, dir);
-  if (!fs.existsSync(fullDir))
-    throw new Error(`${fullDir} does not exist`);
-  if (fs.statSync(fullDir).isFile())
-    return [fullDir];
-  const files = [];
-  for (const name of fs.readdirSync(fullDir)) {
-    const relativeName = path.join(dir, name);
-    if (testIgnore && isMatch(relativeName, testIgnore))
-      continue;
-    if (fs.lstatSync(path.join(fullDir, name)).isDirectory()) {
-      files.push(...collectFiles(testDir, path.join(dir, name), filters, testMatch, testIgnore));
-      continue;
-    }
-    if (testIgnore && !isMatch(relativeName, testMatch))
-      continue;
-    const fullName = path.join(testDir, relativeName);
-    if (!filters.length) {
-      files.push(fullName);
-      continue;
-    }
-    for (const filter of filters) {
-      if (relativeName.includes(filter)) {
-        files.push(fullName);
-        break;
-      }
-    }
-  }
-  return files;
+async function collectFiles(testDir: string): Promise<string[]> {
+  const list: string[] = [];
+  let callback: (list: string[]) => void;
+  const result = new Promise<string[]>(f => callback = f);
+  ignore({ path: testDir, ignoreFiles: ['.gitignore']})
+      .on('child', (c: any) => list.push(c.path))
+      .on('end', () => callback(list));
+  return result;
+}
+
+function filterFiles(base: string, files: string[], filters: string[], testMatch: string, testIgnore: string): string[] {
+  if (!testIgnore.includes('/') && !testIgnore.includes('\\'))
+    testIgnore = '**/' + testIgnore;
+  if (!testMatch.includes('/') && !testMatch.includes('\\'))
+    testMatch = '**/' + testMatch;
+  return files.filter(file => {
+    file = path.relative(base, file);
+    if (testIgnore && minimatch(file, testIgnore))
+      return false;
+    if (testMatch && !minimatch(file, testMatch))
+      return false;
+    if (filters.length && !filters.find(filter => file.includes(filter)))
+      return false;
+    return true;
+  });
 }
 
 function addRunnerOptions(program: commander.Command, param: boolean) {
@@ -196,7 +201,7 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--retries <retries>', 'Specify retry count', '0')
       .option('--shard <shard>', 'Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"', '')
       .option('--snapshot-dir <dir>', 'Snapshot directory, relative to tests directory', '__snapshots__')
-      .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '**/node_modules/**')
+      .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '')
       .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
       .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
       .option('-u, --update-snapshots', 'Whether to update snapshots with actual results', false)
