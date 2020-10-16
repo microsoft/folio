@@ -78,6 +78,7 @@ export class Runner {
     }
 
     // We can only generate tests after parameters have been assigned.
+    this._suites = excludeNonOnlyFiles(this._suites);
     this._rootSuite = generateTests(this._suites, config);
     return this._rootSuite;
   }
@@ -128,4 +129,10 @@ export class Runner {
       return 'sigint';
     return runner.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
   }
+}
+
+function excludeNonOnlyFiles(suites: RunnerSuite[]): RunnerSuite[] {
+  // This makes sure we don't generate 1000000 tests if only one spec is focused.
+  const filtered = suites.filter(suite => suite._hasOnly());
+  return filtered.length === 0 ? suites : filtered;
 }

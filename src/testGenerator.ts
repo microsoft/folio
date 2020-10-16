@@ -55,31 +55,30 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
         generatorConfigurations.push([]);
 
       for (const configuration of generatorConfigurations) {
+        const parametersStringPrefix = serializeParameters(configuration);
+        const parameters = parametersObject(configuration);
+        const modifierFns: ModifierFn[] = [];
+        if (spec._modifierFn)
+          modifierFns.push(spec._modifierFn);
+        for (let parent = spec.parent as RunnerSuite; parent; parent = parent.parent as RunnerSuite) {
+          if (parent._modifierFn)
+            modifierFns.push(parent._modifierFn);
+        }
+        modifierFns.reverse();
+        const modifier = new TestModifier();
+        for (const modifierFn of modifierFns)
+          modifierFn(modifier, parameters);
         for (let i = 0; i < config.repeatEach; ++i) {
-          const parametersString = serializeParameters(configuration) +  `#repeat-${i}#`;
+          const parametersString = parametersStringPrefix +  `#repeat-${i}#`;
           const workerHash = spec._folio._pool.id + '@' + parametersString;
           const test = new RunnerTest(spec);
-          const parameters = parametersObject(configuration);
           test.parameters = parameters;
-          const modifierFns: ModifierFn[] = [];
-          if (spec._modifierFn)
-            modifierFns.push(spec._modifierFn);
-          for (let parent = spec.parent as RunnerSuite; parent; parent = parent.parent as RunnerSuite) {
-            if (parent._modifierFn)
-              modifierFns.push(parent._modifierFn);
-          }
-          modifierFns.reverse();
-          const modifier = new TestModifier();
-          for (const modifierFn of modifierFns)
-            modifierFn(modifier, parameters);
-
           test.skipped = modifier._skipped;
           test.flaky = modifier._flaky;
           test.slow = modifier._slow;
           test.expectedStatus = modifier._expectedStatus;
           test.timeout = modifier._timeout;
           test.annotations = modifier._annotations;
-
           test._parametersString = parametersString;
           test._workerHash = workerHash;
           test._repeatEachIndex = i;
