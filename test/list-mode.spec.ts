@@ -72,6 +72,18 @@ it('should work with parameters', async ({ runInlineFixturesTest }) => {
   expect(resultsLog.join('|')).toBe('passed|failed|failed|failed|passed|failed|failed|failed|passed');
 });
 
+it('should emit run info and commit info', async ({ runInlineTest}) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      it('should work', () => {
+      });
+    `
+  }, { 'list': true });
+  expect(result.report.commit).toBeTruthy();
+  expect(result.report.runInfo).toBeTruthy();
+  expect(result.exitCode).toBe(0);
+});
+
 it('should emit test annotations', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `

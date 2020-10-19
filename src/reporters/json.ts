@@ -16,20 +16,39 @@
 
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { Config } from '../config';
 import { EmptyReporter } from '../reporter';
+import { spawnSync } from 'child_process';
 import { Test, Suite, Spec, TestResult, TestError } from '../test';
 
 export interface SerializedSuite {
   title: string;
   file: string;
-  location: string,
+  location: string;
   specs: ReturnType<JSONReporter['_serializeTestSpec']>[];
   suites?: SerializedSuite[];
 }
 
+type CommitInfo = {
+  sha: string;
+  message: string;
+  unixTimestamp: number;
+};
+
+type RunInfo = {
+  buildbotName: string;
+  url: string;
+  platform: string;
+  release: string;
+  arch: string;
+  unixTimestamp: number;
+};
+
 export type ReportFormat = {
   config: Config;
+  commit?: CommitInfo;
+  runInfo: RunInfo;
   // TODO: remove the extra object wrapper.
   errors?: { error: TestError }[];
   suites?: SerializedSuite[];
@@ -54,9 +73,20 @@ class JSONReporter extends EmptyReporter {
   }
 
   onEnd() {
+    const suites = this.suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s);
+    const commit = suites.length && suites[0].file ? getCommitInfo(path.dirname(suites[0].file)) : undefined;
     outputReport({
       config: this.config,
-      suites: this.suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s),
+      commit,
+      runInfo: {
+        url: process.env['FOLIO_RUN_URL'] || '',
+        buildbotName: process.env['FOLIO_BUILDBOT_NAME'] || '',
+        platform: os.platform(),
+        release: os.release(),
+        arch: os.arch(),
+        unixTimestamp: (Date.now() / 1000) | 0,
+      },
+      suites,
       errors: this._errors
     });
   }
@@ -118,6 +148,22 @@ function outputReport(report: ReportFormat) {
   } else {
     console.log(reportString);
   }
+}
+
+function getCommitInfo(repositoryPath: string): (CommitInfo|undefined) {
+  const {status, stdout, error} = spawnSync('git', ['show', '-s', '--format=%H %ct %s', 'HEAD'], {
+    cwd: repositoryPath,
+  });
+  if (status !== 0) {
+    // We failed to fetch commit information - likely, there's no GIT.
+    return undefined;
+  }
+  const line = stdout.toString('utf8').trim();
+  const tokens = line.split(' ');
+  const sha = tokens.shift();
+  const unixTimestamp = +tokens.shift();
+  const message = tokens.join(' ');
+  return {sha, unixTimestamp, message};
 }
 
 function stdioEntry(s: string | Buffer): any {
