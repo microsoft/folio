@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import path from 'path';
+
 export type Config = {
   forbidOnly?: boolean;
   globalTimeout: number;
@@ -36,13 +38,13 @@ export const defaultConfig: Config = {
   globalTimeout: 0,
   grep: '.*',
   maxFailures: 0,
-  outputDir: 'test-results',
+  outputDir: path.join(process.cwd(), 'test-results'),
   quiet: false,
   repeatEach: 1,
   retries: 0,
   shard: undefined,
   snapshotDir: '__snapshots__',
-  testDir: '.',
+  testDir: '',
   timeout: 10000,
   updateSnapshots: false,
   workers: Math.ceil(require('os').cpus().length / 2),

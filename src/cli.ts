@@ -207,7 +207,7 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
       .option('--list', `Only collect all the test and report them`)
       .option('--max-failures <N>', `Stop after the first N failures (default: ${defaultConfig.maxFailures})`)
-      .option('--output <outputDir>', `Folder for output artifacts (default: ${defaultConfig.outputDir})`);
+      .option('--output <outputDir>', `Folder for output artifacts (default: "test-results")`);
   if (param)
     program = program.option('-p, --param <name=value...>', `Specify fixture parameter value`);
   program = program
