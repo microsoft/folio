@@ -131,7 +131,7 @@ class JUnitReporter extends EmptyReporter {
       entry.children.push({
         name: 'failure',
         attributes: {
-          message: `${path.basename(test.spec.file)}${test.spec.line}${test.spec.column} ${test.spec.title}`,
+          message: `${path.basename(test.spec.file)}:${test.spec.line}:${test.spec.column} ${test.spec.title}`,
           type: 'FAILURE',
         },
         text: stripAscii(formatFailure(this.config, test))
