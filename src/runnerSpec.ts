@@ -33,7 +33,11 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
     const test = new RunnerSpec(folio, title, fn, suite);
     test._usedParameters = folio._pool.parametersForFunction(fn, `Test`, true);
     test.file = suite.file;
-    test.location = callLocation();
+    const location = callLocation();
+    if (location) {
+      test.line = location.line;
+      test.column = location.column;
+    }
     if (spec === 'only')
       test._only = true;
 
@@ -54,8 +58,12 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
       modifierFn = null;
     }
     const child = new RunnerSuite(folio, title, suites[0]);
+    const location = callLocation();
     child.file = suite.file;
-    child.location = callLocation();
+    if (location) {
+      child.line = location.line;
+      child.column = location.column;
+    }
     if (spec === 'only')
       child._only = true;
 

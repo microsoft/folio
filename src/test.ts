@@ -22,7 +22,8 @@ import { errorWithCallLocation } from './util';
 class Base {
   title: string;
   file: string;
-  location: string;
+  line: number;
+  column: number;
   parent?: Suite;
 
   _only = false;

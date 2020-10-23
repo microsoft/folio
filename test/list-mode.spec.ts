@@ -86,6 +86,22 @@ it('should emit test annotations', async ({ runInlineTest }) => {
   expect(result.report.suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fail', description: 'Fail annotation' }]);
 });
 
+it('should have file URLs instead of paths for portability', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      it('math works!', async ({}) => {
+        expect(1 + 1).toBe(2);
+      });
+    `
+  }, { 'list': true });
+  expect(result.exitCode).toBe(0);
+  expect(result.report.config.outputDir.startsWith('file://')).toBe(true);
+  expect(result.report.config.testDir.startsWith('file://')).toBe(true);
+  expect(result.report.suites[0].specs[0].file.startsWith('file://')).toBe(true);
+  expect(result.report.suites[0].specs[0].line).toBe(5);
+  expect(result.report.suites[0].specs[0].column).toBe(7);
+});
+
 it('should emit suite annotations', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `

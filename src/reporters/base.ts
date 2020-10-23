@@ -161,8 +161,8 @@ function formatTestHeader(config: Config, test: Test, index?: number): string {
   const tokens: string[] = [];
   const spec = test.spec;
   let relativePath = path.relative(config.testDir, spec.file) || path.basename(spec.file);
-  if (spec.location.includes(spec.file))
-    relativePath += spec.location.substring(spec.file.length);
+  if (spec.line && spec.column)
+    relativePath += ':' + spec.line + ':' + spec.column;
   const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
   const header = `  ${index ? index + ')' : ''} ${relativePath} › ${spec.fullTitle()}${passedUnexpectedlySuffix}`;
   tokens.push(colors.bold(colors.red(pad(header, '='))));

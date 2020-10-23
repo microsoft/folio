@@ -30,7 +30,11 @@ export function workerSpec(suite: WorkerSuite): () => void {
     fn = fn || modifierFn;
     const test = new WorkerSpec(folio, title, fn, suites[0]);
     test.file = suite.file;
-    test.location = callLocation();
+    const location = callLocation();
+    if (location) {
+      test.line = location.line;
+      test.column = location.column;
+    }
     return test;
   };
 
@@ -38,7 +42,11 @@ export function workerSpec(suite: WorkerSuite): () => void {
     fn = fn || modifierFn;
     const child = new WorkerSuite(folio, title, suites[0]);
     child.file = suite.file;
-    child.location = callLocation();
+    const location = callLocation();
+    if (location) {
+      child.line = location.line;
+      child.column = location.column;
+    }
     suites.unshift(child);
     fn();
     suites.shift();

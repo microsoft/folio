@@ -15,6 +15,7 @@
  */
 
 import fs from 'fs';
+import url from 'url';
 import path from 'path';
 import { Config } from '../config';
 import { EmptyReporter } from '../reporter';
@@ -23,7 +24,8 @@ import { Test, Suite, Spec, TestResult, TestError } from '../test';
 export interface SerializedSuite {
   title: string;
   file: string;
-  location: string,
+  line: (number|undefined);
+  column: (number|undefined);
   specs: ReturnType<JSONReporter['_serializeTestSpec']>[];
   suites?: SerializedSuite[];
 }
@@ -55,7 +57,11 @@ class JSONReporter extends EmptyReporter {
 
   onEnd() {
     outputReport({
-      config: this.config,
+      config: {
+        ...this.config,
+        outputDir: url.pathToFileURL(this.config.outputDir).toString(),
+        testDir: url.pathToFileURL(this.config.testDir).toString(),
+      },
       suites: this.suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s),
       errors: this._errors
     });
@@ -67,8 +73,9 @@ class JSONReporter extends EmptyReporter {
     const suites = suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s);
     return {
       title: suite.title,
-      file: suite.file,
-      location: suite.location,
+      file: url.pathToFileURL(suite.file).toString(),
+      line: suite.line,
+      column: suite.column,
       specs: suite.specs.map(test => this._serializeTestSpec(test)),
       suites: suites.length ? suites : undefined,
     };
@@ -77,8 +84,9 @@ class JSONReporter extends EmptyReporter {
   private _serializeTestSpec(spec: Spec) {
     return {
       title: spec.title,
-      file: spec.file,
-      location: spec.location,
+      file: url.pathToFileURL(spec.file).toString(),
+      line: spec.line,
+      column: spec.column,
       tests: spec.tests.map(r => this._serializeTest(r))
     };
   }
