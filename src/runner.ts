@@ -18,9 +18,8 @@
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, assignConfig, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
+import { config, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
 import { Reporter } from './reporter';
-import { Config } from './config';
 import { generateTests } from './testGenerator';
 import { monotonicTime, prependErrorMessage, raceAgainstDeadline } from './util';
 import { RunnerSuite } from './runnerTest';
@@ -41,8 +40,7 @@ export class Runner {
   private _rootSuite: RunnerSuite;
   private _suites: RunnerSuite[] = [];
 
-  constructor(config: Config, reporter: Reporter) {
-    assignConfig(config);
+  constructor(reporter: Reporter) {
     this._reporter = reporter;
   }
 

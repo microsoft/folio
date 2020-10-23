@@ -27,7 +27,8 @@ import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
 import { Multiplexer } from './reporters/multiplexer';
 import { Runner, Config } from './runner';
-import { ParameterRegistration } from './fixtures';
+import { assignConfig, config, ParameterRegistration } from './fixtures';
+import { defaultConfig } from './config';
 
 export const reporters = {
   'dot': DotReporter,
@@ -54,28 +55,14 @@ loadProgram.action(async command => {
 loadProgram.parse(process.argv);
 
 async function runTests(command) {
+  assignConfig(defaultConfig);
+
   let shard: { total: number, current: number } | undefined;
   if (command.shard) {
     const pair = command.shard.split('/').map((t: string) => parseInt(t, 10));
     shard = { current: pair[0] - 1, total: pair[1] };
   }
   const testDir = path.resolve(process.cwd(), command.args[0] || '.');
-  const config: Config = {
-    forbidOnly: command.forbidOnly,
-    globalTimeout: parseInt(command.globalTimeout, 10),
-    grep: command.grep,
-    maxFailures: command.x ? 1 : parseInt(command.maxFailures, 10),
-    outputDir: command.output,
-    quiet: command.quiet,
-    repeatEach: parseInt(command.repeatEach, 10),
-    retries: parseInt(command.retries, 10),
-    shard,
-    snapshotDir: command.snapshotDir,
-    testDir,
-    timeout: parseInt(command.timeout, 10),
-    updateSnapshots: !!command.updateSnapshots,
-    workers: parseInt(command.workers, 10),
-  };
   const reporterList = command.reporter.split(',');
   const reporterObjects: Reporter[] = reporterList.map(c => {
     if (reporters[c])
@@ -98,9 +85,8 @@ async function runTests(command) {
   else
     files = [testDir];
 
-
   const reporter = new Multiplexer(reporterObjects);
-  const runner = new Runner(config, reporter);
+  const runner = new Runner(reporter);
   const parameterRegistrations = runner.loadFiles(files).parameters;
   const parameters: { [key: string]: (string | boolean | number)[] } = {};
   for (const param of command.param || []) {
@@ -128,6 +114,36 @@ async function runTests(command) {
     printParametersHelp([...parameterRegistrations.values()]);
     process.exit(0);
   }
+
+  // Assign config values after runner.loadFiles to set defaults from the command
+  // line.
+  config.testDir = testDir;
+  if (command.forbidOnly)
+    config.forbidOnly = true;
+  if (command.globalTimeout)
+    config.globalTimeout = parseInt(command.globalTimeout, 10);
+  if (command.grep)
+    config.grep = command.grep;
+  if (command.maxFailures || command.x)
+    config.maxFailures = command.x ? 1 : parseInt(command.maxFailures, 10);
+  if (command.outputDir)
+    config.outputDir = command.output;
+  if (command.quiet)
+    config.quiet = command.quiet;
+  if (command.repeatEach)
+    config.repeatEach = parseInt(command.repeatEach, 10);
+  if (command.retries)
+    config.retries = parseInt(command.retries, 10);
+  if (shard)
+    config.shard = shard;
+  if (command.snapshotDir)
+    config.snapshotDir = command.snapshotDir;
+  if (command.timeout)
+    config.timeout = parseInt(command.timeout, 10);
+  if (command.updateSnapshots)
+    config.updateSnapshots = !!command.updateSnapshots;
+  if (command.workers)
+    config.workers = parseInt(command.workers, 10);
 
   runner.generateTests({ parameters });
   if (command.list) {
@@ -184,28 +200,28 @@ function filterFiles(base: string, files: string[], filters: string[], testMatch
 function addRunnerOptions(program: commander.Command, param: boolean) {
   program = program
       .version('Version ' + /** @type {any} */ (require)('../package.json').version)
-      .option('--forbid-only', 'Fail if exclusive test(s) encountered', false)
-      .option('-g, --grep <grep>', 'Only run tests matching this string or regexp', '.*')
-      .option('--global-timeout <timeout>', 'Specify maximum time this test suite can run (in milliseconds), default: 0 for unlimited', '0')
-      .option('-h, --help', 'Display help')
-      .option('-j, --workers <workers>', 'Number of concurrent workers, use 1 to run in single worker, default: (number of CPU cores / 2)', String(Math.ceil(require('os').cpus().length / 2)))
-      .option('--list', 'Only collect all the test and report them')
-      .option('--max-failures <N>', 'Stop after the first N failures', '0')
-      .option('--output <outputDir>', 'Folder for output artifacts, default: test-results', path.join(process.cwd(), 'test-results'));
+      .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
+      .option('-g, --grep <grep>', `Only run tests matching this string or regexp  (default: "${defaultConfig.grep}")`)
+      .option('--global-timeout <timeout>', `Specify maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)
+      .option('-h, --help', `Display help`)
+      .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
+      .option('--list', `Only collect all the test and report them`)
+      .option('--max-failures <N>', `Stop after the first N failures (default: ${defaultConfig.maxFailures})`)
+      .option('--output <outputDir>', `Folder for output artifacts (default: ${defaultConfig.outputDir})`);
   if (param)
-    program = program.option('-p, --param <name=value...>', 'Specify fixture parameter value');
+    program = program.option('-p, --param <name=value...>', `Specify fixture parameter value`);
   program = program
-      .option('--quiet', 'Suppress stdio', false)
-      .option('--repeat-each <repeat-each>', 'Specify how many times to run the tests', '1')
+      .option('--quiet', `Suppress stdio`)
+      .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: ${defaultConfig.repeatEach})`)
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
-      .option('--retries <retries>', 'Specify retry count', '0')
-      .option('--shard <shard>', 'Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"', '')
-      .option('--snapshot-dir <dir>', 'Snapshot directory, relative to tests directory', '__snapshots__')
-      .option('--test-ignore <pattern>', 'Pattern used to ignore test files', '')
-      .option('--test-match <pattern>', 'Pattern used to find test files', '**/?(*.)+(spec|test).[jt]s')
-      .option('--timeout <timeout>', 'Specify test timeout threshold (in milliseconds), default: 10000', '10000')
-      .option('-u, --update-snapshots', 'Whether to update snapshots with actual results', false)
-      .option('-x', 'Stop after the first failure');
+      .option('--retries <retries>', `Specify retry count (default: ${defaultConfig.retries})`)
+      .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
+      .option('--snapshot-dir <dir>', `Snapshot directory, relative to tests directory (default: "${defaultConfig.snapshotDir}"`)
+      .option('--test-ignore <pattern>', `Pattern used to ignore test files`, '')
+      .option('--test-match <pattern>', `Pattern used to find test files`, '**/?(*.)+(spec|test).[jt]s')
+      .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: ${defaultConfig.timeout})`)
+      .option('-u, --update-snapshots', `Whether to update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
+      .option('-x', `Stop after the first failure`);
 }
 
 function printParametersHelp(parameterRegistrations: ParameterRegistration[]) {

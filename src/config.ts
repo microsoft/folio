@@ -30,3 +30,20 @@ export type Config = {
   updateSnapshots: boolean;
   workers: number;
 };
+
+export const defaultConfig: Config = {
+  forbidOnly: false,
+  globalTimeout: 0,
+  grep: '.*',
+  maxFailures: 0,
+  outputDir: 'test-results',
+  quiet: false,
+  repeatEach: 1,
+  retries: 0,
+  shard: undefined,
+  snapshotDir: '__snapshots__',
+  testDir: '.',
+  timeout: 10000,
+  updateSnapshots: false,
+  workers: Math.ceil(require('os').cpus().length / 2),
+};
