@@ -136,8 +136,7 @@ export class WorkerRunner extends EventEmitter {
     this._setCurrentTestInfo({
       title: test.title,
       file: test.file,
-      line: test.line,
-      column: test.column,
+      location: test.location,
       fn: test.fn,
       parameters,
       repeatEachIndex: this._repeatEachIndex,

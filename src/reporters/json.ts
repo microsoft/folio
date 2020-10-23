@@ -23,8 +23,11 @@ import { Test, Suite, Spec, TestResult, TestError } from '../test';
 export interface SerializedSuite {
   title: string;
   file: string;
-  line: (number|undefined);
-  column: (number|undefined);
+  location?: {
+    line: number;
+    column: number;
+    file: string;
+  };
   specs: ReturnType<JSONReporter['_serializeTestSpec']>[];
   suites?: SerializedSuite[];
 }
@@ -76,9 +79,12 @@ class JSONReporter extends EmptyReporter {
     const suites = suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s);
     return {
       title: suite.title,
-      file: toPosixPath(path.relative(this.config.testDir, suite.file)),
-      line: suite.line,
-      column: suite.column,
+      file: suite.file,
+      location: suite.location ? {
+        file: toPosixPath(path.relative(this.config.testDir, suite.location.file)),
+        line: suite.location.line,
+        column: suite.location.column,
+      } : undefined,
       specs: suite.specs.map(test => this._serializeTestSpec(test)),
       suites: suites.length ? suites : undefined,
     };
@@ -87,10 +93,13 @@ class JSONReporter extends EmptyReporter {
   private _serializeTestSpec(spec: Spec) {
     return {
       title: spec.title,
-      file: toPosixPath(path.relative(this.config.testDir, spec.file)),
-      line: spec.line,
-      column: spec.column,
-      tests: spec.tests.map(r => this._serializeTest(r))
+      tests: spec.tests.map(r => this._serializeTest(r)),
+      file: spec.file,
+      location: spec.location ? {
+        file: toPosixPath(path.relative(this.config.testDir, spec.location.file)),
+        line: spec.location.line,
+        column: spec.location.column,
+      } : undefined,
     };
   }
 
