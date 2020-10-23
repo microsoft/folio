@@ -15,7 +15,6 @@
  */
 
 import fs from 'fs';
-import url from 'url';
 import path from 'path';
 import { Config } from '../config';
 import { EmptyReporter } from '../reporter';
@@ -36,6 +35,10 @@ export type ReportFormat = {
   errors?: { error: TestError }[];
   suites?: SerializedSuite[];
 };
+
+function toPosixPath(aPath: string): string {
+  return aPath.split(path.sep).join(path.posix.sep);
+}
 
 class JSONReporter extends EmptyReporter {
   config: Config;
@@ -59,8 +62,8 @@ class JSONReporter extends EmptyReporter {
     outputReport({
       config: {
         ...this.config,
-        outputDir: url.pathToFileURL(this.config.outputDir).toString(),
-        testDir: url.pathToFileURL(this.config.testDir).toString(),
+        outputDir: toPosixPath(this.config.outputDir),
+        testDir: toPosixPath(this.config.testDir),
       },
       suites: this.suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s),
       errors: this._errors
@@ -73,7 +76,7 @@ class JSONReporter extends EmptyReporter {
     const suites = suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s);
     return {
       title: suite.title,
-      file: url.pathToFileURL(suite.file).toString(),
+      file: toPosixPath(path.relative(this.config.testDir, suite.file)),
       line: suite.line,
       column: suite.column,
       specs: suite.specs.map(test => this._serializeTestSpec(test)),
@@ -84,7 +87,7 @@ class JSONReporter extends EmptyReporter {
   private _serializeTestSpec(spec: Spec) {
     return {
       title: spec.title,
-      file: url.pathToFileURL(spec.file).toString(),
+      file: toPosixPath(path.relative(this.config.testDir, spec.file)),
       line: spec.line,
       column: spec.column,
       tests: spec.tests.map(r => this._serializeTest(r))

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { expect } from 'folio';
+import path from 'path';
 import { folio } from './fixtures';
 const { it } = folio;
 
@@ -86,7 +87,7 @@ it('should emit test annotations', async ({ runInlineTest }) => {
   expect(result.report.suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fail', description: 'Fail annotation' }]);
 });
 
-it('should have file URLs instead of paths for portability', async ({ runInlineTest }) => {
+it('should have relative always-posix paths', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       it('math works!', async ({}) => {
@@ -95,9 +96,9 @@ it('should have file URLs instead of paths for portability', async ({ runInlineT
     `
   }, { 'list': true });
   expect(result.exitCode).toBe(0);
-  expect(result.report.config.outputDir.startsWith('file://')).toBe(true);
-  expect(result.report.config.testDir.startsWith('file://')).toBe(true);
-  expect(result.report.suites[0].specs[0].file.startsWith('file://')).toBe(true);
+  expect(result.report.config.testDir.indexOf(path.win32.sep)).toBe(-1);
+  expect(result.report.config.outputDir.indexOf(path.win32.sep)).toBe(-1);
+  expect(result.report.suites[0].specs[0].file).toBe('a.test.js');
   expect(result.report.suites[0].specs[0].line).toBe(5);
   expect(result.report.suites[0].specs[0].column).toBe(7);
 });
