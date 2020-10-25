@@ -35,11 +35,8 @@ export type TestInfo = {
   // Declaration
   title: string;
   file: string;
-  location?: {
-    file: string,
-    line: number,
-    column: number,
-  },
+  line: number;
+  column: number;
   fn: Function;
 
   // Parameters

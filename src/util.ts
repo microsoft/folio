@@ -78,10 +78,10 @@ function callFrames(): string[] {
   return frames;
 }
 
-export function callLocation(): ({file: string, line: number, column: number}|undefined) {
+export function callLocation(fallbackFile: string): {file: string, line: number, column: number} {
   const frames = callFrames();
   if (!frames.length)
-    return undefined;
+    return {file: fallbackFile, line: 1, column: 1};
   const location = stackUtils.parseLine(frames[0]);
   return {
     file: path.resolve(cwd, location.file),
