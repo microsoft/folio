@@ -1,6 +1,6 @@
 {
   "name": "folio",
-  "version": "0.3.13-post",
+  "version": "0.3.14-post",
   "bin": {
     "folio": "./cli.js"
   },
