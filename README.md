@@ -426,9 +426,34 @@ export const folio = fixtures.build();
 
 ## Parameters
 
-It is common to run tests in different configurations, for example when running web app tests against multiple browsers or testing two different versions of api endpoint. Folio supports this via parameters - define the parameter and start using it in a test or a fixture.
+It is common to run tests in different configurations, for example running web app tests against multiple browsers or testing two different API versions. Folio supports this via parameters: you can define a parameter and start using it in a test or a fixture.
 
-Consider the following test that uses an API url endpoint:
+In the example below, we create the `version` parameter, which is used by the `apiUrl` fixture.
+
+```ts
+// api.folio.ts
+import { folio as base } from 'folio';
+export { expect } from 'folio';
+
+// Declare types for new fixture and parameters
+const fixtures = base.extend<{}, { apiUrl: string }, { version: string }>();
+
+// Define version parameter with description and default value
+fixtures.version.initParameter('API version', 'v1');
+
+// Define apiUrl fixture which uses the version parameter
+fixtures.apiUrl.init(async ({ version }, runTest) => {
+  const server = await startServer();
+  await runTest(`http://localhost/api/${version}`);
+  await server.close();
+}, { scope: 'worker' });
+
+const folio = fixtures.build();
+export const it = folio.it;
+```
+
+Your tests can use the `apiUrl` fixture, which depends on the `version` parameter.
+
 ```ts
 // api.spec.ts
 import { it, expect } from './api.folio';
@@ -440,53 +465,50 @@ it('fetch 1', async ({ apiUrl }) => {
 });
 ```
 
-Here is how to define the api version parameter:
-```ts
-// api.folio.ts
-import { folio as base } from 'folio';
-export { expect } from 'folio';
-
-const fixtures = base.extend<{}, { apiUrl: string }, { version: string }>();
-
-fixtures.version.initParameter('API version', 'v1');
-
-fixtures.apiUrl.init(async ({ version }, runTest) => {
-  const server = await startServer();
-  await runTest(`http://localhost/api/${version}`);
-  await server.close();
-}, { scope: 'worker' });
-
-const folio = fixtures.build();
-export const it = folio.it;
-```
-
 ### In the command line
 
-Given the example above, it is possible to run tests against the specific api version.
-
-TODO: do not assume this is read top-bottom, each section should be self-contained
+Given the above example, it is possible to run tests against a specific API version from CLI.
 
 ```sh
-# Run against the default version (v1 in our case).
+# Run against the default version (v1).
 npx folio tests
+
 # Run against the specified version.
 npx folio tests -p version=v2
+
+# Run against multiple versions.
+npx folio tests -p version=v1 -p version=v2
 ```
 
 ### Generating tests
 
-TODO: do not assume this is read top-bottom, each section should be self-contained
-
-It is also possible to run tests against multiple api versions.
+You can also generate tests for different values of parameters. This enables you to reuse your tests across different configurations.
 
 ```ts
 // api.folio.ts
+// ...
+const folio = builder.build();
 
 // Generate three versions of each test that directly or indirectly
 // depends on the |version| parameter.
 folio.generateParametrizedTests('version', ['v1', 'v2', 'v3']);
+
+export const it = folio.it;
 ```
 
+Run the generated tests via CLI.
+
 ```sh
-npx folio tests -p version=v1 -p version=v2
+# Run tests across specified versions.
+npx folio
+```
+
+With [annotations](#annotations), you can specify skip criteria that relies on parameter values.
+
+```js
+it('tests new api features', (test, { version }) => {
+  test.skip(version !== 'v3', 'skipped for older api versions');
+}, async ({ apiUrl }) => {
+  // Test function
+});
 ```
