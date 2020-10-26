@@ -78,12 +78,16 @@ function callFrames(): string[] {
   return frames;
 }
 
-export function callLocation(): string {
+export function callLocation(fallbackFile: string): {file: string, line: number, column: number} {
   const frames = callFrames();
   if (!frames.length)
-    return '';
+    return {file: fallbackFile, line: 1, column: 1};
   const location = stackUtils.parseLine(frames[0]);
-  return `${path.resolve(cwd, location.file)}:${location.line}:${location.column}`;
+  return {
+    file: path.resolve(cwd, location.file),
+    line: location.line,
+    column: location.column,
+  };
 }
 
 export function errorWithCallLocation(message: string): Error {
