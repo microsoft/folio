@@ -87,6 +87,7 @@ class JSONReporter extends EmptyReporter {
   private _serializeTestSpec(spec: Spec) {
     return {
       title: spec.title,
+      ok: spec.ok(),
       tests: spec.tests.map(r => this._serializeTest(r)),
       file: toPosixPath(path.relative(this.config.testDir, spec.file)),
       line: spec.line,
