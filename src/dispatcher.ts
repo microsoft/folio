@@ -60,7 +60,7 @@ export class Dispatcher {
       const shardSize = Math.ceil(this._suite.total / this._config.shard.total);
       const from = shardSize * this._config.shard.current;
       const to = shardSize * (this._config.shard.current + 1);
-      shardDetails = `, shard ${this._config.shard.current + 1} or ${this._config.shard.total}`;
+      shardDetails = `, shard ${this._config.shard.current + 1} of ${this._config.shard.total}`;
       let current = 0;
       const filteredQueue: RunPayload[] = [];
       for (const runPayload of this._queue) {
