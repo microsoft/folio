@@ -26,7 +26,7 @@ import JUnitReporter from './reporters/junit';
 import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
 import { Multiplexer } from './reporters/multiplexer';
-import { Runner, Config } from './runner';
+import { Runner } from './runner';
 import { assignConfig, config, ParameterRegistration } from './fixtures';
 import { defaultConfig } from './config';
 
@@ -217,7 +217,7 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--retries <retries>', `Specify retry count (default: ${defaultConfig.retries})`)
       .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
       .option('--snapshot-dir <dir>', `Snapshot directory, relative to tests directory (default: "${defaultConfig.snapshotDir}"`)
-      .option('--test-ignore <pattern>', `Pattern used to ignore test files`, '')
+      .option('--test-ignore <pattern>', `Pattern used to ignore test files`, 'node_modules/**')
       .option('--test-match <pattern>', `Pattern used to find test files`, '**/?(*.)+(spec|test).[jt]s')
       .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: ${defaultConfig.timeout})`)
       .option('-u, --update-snapshots', `Whether to update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
