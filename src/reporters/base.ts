@@ -114,12 +114,16 @@ export class BaseReporter implements Reporter  {
       console.log(colors.green(`  ${expected} passed`) + colors.dim(` (${milliseconds(this.duration)})`));
     if (skipped)
       console.log(colors.yellow(`  ${skipped} skipped`));
-    if (unexpected.length)
+    if (unexpected.length) {
       console.log(colors.red(`  ${unexpected.length} failed`));
+      this._printTestHeaders(unexpected);
+    }
     if (expectedFlaky)
       console.log(colors.yellow(`  ${expectedFlaky} expected flaky`));
-    if (unexpectedFlaky.length)
+    if (unexpectedFlaky.length) {
       console.log(colors.red(`  ${unexpectedFlaky.length} unexpected flaky`));
+      this._printTestHeaders(unexpectedFlaky);
+    }
     if (this.timeout)
       console.log(colors.red(`  Timed out waiting ${this.timeout / 1000}s for the entire test run`));
 
@@ -128,6 +132,12 @@ export class BaseReporter implements Reporter  {
       this._printFailures([...unexpected, ...unexpectedFlaky]);
     }
     this._printSlowTests();
+  }
+
+  private _printTestHeaders(tests: Test[]) {
+    tests.forEach(test => {
+      console.log(formatTestHeader(this.config, test, '    '));
+    });
   }
 
   private _printFailures(failures: Test[]) {
@@ -147,7 +157,7 @@ export class BaseReporter implements Reporter  {
 
 export function formatFailure(config: Config, test: Test, index?: number): string {
   const tokens: string[] = [];
-  tokens.push(formatTestHeader(config, test, index));
+  tokens.push(formatTestHeader(config, test, '  ', index));
   for (const result of test.results) {
     if (result.status === 'passed')
       continue;
@@ -157,18 +167,18 @@ export function formatFailure(config: Config, test: Test, index?: number): strin
   return tokens.join('\n');
 }
 
-function formatTestHeader(config: Config, test: Test, index?: number): string {
+function formatTestHeader(config: Config, test: Test, indent: string, index?: number): string {
   const tokens: string[] = [];
   const spec = test.spec;
   let relativePath = path.relative(config.testDir, spec.file) || path.basename(spec.file);
   relativePath += ':' + spec.line + ':' + spec.column;
   const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
-  const header = `  ${index ? index + ')' : ''} ${relativePath} › ${spec.fullTitle()}${passedUnexpectedlySuffix}`;
-  tokens.push(colors.bold(colors.red(pad(header, '='))));
+  const header = `${indent}${index ? index + ') ' : ''}${relativePath} › ${spec.fullTitle()}${passedUnexpectedlySuffix}`;
+  tokens.push(colors.red(pad(header, '=')));
 
   // Print parameters.
   if (Object.keys(test.parameters).length)
-    tokens.push('    ' + ' '.repeat(String(index).length) + colors.gray(serializeParameters(test.parameters)));
+    tokens.push(indent + (index ? ' '.repeat(String(index).length + 2) : '') + colors.gray(serializeParameters(test.parameters)));
   return tokens.join('\n');
 }
 
