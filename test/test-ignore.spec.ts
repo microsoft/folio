@@ -60,6 +60,25 @@ it('should ignore a folder', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
+it('should ignore a node_modules', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      it('pass', ({}) => {});
+    `,
+    'node_modules/a.test.ts': `
+      it('pass', ({}) => {});
+    `,
+    'node_modules/b.test.ts': `
+      it('pass', ({}) => {});
+    `,
+    'folder/c.test.ts': `
+      it('pass', ({}) => {});
+    `
+  });
+  expect(result.passed).toBe(2);
+  expect(result.exitCode).toBe(0);
+});
+
 it('should filter tests', async ({ runInlineTest }) => {
   const result = await runInlineTest(tests, { 'test-ignore': 'c.test.*' });
   expect(result.passed).toBe(2);
