@@ -16,6 +16,7 @@
 
 import colors from 'colors/safe';
 import * as fs from 'fs';
+import * as path from 'path';
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
@@ -171,4 +172,22 @@ it('should compare different PNG images', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('Snapshot comparison failed');
   expect(result.output).toContain('snapshot-diff.png');
+});
+
+it('should respect threshold', async ({runInlineTest}) => {
+  const expected = fs.readFileSync(path.join(__dirname, 'assets/screenshot-canvas-expected.png'));
+  const actual = fs.readFileSync(path.join(__dirname, 'assets/screenshot-canvas-actual.png'));
+  const result = await runInlineTest({
+    '__snapshots__/a/is-a-test/snapshot.png': expected,
+    '__snapshots__/a/is-a-test/snapshot2.png': expected,
+    'a.spec.js': `
+      it('is a test', ({}) => {
+        expect(Buffer.from('${actual.toString('base64')}', 'base64')).toMatchSnapshot({ threshold: 0.3 });
+        expect(Buffer.from('${actual.toString('base64')}', 'base64')).not.toMatchSnapshot({ threshold: 0.2 });
+        expect(Buffer.from('${actual.toString('base64')}', 'base64')).toMatchSnapshot('snapshot2.png', { threshold: 0.3 });
+        expect(Buffer.from('${actual.toString('base64')}', 'base64')).toMatchSnapshot({ name: 'snapshot2.png', threshold: 0.3 });
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
 });

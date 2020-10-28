@@ -136,15 +136,14 @@ export interface Matchers<R> {
     /**
      * Match snapshot
      */
-    toMatchSnapshot(options?: string | {
+    toMatchSnapshot(options?: {
       name?: string,
       threshold?: number
     }): R;
     /**
      * Match snapshot
      */
-    toMatchSnapshot(name: string, options?: string | {
-      name?: string,
+    toMatchSnapshot(name: string, options?: {
       threshold?: number
     }): R;
 }
