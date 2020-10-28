@@ -21,23 +21,15 @@ import { compare } from './golden';
 
 export const expect: Expect = expectLibrary;
 
-declare module 'expect/build/types' {
-  interface Matchers<R> {
-    toMatchSnapshot(options?: string | {
-      name?: string,
-      threshold?: number
-    }): R;
-  }
-}
-
 const snapshotOrdinalSymbol = Symbol('snapshotOrdinalSymbol');
 
-function toMatchSnapshot(received: Buffer | string, options?: string | { name?: string, threshold?: number }) {
+function toMatchSnapshot(received: Buffer | string, nameOrOptions?: string | { name?: string, threshold?: number }, optOptions: { threshold?: number } = {}) {
+  let options: { name?: string, threshold?: number };
   const testInfo = currentTestInfo();
-  if (typeof options === 'string')
-    options = { name: options };
+  if (typeof nameOrOptions === 'string')
+    options = { name: nameOrOptions, ...optOptions };
   else
-    options = { ...options || {} };
+    options = { ...nameOrOptions };
 
   let name = options.name;
   if (!name) {
