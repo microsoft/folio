@@ -166,15 +166,27 @@ export class WorkerRunner extends EventEmitter {
     }
 
     const startTime = monotonicTime();
-    const { timedOut } = await raceAgainstDeadline(this._runTestWithFixturesAndHooks(test, this._testInfo), deadline);
+
+    let result = await raceAgainstDeadline(this._runTestWithFixturesAndHooks(test, this._testInfo), deadline);
+    // Do not overwrite test failure upon timeout in fixture or hook.
+    if (result.timedOut && this._testInfo.status === 'passed')
+      this._testInfo.status = 'timedOut';
+
+    if (!result.timedOut) {
+      result = await raceAgainstDeadline(this._tearDownTestScope(this._testInfo), deadline);
+      // Do not overwrite test failure upon timeout in fixture or hook.
+      if (result.timedOut && this._testInfo.status === 'passed')
+        this._testInfo.status = 'timedOut';
+    } else {
+      // A timed-out test gets a full additional timeout to teardown test fixture scope.
+      const newDeadline = timeout ? monotonicTime() + timeout : 0;
+      await raceAgainstDeadline(this._tearDownTestScope(this._testInfo), newDeadline);
+    }
 
     // Async hop above, we could have stopped.
     if (!this._testInfo)
       return;
 
-    // Do not overwrite test failure upon timeout in fixture or hook.
-    if (timedOut && this._testInfo.status === 'passed')
-      this._testInfo.status = 'timedOut';
     this._testInfo.duration = monotonicTime() - startTime;
     this.emit('testEnd', buildTestEndPayload(testId, this._testInfo));
     if (this._testInfo.status !== 'passed') {
@@ -227,6 +239,9 @@ export class WorkerRunner extends EventEmitter {
         // Continue running fixtures teardown even after the failure.
       }
     }
+  }
+
+  private async _tearDownTestScope(testInfo: TestInfo) {
     // Worker will tear down test scope if we are stopped.
     if (this._isStopped)
       return;
@@ -240,6 +255,7 @@ export class WorkerRunner extends EventEmitter {
       }
     }
   }
+
   private async _runHooks(suite: WorkerSuite, type: string, dir: 'before' | 'after') {
     if (this._isStopped)
       return;
