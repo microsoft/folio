@@ -15,10 +15,9 @@
  */
 
 import { expect } from './expect';
-import { FixturePool, setParameterValues } from './fixtures';
+import { FixturePool, localOverrideParameterRegistrations, setParameterDefaultValues } from './fixtures';
 import { TestModifier } from './testModifier';
 import { errorWithCallLocation } from './util';
-
 Error.stackTraceLimit = 15;
 
 export type SpecType = 'default' | 'skip' | 'only';
@@ -62,6 +61,7 @@ type BeforeEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtu
 type AfterEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtures: WorkerParameters & WorkerFixtures & TestFixtures) => Promise<void>) => void;
 type BeforeAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 type AfterAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
+type SetParameter<WorkerParameters> = <T extends string & keyof WorkerParameters>(name: T, ...values: WorkerParameters[T][]) => void;
 
 export class FolioImpl<TestFixtures = {}, WorkerFixtures = {}, WorkerParameters = {}> {
   it: It<WorkerParameters, WorkerFixtures, TestFixtures>;
@@ -73,6 +73,7 @@ export class FolioImpl<TestFixtures = {}, WorkerFixtures = {}, WorkerParameters 
   afterEach: AfterEach<WorkerParameters, WorkerFixtures, TestFixtures>;
   beforeAll: BeforeAll<WorkerFixtures>;
   afterAll: AfterAll<WorkerFixtures>;
+  setParameter: SetParameter<WorkerParameters>;
   expect: typeof expect;
 
   _pool: FixturePool;
@@ -97,6 +98,9 @@ export class FolioImpl<TestFixtures = {}, WorkerFixtures = {}, WorkerParameters 
     this.afterEach = fn => implementation.afterEach(this, fn);
     this.beforeAll = fn => implementation.beforeAll(this, fn);
     this.afterAll = fn => implementation.afterAll(this, fn);
+    this.setParameter = (name, ...values) => {
+      localOverrideParameterRegistrations.set(name, values);
+    };
   }
 
   union<T, W, P>(other: Folio<T, W, P>): Folio<TestFixtures & T, WorkerFixtures & W, WorkerParameters & P> {
@@ -110,7 +114,7 @@ export class FolioImpl<TestFixtures = {}, WorkerFixtures = {}, WorkerParameters 
   }
 
   generateParametrizedTests<T extends keyof WorkerParameters>(name: T, values: WorkerParameters[T][]) {
-    setParameterValues(name as string, values);
+    setParameterDefaultValues(name as string, values);
   }
 }
 

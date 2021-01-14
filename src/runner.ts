@@ -18,7 +18,7 @@
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
+import { config, localOverrideParameterRegistrations, defaultParameterValues, ParameterRegistration, parameterRegistrations, setParameterDefaultValues, setParameterCliValues } from './fixtures';
 import { Reporter } from './reporter';
 import { generateTests } from './testGenerator';
 import { monotonicTime, prependErrorMessage, raceAgainstDeadline } from './util';
@@ -51,20 +51,25 @@ export class Runner {
       const suite = new RunnerSuite(rootFixtures, '');
       suite.file = file;
       const revertBabelRequire = runnerSpec(suite, config);
+      let cleanup = () => void 0;
       try {
-        require(file);
+        cleanup = requireWithCleanup(file);
       } catch (e) {
         prependErrorMessage(e, `Error while reading ${file}:\n`);
         throw e;
       }
+      if (localOverrideParameterRegistrations.size)
+        cleanup();
+      suite._parameterOverrides = new Map(localOverrideParameterRegistrations.entries());
+      localOverrideParameterRegistrations.clear();
       this._suites.push(suite);
       revertBabelRequire();
     }
 
     // Set default values
     for (const param of parameterRegistrations.values()) {
-      if (!(param.name in matrix))
-        setParameterValues(param.name, [param.defaultValue]);
+      if (!(param.name in defaultParameterValues))
+        setParameterDefaultValues(param.name, [param.defaultValue]);
     }
     return { parameters: parameterRegistrations };
   }
@@ -72,7 +77,7 @@ export class Runner {
   generateTests(options: { parameters?: { [key: string]: (string | boolean | number)[] } } = {}): Suite {
     if (options.parameters) {
       for (const name of Object.keys(options.parameters))
-        setParameterValues(name, options.parameters[name]);
+        setParameterCliValues(name, options.parameters[name]);
     }
 
     // We can only generate tests after parameters have been assigned.
@@ -127,6 +132,24 @@ export class Runner {
       return 'sigint';
     return runner.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
   }
+}
+
+function requireWithCleanup(filename: string) {
+  const entries = new Set(Object.keys(require.cache));
+  const cleanup = () => {
+    for (const key in require.cache) {
+      if (!entries.has(key))
+        delete require.cache[key];
+    }
+  };
+
+  try {
+    require(filename);
+  } catch (e) {
+    cleanup();
+    throw e;
+  }
+  return cleanup;
 }
 
 function excludeNonOnlyFiles(suites: RunnerSuite[]): RunnerSuite[] {

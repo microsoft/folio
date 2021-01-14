@@ -30,3 +30,10 @@ it('should fail on unknown parameters', async ({ runTest }) => {
   }).catch(e => e);
   expect(result.output).toContain(`unknown parameter 'param3'`);
 });
+
+it('should locally override parameters', async ({ runTest }) => {
+  const result = await runTest('local-parameter-override.ts', {
+    'param': ['param2=override from outside 2']
+  });
+  expect(result.exitCode).toBe(0);
+});

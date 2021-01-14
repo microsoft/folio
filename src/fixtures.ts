@@ -84,11 +84,18 @@ export function assignParameters(params: any) {
   parameters = Object.assign(parameters, params);
 }
 
-export const matrix: { [name: string]: any } = {};
-export function setParameterValues(name: string, values: any[]) {
-  if (!(name in matrix))
+export const defaultParameterValues: { [name: string]: any } = {};
+export const cliParameterValues: { [name: string]: any } = {};
+export const localOverrideParameterRegistrations = new Map<string, any>();
+export function setParameterDefaultValues(name: string, values: any[]) {
+  if (!(name in defaultParameterValues))
     throw errorWithCallLocation(`Unregistered parameter '${name}' was set.`);
-  matrix[name] = values;
+  defaultParameterValues[name] = values;
+}
+export function setParameterCliValues(name: string, values: any[]) {
+  if (!(name in defaultParameterValues))
+    throw errorWithCallLocation(`Unregistered parameter '${name}' was set.`);
+  cliParameterValues[name] = values;
 }
 
 export let config: Config = {} as any;
@@ -244,7 +251,7 @@ export class FixturePool {
     if (parameterRegistrations.has(parameter.name))
       throw errorWithCallLocation(`Parameter "${parameter.name}" has been already registered`);
     parameterRegistrations.set(parameter.name, parameter);
-    matrix[parameter.name] = [parameter.defaultValue];
+    defaultParameterValues[parameter.name] = [parameter.defaultValue];
   }
 
   validate() {

@@ -34,6 +34,7 @@ export class RunnerSuite extends Suite {
   _modifierFn: ModifierFn | null;
   _usedParameters: string[] = [];
   _hooks: { type: string, fn: Function, stack: string } [] = [];
+  _parameterOverrides = new Map<string, any>();
 
   _collectUsedParameters(result: Set<string>) {
     for (const param of this._usedParameters)

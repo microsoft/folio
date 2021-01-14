@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { matrix } from './fixtures';
+import { defaultParameterValues, cliParameterValues } from './fixtures';
 import { Configuration } from './ipc';
 import { Config } from './config';
 import { RunnerSuite, RunnerSpec, RunnerTest, ModifierFn } from './runnerTest';
@@ -41,7 +41,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
       // For generator fixtures, collect all variants of the fixture values
       // to build different workers for them.
       for (const name of spec._allUsedParameters()) {
-        const values = matrix[name];
+        const values = name in cliParameterValues ? cliParameterValues[name] : (suite._parameterOverrides.has(name) ? suite._parameterOverrides.get(name) : defaultParameterValues[name]);
         const state = generatorConfigurations.length ? generatorConfigurations.slice() : [[]];
         generatorConfigurations.length = 0;
         for (const gen of state) {
