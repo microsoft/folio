@@ -79,23 +79,10 @@ it('render unexpected after retry', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-it('render unexpected flaky', async ({ runInlineTest }) => {
+it('render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-    it('one', async ({testInfo}) => {
-      expect(testInfo.retry).toBe(3);
-    });
-    `,
-  }, { retries: 3, reporter: 'junit' });
-  expect(result.output).toContain('Retry #1');
-  expect(result.output).toContain('Retry #2');
-  expect(result.exitCode).toBe(1);
-});
-
-it('render expected flaky', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'a.test.js': `
-      it('one', test => test.flaky(), async ({testInfo}) => {
+      it('one', async ({testInfo}) => {
         expect(testInfo.retry).toBe(3);
       });
     `,
@@ -107,7 +94,7 @@ it('render expected flaky', async ({ runInlineTest }) => {
 it('render stdout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', test => test.flaky(), async ({testInfo}) => {
+      it('one', async ({testInfo}) => {
         console.log('Hello world');
       });
     `,

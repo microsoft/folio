@@ -54,16 +54,13 @@ it('should repeat each', async ({ runTest }) => {
 it('should allow flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('flake', test => {
-        test.flaky();
-      }, async ({ testInfo }) => {
+      it('flake', async ({ testInfo }) => {
         expect(testInfo.retry).toBe(1);
       });
     `,
   }, { retries: 1 });
   expect(result.exitCode).toBe(0);
-  expect(result.expectedFlaky).toBe(1);
-  expect(result.unexpectedFlaky).toBe(0);
+  expect(result.flaky).toBe(1);
 });
 
 it('should fail on unexpected pass', async ({ runTest }) => {

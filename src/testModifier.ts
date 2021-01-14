@@ -18,7 +18,6 @@ import { TestStatus } from './ipc';
 
 export class TestModifier {
   _skipped = false;
-  _flaky = false;
   _slow = false;
   _expectedStatus?: TestStatus = 'passed';
   _annotations: any[] = [];
@@ -72,21 +71,6 @@ export class TestModifier {
       this._skipped = true;
       this._annotations.push({
         type: 'fixme',
-        description: processed.description
-      });
-    }
-  }
-
-  flaky(): void;
-  flaky(condition: boolean): void;
-  flaky(description: string): void;
-  flaky(condition: boolean, description: string): void;
-  flaky(arg?: boolean | string, description?: string) {
-    const processed = this._interpretCondition(arg, description);
-    if (processed.condition) {
-      this._flaky = true;
-      this._annotations.push({
-        type: 'flaky',
         description: processed.description
       });
     }

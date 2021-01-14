@@ -26,8 +26,7 @@ export type RunResult = {
   output: string,
   passed: number,
   failed: number,
-  expectedFlaky: number,
-  unexpectedFlaky: number,
+  flaky: number,
   skipped: number,
   report: ReportFormat,
   results: any[],
@@ -70,8 +69,7 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
   const status = await new Promise<number>(x => testProcess.on('close', x));
   const passed = (/(\d+) passed/.exec(output.toString()) || [])[1] || '0';
   const failed = (/(\d+) failed/.exec(output.toString()) || [])[1] || '0';
-  const expectedFlaky = (/(\d+) expected flaky/.exec(output.toString()) || [])[1] || '0';
-  const unexpectedFlaky = (/(\d+) unexpected flaky/.exec(output.toString()) || [])[1] || '0';
+  const flaky = (/(\d+) flaky/.exec(output.toString()) || [])[1] || '0';
   const skipped = (/(\d+) skipped/.exec(output.toString()) || [])[1] || '0';
   let report;
   try {
@@ -100,8 +98,7 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
     output,
     passed: parseInt(passed, 10),
     failed: parseInt(failed, 10),
-    expectedFlaky: parseInt(expectedFlaky, 10),
-    unexpectedFlaky: parseInt(unexpectedFlaky, 10),
+    flaky: parseInt(flaky, 10),
     skipped: parseInt(skipped, 10),
     report,
     results,

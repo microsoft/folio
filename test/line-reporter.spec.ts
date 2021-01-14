@@ -35,32 +35,15 @@ it('render unexpected after retry', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-it('render unexpected flaky', async ({ runInlineTest }) => {
+it('render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-    it('one', async ({testInfo}) => {
-      expect(testInfo.retry).toBe(3);
-    });
-    `,
-  }, { retries: 3, reporter: 'line' });
-  const text = stripAscii(result.output);
-  expect(text).toContain('1 unexpected flaky');
-  expect(text).toContain('1) a.test');
-  expect(text).not.toContain('2) a.test');
-  expect(text).toContain('Retry #1');
-  expect(text).toContain('Retry #2');
-  expect(result.exitCode).toBe(1);
-});
-
-it('render expected flaky', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'a.test.js': `
-      it('one', test => test.flaky(), async ({testInfo}) => {
+      it('one', async ({testInfo}) => {
         expect(testInfo.retry).toBe(3);
       });
     `,
   }, { retries: 3, reporter: 'line' });
   const text = stripAscii(result.output);
-  expect(text).toContain('1 expected flaky');
+  expect(text).toContain('1 flaky');
   expect(result.exitCode).toBe(0);
 });
