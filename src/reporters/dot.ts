@@ -38,8 +38,7 @@ class DotReporter extends BaseReporter {
     switch (test.status()) {
       case 'expected': process.stdout.write(colors.green('·')); break;
       case 'unexpected': process.stdout.write(colors.red(test.results[test.results.length - 1].status === 'timedOut' ? 'T' : 'F')); break;
-      case 'expected-flaky': process.stdout.write(colors.yellow('±')); break;
-      case 'unexpected-flaky': process.stdout.write(colors.red('±')); break;
+      case 'flaky': process.stdout.write(colors.yellow('±')); break;
     }
   }
 

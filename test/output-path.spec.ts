@@ -35,12 +35,12 @@ it('should include repeat token', async ({runInlineTest}) => {
 it('should include retry token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
-      it('test', test => test.flaky(), ({testInfo}) => {
+      it('test', ({testInfo}) => {
         expect(testInfo.outputPath('')).toContain('retry' + testInfo.retry);
         expect(testInfo.retry).toBe(2);
       });
     `
   }, { 'retries': 2 });
   expect(result.exitCode).toBe(0);
-  expect(result.expectedFlaky).toBe(1);
+  expect(result.flaky).toBe(1);
 });

@@ -20,9 +20,8 @@ const { it, expect } = folio;
 
 it('should retry failures', async ({ runTest }) => {
   const result = await runTest('retry-failures.js', { retries: 10 });
-  expect(result.exitCode).toBe(1);
-  expect(result.expectedFlaky).toBe(0);
-  expect(result.unexpectedFlaky).toBe(1);
+  expect(result.exitCode).toBe(0);
+  expect(result.flaky).toBe(1);
   expect(result.results.length).toBe(2);
   expect(result.results[0].workerIndex).toBe(0);
   expect(result.results[0].retry).toBe(0);

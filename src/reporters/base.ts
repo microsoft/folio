@@ -96,17 +96,15 @@ export class BaseReporter implements Reporter  {
   epilogue(full: boolean) {
     let skipped = 0;
     let expected = 0;
-    let expectedFlaky = 0;
     const unexpected: Test[] = [];
-    const unexpectedFlaky: Test[] = [];
+    const flaky: Test[] = [];
 
     this.suite.findTest(test => {
       switch (test.status()) {
         case 'skipped': ++skipped; break;
         case 'expected': ++expected; break;
         case 'unexpected': unexpected.push(test); break;
-        case 'expected-flaky': ++expectedFlaky; break;
-        case 'unexpected-flaky': unexpectedFlaky.push(test); break;
+        case 'flaky': flaky.push(test); break;
       }
     });
 
@@ -118,18 +116,16 @@ export class BaseReporter implements Reporter  {
       console.log(colors.red(`  ${unexpected.length} failed`));
       this._printTestHeaders(unexpected);
     }
-    if (expectedFlaky)
-      console.log(colors.yellow(`  ${expectedFlaky} expected flaky`));
-    if (unexpectedFlaky.length) {
-      console.log(colors.red(`  ${unexpectedFlaky.length} unexpected flaky`));
-      this._printTestHeaders(unexpectedFlaky);
+    if (flaky.length) {
+      console.log(colors.red(`  ${flaky.length} flaky`));
+      this._printTestHeaders(flaky);
     }
     if (this.timeout)
       console.log(colors.red(`  Timed out waiting ${this.timeout / 1000}s for the entire test run`));
 
-    if (full && unexpected.length + unexpectedFlaky.length) {
+    if (full && unexpected.length) {
       console.log('');
-      this._printFailures([...unexpected, ...unexpectedFlaky]);
+      this._printFailures(unexpected);
     }
     this._printSlowTests();
   }

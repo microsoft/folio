@@ -33,7 +33,7 @@ it('should work and remove empty dir', async ({ runInlineTest }) => {
       });
     `,
   }, { retries: 10 });
-  expect(result.exitCode).toBe(1);
+  expect(result.exitCode).toBe(0);
 
   expect(result.results[0].status).toBe('failed');
   expect(result.results[0].retry).toBe(0);

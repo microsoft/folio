@@ -167,7 +167,6 @@ export class Test {
   results: TestResult[] = [];
 
   skipped = false;
-  flaky = false;
   slow = false;
   expectedStatus: TestStatus = 'passed';
   timeout = 0;
@@ -177,7 +176,7 @@ export class Test {
     this.spec = spec;
   }
 
-  status(): 'skipped' | 'expected' | 'unexpected' | 'expected-flaky' | 'unexpected-flaky' {
+  status(): 'skipped' | 'expected' | 'unexpected' | 'flaky' {
     if (this.skipped)
       return 'skipped';
     // List mode bail out.
@@ -194,13 +193,13 @@ export class Test {
         hasPassedResults = true;
     }
     if (hasPassedResults)
-      return this.flaky ? 'expected-flaky' : 'unexpected-flaky';
+      return 'flaky';
     return 'unexpected';
   }
 
   ok(): boolean {
     const status = this.status();
-    return status === 'expected' || status === 'expected-flaky' || status === 'skipped';
+    return status === 'expected' || status === 'flaky' || status === 'skipped';
   }
 }
 

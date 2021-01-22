@@ -74,7 +74,6 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
           const test = new RunnerTest(spec);
           test.parameters = parameters;
           test.skipped = modifier._skipped;
-          test.flaky = modifier._flaky;
           test.slow = modifier._slow;
           test.expectedStatus = modifier._expectedStatus;
           test.timeout = modifier._timeout;
