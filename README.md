@@ -292,46 +292,27 @@ Possible annotations include:
    ```ts
    test.fixme('Crashes the database server. Better not run it. We should fix that.');
    ```
-- `flaky` marks the test as either passing or failing. Folio will run this test, and consider it passing if at least one retry succeeds.
-   ```ts
-   test.flaky('Oh well...');
-   ```
 
 ### Flaky tests
 
-Folio deals with flaky tests with retries and `flaky` annotations. Pass the maximum number of retries when running the tests:
+Folio deals with flaky tests with retries. Pass the maximum number of retries when running the tests:
 ```sh
 npx folio test/ --retries 3
 ```
 
-Failing tests will be retried multiple times until they pass, or the maximium number of retries is reached. By default, if the test fails at least once, Folio will report it as "unexpected flaky". For example, if the test passes on the second retry, Folio will report something like this:
+Failing tests will be retried multiple times until they pass, or the maximium number of retries is reached. By default, if the test fails at least once, Folio will report it as "flaky". For example, if the test passes on the second retry, Folio will report something like this:
 
 ```sh
 Running 1 test using 1 worker
 ××±
-1 unexpected flaky
+1 flaky
   1) my.test.js:1:1
     <Error from the first run>
     Retry #1
     <Error from the first retry>
 ```
 
-However, known flaky tests can be marked as `flaky`, so that Folio reports them as "expected flaky" and succeeds the test run.
-
-```ts
-it('my test', test => {
-  test.flaky('Database sometimes fails with the large table.');
-}, async ({ table }) => {
-  // Test goes here.
-});
-```
-
-If the test passes on the second retry, Folio will report something like this:
-```sh
-Running 1 test using 1 worker
-××±
-  1 expected flaky
-```
+If the test is flaky, the test run will be considered succeeded.
 
 ## Built-in fixtures
 
