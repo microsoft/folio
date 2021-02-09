@@ -58,6 +58,8 @@ export function installTransform(): () => void {
       return fs.readFileSync(codePath, 'utf8');
 
     const result = babel.transformFileSync(filename, {
+      babelrc: false,
+      configFile: false,
       presets: [
         ['@babel/preset-env', { targets: {node: '10.17.0'} }],
         ['@babel/preset-typescript', { onlyRemoveTypeImports: true }],
