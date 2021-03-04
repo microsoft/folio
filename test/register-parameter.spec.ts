@@ -17,15 +17,48 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should allow custom parameters', async ({ runTest }) => {
-  const result = await runTest('register-parameter.ts', {
+it('should allow custom parameters', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'register-parameter.spec.ts': `
+      const builder = baseFolio.extend<{ fixture1: string, fixture2: string }, {}, { param1: string, param2: string }>();
+      builder.param1.initParameter('Custom parameter 1', '');
+      builder.param2.initParameter('Custom parameter 2', 'value2');
+      builder.fixture1.init(async ({testInfo}, runTest) => {
+        await runTest(testInfo.parameters.param1 as string);
+      });
+      builder.fixture2.init(async ({testInfo}, runTest) => {
+        await runTest(testInfo.parameters.param2 as string);
+      });
+      const { it } = builder.build();
+
+      it('pass', async ({ param1, param2, fixture1, fixture2 }) => {
+        // Available as fixtures.
+        expect(param1).toBe('value1');
+        expect(param2).toBe('value2');
+        // Available as parameters to fixtures.
+        expect(fixture1).toBe('value1');
+        expect(fixture2).toBe('value2');
+      });
+    `
+  }, {
     'param': 'param1=value1',
   });
   expect(result.exitCode).toBe(0);
 });
 
-it('should fail on unknown parameters', async ({ runTest }) => {
-  const result = await runTest('register-parameter.ts', {
+it('should fail on unknown parameters', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'register-parameter.spec.ts': `
+      const builder = baseFolio.extend<{}, {}, { param1: string, param2: string }>();
+      builder.param1.initParameter('Custom parameter 1', '');
+      builder.param2.initParameter('Custom parameter 2', 'value2');
+      const { it } = builder.build();
+      it('pass', async ({ param1, param2 }) => {
+        expect(param1).toBe('value1');
+        expect(param2).toBe('value2');
+      });
+    `
+  }, {
     'param': ['param1=value1', 'param3=value3']
   }).catch(e => e);
   expect(result.output).toContain(`unknown parameter 'param3'`);

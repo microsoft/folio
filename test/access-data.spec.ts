@@ -17,8 +17,21 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should access error in fixture', async ({ runTest }) => {
-  const result = await runTest('test-error-visible-in-fixture.ts', {});
+it('should access error in fixture', async ({ runInlineFixturesTest }) => {
+  const result = await runInlineFixturesTest({
+    'test-error-visible-in-fixture.spec.ts': `
+      const builder = baseFolio.extend<{ postProcess: string }>();
+      builder.postProcess.init(async ({testInfo}, runTest) => {
+        await runTest('');
+        console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
+      });
+      const { it } = builder.build();
+
+      it('ensure fixture handles test error', async ({ postProcess }) => {
+        expect(true).toBe(false);
+      });
+    `
+  }, {});
   expect(result.exitCode).toBe(1);
   const start = result.output.indexOf('ERROR[[[') + 8;
   const end = result.output.indexOf(']]]');
@@ -26,8 +39,24 @@ it('should access error in fixture', async ({ runTest }) => {
   expect(data.message).toContain('Object.is equality');
 });
 
-it('should access data in fixture', async ({ runTest }) => {
-  const { exitCode, report } = await runTest('test-data-visible-in-fixture.ts');
+it('should access data in fixture', async ({ runInlineFixturesTest }) => {
+  const { exitCode, report } = await runInlineFixturesTest({
+    'test-data-visible-in-fixture.spec.ts': `
+      const builder = baseFolio.extend<{ testInfoForward: TestInfo }>();
+      builder.testInfoForward.init(async ({testInfo}, runTest) => {
+        await runTest(testInfo);
+        testInfo.data['myname'] = 'myvalue';
+      });
+      const { it } = builder.build();
+
+      it('ensure fixture handles test error', async ({ testInfoForward }) => {
+        console.log('console.log');
+        console.error('console.error');
+        expect(config.testDir).toBeTruthy();
+        expect(testInfoForward.file).toContain('test-data-visible-in-fixture');
+      });
+    `
+  });
   expect(exitCode).toBe(0);
   const testResult = report.suites[0].specs[0].tests[0].runs[0];
   expect(testResult.data).toEqual({ 'myname': 'myvalue' });

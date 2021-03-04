@@ -17,8 +17,48 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should grep test name', async ({ runTest }) => {
-  const result = await runTest('match-grep', { 'grep': 'test [A-B]' });
+it('should grep test name', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'match-grep/a.test.ts': `
+      it('test A', () => {
+        expect(1 + 1).toBe(2);
+      });
+
+      it('test B', () => {
+        expect(1 + 1).toBe(2);
+      });
+
+      it('test C', () => {
+        expect(1 + 1).toBe(2);
+      });
+    `,
+    'match-grep/b.test.ts': `
+      it('test A', () => {
+        expect(1 + 1).toBe(2);
+      });
+
+      it('test B', () => {
+        expect(1 + 1).toBe(2);
+      });
+
+      it('test C', () => {
+        expect(1 + 1).toBe(2);
+      });
+    `,
+    'match-grep/c.test.ts': `
+      it('test A', () => {
+        expect(1 + 1).toBe(2);
+      });
+
+      it('test B', () => {
+        expect(1 + 1).toBe(2);
+      });
+
+      it('test C', () => {
+        expect(1 + 1).toBe(2);
+      });
+    `,
+  }, { 'grep': 'test [A-B]' });
   expect(result.passed).toBe(6);
   expect(result.exitCode).toBe(0);
 });
