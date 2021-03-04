@@ -14,12 +14,18 @@
  * limitations under the License.
  */
 
-import colors from 'colors/safe';
 import { folio, stripAscii } from './fixtures';
 const { it, expect } = folio;
 
-it('should retry failures', async ({ runTest }) => {
-  const result = await runTest('retry-failures.js', { retries: 10 });
+it('should retry failures', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'retry-failures.spec.js': `
+      it('flake', async ({ testInfo }) => {
+        // Passes on the second run.
+        expect(testInfo.retry).toBe(1);
+      });
+    `
+  }, { retries: 10 });
   expect(result.exitCode).toBe(0);
   expect(result.flaky).toBe(1);
   expect(result.results.length).toBe(2);
@@ -31,39 +37,76 @@ it('should retry failures', async ({ runTest }) => {
   expect(result.results[1].status).toBe('passed');
 });
 
-it('should retry timeout', async ({ runTest }) => {
-  const { exitCode, passed, failed, output } = await runTest('one-timeout.js', { timeout: 100, retries: 2 });
+it('should retry timeout', async ({ runInlineTest }) => {
+  const { exitCode, passed, failed, output } = await runInlineTest({
+    'one-timeout.spec.js': `
+      it('timeout', async () => {
+        await new Promise(f => setTimeout(f, 10000));
+      });
+    `
+  }, { timeout: 100, retries: 2 });
   expect(exitCode).toBe(1);
   expect(passed).toBe(0);
   expect(failed).toBe(1);
   expect(stripAscii(output).split('\n')[0]).toBe('××T');
 });
 
-it('should fail on unexpected pass with retries', async ({ runTest }) => {
-  const { exitCode, failed, output } = await runTest('unexpected-pass.js', { retries: 1 });
+it('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
+  const { exitCode, failed, output } = await runInlineTest({
+    'unexpected-pass.spec.js': `
+      it('succeeds', test => test.fail(), () => {
+        expect(1 + 1).toBe(2);
+      });
+    `
+  }, { retries: 1 });
   expect(exitCode).toBe(1);
   expect(failed).toBe(1);
   expect(output).toContain('passed unexpectedly');
 });
 
-it('should not retry unexpected pass', async ({ runTest }) => {
-  const { exitCode, passed, failed, output } = await runTest('unexpected-pass.js', { retries: 2 });
+it('should not retry unexpected pass', async ({ runInlineTest }) => {
+  const { exitCode, passed, failed, output } = await runInlineTest({
+    'unexpected-pass.spec.js': `
+      it('succeeds', test => test.fail(), () => {
+        expect(1 + 1).toBe(2);
+      });
+    `
+  }, { retries: 2 });
   expect(exitCode).toBe(1);
   expect(passed).toBe(0);
   expect(failed).toBe(1);
   expect(stripAscii(output).split('\n')[0]).toBe('F');
 });
 
-it('should not retry expected failure', async ({ runTest }) => {
-  const { exitCode, passed, failed, output } = await runTest('expected-failure.js', { retries: 2 });
+it('should not retry expected failure', async ({ runInlineTest }) => {
+  const { exitCode, passed, failed, output } = await runInlineTest({
+    'expected-failure.spec.js': `
+      it('fails', test => test.fail(), () => {
+        expect(1 + 1).toBe(3);
+      });
+
+      it('non-empty remaining',() => {
+        expect(1 + 1).toBe(2);
+      });
+    `
+  }, { retries: 2 });
   expect(exitCode).toBe(0);
   expect(passed).toBe(2);
   expect(failed).toBe(0);
   expect(stripAscii(output).split('\n')[0]).toBe('··');
 });
 
-it('should retry unhandled rejection', async ({ runTest }) => {
-  const result = await runTest('unhandled-rejection.js', { retries: 2 });
+it('should retry unhandled rejection', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'unhandled-rejection.spec.js': `
+      it('unhandled rejection', async () => {
+        setTimeout(() => {
+          throw new Error('Unhandled rejection in the test');
+        });
+        await new Promise(f => setTimeout(f, 20));
+      });
+    `
+  }, { retries: 2 });
   expect(result.exitCode).toBe(1);
   expect(result.passed).toBe(0);
   expect(result.failed).toBe(1);

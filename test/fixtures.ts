@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { config, folio as base, TestInfo } from 'folio';
+import { folio as base, TestInfo } from 'folio';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -32,18 +32,38 @@ export type RunResult = {
   results: any[],
 };
 
-async function innerRunTest(baseDir: string, filePath: string, outputDir: string, params: any = {}): Promise<RunResult> {
+type Files = { [key: string]: string | Buffer };
+type Params = { [key: string]: string | number };
+
+async function innerRunTest(testInfo: TestInfo, header: string, files: { [key: string]: string | Buffer }, params: any = {}): Promise<RunResult> {
+  const baseDir = testInfo.outputPath();
+
+  await Promise.all(Object.keys(files).map(async name => {
+    const fullName = path.join(baseDir, name);
+    await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
+    if (fullName.endsWith('.js') || fullName.endsWith('.ts'))
+      await fs.promises.writeFile(fullName, header + files[name]);
+    else
+      await fs.promises.writeFile(fullName, files[name]);
+  }));
+
+  let testDir = '.';
   const paramList = [];
   for (const key of Object.keys(params)) {
+    if (key === 'testDir') {
+      testDir = params[key];
+      continue;
+    }
     for (const value of  Array.isArray(params[key]) ? params[key] : [params[key]]) {
       const k = key.startsWith('-') ? key : '--' + key;
       paramList.push(params[key] === true ? `${k}` : `${k}=${value}`);
     }
   }
+  const outputDir = path.join(baseDir, 'test-results');
   const reportFile = path.join(outputDir, 'report.json');
   const testProcess = spawn('node', [
     path.join(__dirname, '..', 'cli.js'),
-    filePath,
+    testDir,
     '--output=' + outputDir,
     '--reporter=dot,json',
     '--workers=2',
@@ -105,66 +125,39 @@ async function innerRunTest(baseDir: string, filePath: string, outputDir: string
   };
 }
 
-type RunInlineTestFunction = (files: { [key: string]: string | Buffer }, options?: any) => Promise<RunResult>;
 type TestState = {
-  runTest: (filePath: string, options?: any) => Promise<RunResult>;
-  runInlineTest: RunInlineTestFunction;
-  runInlineFixturesTest: RunInlineTestFunction;
+  runInlineTest: (files: Files, params?: Params) => Promise<RunResult>;
+  runInlineFixturesTest: (files: Files, params?: Params) => Promise<RunResult>;
 };
 
 const fixtures = base.extend<{}, TestState>();
 
-fixtures.runTest.init(async ({ testInfo }, run) => {
-  // Print output on failure.
+fixtures.runInlineTest.init(async ({ testInfo }, run) => {
+  const header = `
+    const { folio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
+    const { it, fit, xit, test, describe, xdescribe, fdescribe } = folio;
+  `;
   let result: RunResult;
-  await run(async (filePath, options) => {
-    const target = path.join(config.testDir, 'assets', filePath);
-    let isDir = false;
-    try {
-      isDir = fs.statSync(target).isDirectory();
-    } catch (e) {
-    }
-    if (isDir)
-      result = await innerRunTest(path.join(config.testDir, 'assets', filePath), '.', testInfo.outputPath('output'), options);
-    else
-      result = await innerRunTest(path.join(config.testDir, 'assets'), filePath, testInfo.outputPath('output'), options);
+  await run(async (files, options) => {
+    result = await innerRunTest(testInfo, header, files, options);
     return result;
   });
   if (testInfo.status !== testInfo.expectedStatus)
     console.log(result.output);
-});
-
-fixtures.runInlineTest.init(async ({ testInfo }, run) => {
-  await runInlineTest(testInfo, `
-    const { folio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
-    const { it, test, describe } = folio;
-  `, run);
 });
 
 fixtures.runInlineFixturesTest.init(async ({ testInfo }, run) => {
-  await runInlineTest(testInfo, `
+  const header = `
     const { folio: baseFolio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
-  `, run);
-});
-
-async function runInlineTest(testInfo: TestInfo, header: string, run: (fn: RunInlineTestFunction) => Promise<void>) {
-  const baseDir = testInfo.outputPath();
+  `;
   let result: RunResult;
   await run(async (files, options) => {
-    await Promise.all(Object.keys(files).map(async name => {
-      const fullName = path.join(baseDir, name);
-      await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
-      if (fullName.endsWith('.js') || fullName.endsWith('.ts'))
-        await fs.promises.writeFile(fullName, header + files[name]);
-      else
-        await fs.promises.writeFile(fullName, files[name]);
-    }));
-    result = await innerRunTest(baseDir, '.', path.join(baseDir, 'test-results'), options);
+    result = await innerRunTest(testInfo, header, files, options);
     return result;
   });
   if (testInfo.status !== testInfo.expectedStatus)
     console.log(result.output);
-}
+});
 
 export const folio = fixtures.build();
 

@@ -23,8 +23,17 @@ function monotonicTime(): number {
   return seconds * 1000 + (nanoseconds / 1000000 | 0);
 }
 
-it('should collect stdio', async ({ runTest }) => {
-  const { exitCode, report } = await runTest('stdio.js');
+it('should collect stdio', async ({ runInlineTest }) => {
+  const { exitCode, report } = await runInlineTest({
+    'stdio.spec.js': `
+      it('stdio', () => {
+        process.stdout.write('stdout text');
+        process.stdout.write(Buffer.from('stdout buffer'));
+        process.stderr.write('stderr text');
+        process.stderr.write(Buffer.from('stderr buffer'));
+      });
+    `
+  });
   expect(exitCode).toBe(0);
   const testResult = report.suites[0].specs[0].tests[0].runs[0];
   const { stdout, stderr } = testResult;
@@ -32,19 +41,48 @@ it('should collect stdio', async ({ runTest }) => {
   expect(stderr).toEqual([{ text: 'stderr text' }, { buffer: Buffer.from('stderr buffer').toString('base64') }]);
 });
 
-it('should work with not defined errors', async ({runTest}) => {
-  const result = await runTest('is-not-defined-error.ts');
+it('should work with not defined errors', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'is-not-defined-error.spec.ts': `
+      foo();
+    `
+  });
   expect(stripAscii(result.output)).toContain('foo is not defined');
   expect(result.exitCode).toBe(1);
 });
 
-it('should work with typescript', async ({ runTest }) => {
-  const result = await runTest('typescript.ts');
+it('should work with typescript', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'global-foo.js': `
+      global.foo = true;
+      module.exports = {
+        abc: 123
+      };
+    `,
+    'typescript.spec.ts': `
+      import './global-foo';
+
+      it('should find global foo', () => {
+        expect(global['foo']).toBe(true);
+      });
+
+      it('should work with type annotations', () => {
+        const x: number = 5;
+        expect(x).toBe(5);
+      });
+    `
+  });
   expect(result.exitCode).toBe(0);
 });
 
-it('should repeat each', async ({ runTest }) => {
-  const { exitCode, report } = await runTest('one-success.js', { 'repeat-each': 3 });
+it('should repeat each', async ({ runInlineTest }) => {
+  const { exitCode, report } = await runInlineTest({
+    'one-success.spec.js': `
+      it('succeeds', () => {
+        expect(1 + 1).toBe(2);
+      });
+    `
+  }, { 'repeat-each': 3 });
   expect(exitCode).toBe(0);
   expect(report.suites.length).toBe(1);
   expect(report.suites[0].specs.length).toBe(1);
@@ -63,23 +101,35 @@ it('should allow flaky', async ({ runInlineTest }) => {
   expect(result.flaky).toBe(1);
 });
 
-it('should fail on unexpected pass', async ({ runTest }) => {
-  const { exitCode, failed, output } = await runTest('unexpected-pass.js');
+it('should fail on unexpected pass', async ({ runInlineTest }) => {
+  const { exitCode, failed, output } = await runInlineTest({
+    'unexpected-pass.spec.js': `
+      it('succeeds', test => test.fail(), () => {
+        expect(1 + 1).toBe(2);
+      });
+    `
+  });
   expect(exitCode).toBe(1);
   expect(failed).toBe(1);
   expect(output).toContain('passed unexpectedly');
 });
 
-it('should respect global timeout', async ({ runTest }) => {
+it('should respect global timeout', async ({ runInlineTest }) => {
   const now = monotonicTime();
-  const { exitCode, output } = await runTest('one-timeout.js', { 'timeout': 100000, 'global-timeout': 3000 });
+  const { exitCode, output } = await runInlineTest({
+    'one-timeout.spec.js': `
+      it('timeout', async () => {
+        await new Promise(f => setTimeout(f, 10000));
+      });
+    `
+  }, { 'timeout': 100000, 'global-timeout': 3000 });
   expect(exitCode).toBe(1);
   expect(output).toContain('Timed out waiting 3s for the entire test run');
   expect(monotonicTime() - now).toBeGreaterThan(2900);
 });
 
-it('should exit with code 1 if the specified folder/file does not exist', async ({runTest}) => {
-  const result = await runTest('111111111111.js');
+it('should exit with code 1 if the specified folder/file does not exist', async ({runInlineTest}) => {
+  const result = await runInlineTest({}, { testDir: '111111111111.js' });
   expect(result.exitCode).toBe(1);
-  expect(result.output).toContain(`${path.join(__dirname, 'assets', '111111111111.js')} does not exist`);
+  expect(result.output).toContain(`111111111111.js does not exist`);
 });
