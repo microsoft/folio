@@ -31,12 +31,17 @@ it('should work directly', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should work via fixture', async ({ runInlineFixturesTest }) => {
-  const result = await runInlineFixturesTest({
+it('should work via fixture', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'fixtures.js': `
+      async function title({testInfo}, runTest) {
+        await runTest(testInfo.title);
+      }
+      exports.toBeRenamed = {
+        testFixtures: { title }
+      };
+    `,
     'a.test.js': `
-      const builder = baseFolio.extend();
-      builder.title.init(async ({testInfo}, test) => await test(testInfo.title));
-      const { it } = builder.build();
       it('test 1', async ({title}) => {
         expect(title).toBe('test 1');
       });

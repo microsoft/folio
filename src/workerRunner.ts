@@ -23,11 +23,8 @@ import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
-import { rootFixtures } from './spec';
-import { assignConfig, assignParameters, config, FixturePool, setCurrentTestInfo, TestInfo, parameters } from './fixtures';
-
-// We rely on the fact that worker only receives tests with the same FixturePool.
-export let fixturePool: FixturePool = rootFixtures._pool;
+import { assignConfig, assignParameters, config, setCurrentTestInfo, TestInfo, parameters } from './fixtures';
+import { loadedFixturePool, loadFixtureFile } from './fixtureLoader';
 
 export class WorkerRunner extends EventEmitter {
   private _failedTestId: string | undefined;
@@ -47,7 +44,7 @@ export class WorkerRunner extends EventEmitter {
   constructor(runPayload: RunPayload, config: Config, workerIndex: number) {
     super();
     assignConfig(config);
-    this._suite = new WorkerSuite(rootFixtures, '');
+    this._suite = new WorkerSuite('');
     this._suite.file = runPayload.file;
     this._workerIndex = workerIndex;
     this._repeatEachIndex = runPayload.repeatEachIndex;
@@ -56,6 +53,11 @@ export class WorkerRunner extends EventEmitter {
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._parsedParameters = runPayload.parameters;
     this._parsedParameters['testWorkerIndex'] = workerIndex;
+  }
+
+  loadFixtureFiles(files: string[]) {
+    for (const file of files)
+      loadFixtureFile(file);
   }
 
   stop() {
@@ -99,7 +101,6 @@ export class WorkerRunner extends EventEmitter {
   private async _runSuite(suite: WorkerSuite) {
     if (this._isStopped)
       return;
-    fixturePool = suite._folio._pool;
     try {
       await this._runHooks(suite, 'beforeAll', 'before');
     } catch (e) {
@@ -131,7 +132,6 @@ export class WorkerRunner extends EventEmitter {
 
     const testId = test._id;
     this._testId = testId;
-    fixturePool = test._folio._pool;
 
     this._setCurrentTestInfo({
       title: test.title,
@@ -216,11 +216,11 @@ export class WorkerRunner extends EventEmitter {
       // Do not run the test when beforeEach hook fails.
       if (!this._isStopped && testInfo.status !== 'failed') {
         // Run internal fixtures to resolve artifacts and output paths
-        const parametersPathSegment = (await fixturePool.setupFixture('testParametersPathSegment')).value;
+        const parametersPathSegment = (await loadedFixturePool().setupFixture('testParametersPathSegment')).value;
         testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, parametersPathSegment);
         testInfo.outputPath = outputPath(testInfo);
         testInfo.snapshotPath = snapshotPath(testInfo);
-        await fixturePool.resolveParametersAndRunHookOrTest(test.fn);
+        await loadedFixturePool().resolveParametersAndRunHookOrTest(test.fn);
         testInfo.status = 'passed';
       }
     } catch (error) {
@@ -246,7 +246,7 @@ export class WorkerRunner extends EventEmitter {
     if (this._isStopped)
       return;
     try {
-      await fixturePool.teardownScope('test');
+      await loadedFixturePool().teardownScope('test');
     } catch (error) {
       // Do not overwrite test failure or hook error.
       if (testInfo.status === 'passed') {
@@ -272,7 +272,7 @@ export class WorkerRunner extends EventEmitter {
     let error: Error | undefined;
     for (const hook of all) {
       try {
-        await fixturePool.resolveParametersAndRunHookOrTest(hook);
+        await loadedFixturePool().resolveParametersAndRunHookOrTest(hook);
       } catch (e) {
         // Always run all the hooks, and capture the first error.
         error = error || e;

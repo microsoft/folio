@@ -16,38 +16,6 @@
  */
 
 export { expect } from './expect';
-import { TestInfo } from './fixtures';
-import { rootFixtures } from './spec';
-export { Folio } from './spec';
+export { folio } from './spec';
 export { Config } from './config';
 export { config, TestInfo, currentTestInfo } from './fixtures';
-
-type BuiltinWorkerFixtures = {
-  // Worker index that runs this test.
-  testWorkerIndex: number;
-};
-
-type BuiltinTestFixtures = {
-  // Information about the test being run.
-  testInfo: TestInfo;
-  // Parameter-based relative path to be overridden, empty by default.
-  testParametersPathSegment: string;
-};
-
-const builder = rootFixtures.extend<BuiltinTestFixtures, BuiltinWorkerFixtures>();
-
-builder.testWorkerIndex.init(async ({}, runTest) => {
-  // Worker injects the value for this one.
-  await runTest(undefined as any);
-}, { scope: 'worker' });
-
-builder.testInfo.init(async ({}, runTest) => {
-  // Worker injects the value for this one.
-  await runTest(undefined as any);
-});
-
-builder.testParametersPathSegment.init(async ({}, runTest) => {
-  await runTest('');
-});
-
-export const folio = builder.build();

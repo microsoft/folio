@@ -128,8 +128,14 @@ it('should respect global timeout', async ({ runInlineTest }) => {
   expect(monotonicTime() - now).toBeGreaterThan(2900);
 });
 
-it('should exit with code 1 if the specified folder/file does not exist', async ({runInlineTest}) => {
+it('should exit with code 1 if the specified folder does not exist', async ({runInlineTest}) => {
   const result = await runInlineTest({}, { testDir: '111111111111.js' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`111111111111.js does not exist`);
+});
+
+it('should exit with code 1 if passed a file name', async ({runInlineTest}) => {
+  const result = await runInlineTest({'test.spec.js': ''}, { testDir: 'test.spec.js' });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain(`test.spec.js is not a directory`);
 });

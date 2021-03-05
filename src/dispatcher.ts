@@ -17,7 +17,7 @@
 import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, Parameters, TestStatus } from './ipc';
+import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, Parameters, TestStatus, WorkerInitParams } from './ipc';
 import { Config } from './config';
 import { Reporter } from './reporter';
 import { RunnerSuite, RunnerTest } from './runnerTest';
@@ -32,14 +32,16 @@ export class Dispatcher {
   private _queue: RunPayload[] = [];
   private _stopCallback: () => void;
   readonly _config: Config;
+  readonly _fixtureFiles: string[];
   private _suite: RunnerSuite;
   private _reporter: Reporter;
   private _hasWorkerErrors = false;
   private _isStopped = false;
   private _failureCount = 0;
 
-  constructor(suite: RunnerSuite, config: Config, reporter: Reporter) {
+  constructor(suite: RunnerSuite, config: Config, fixtureFiles: string[], reporter: Reporter) {
     this._config = config;
+    this._fixtureFiles = fixtureFiles;
     this._reporter = reporter;
 
     this._suite = suite;
@@ -234,7 +236,7 @@ export class Dispatcher {
     let worker = claimWorker();
     if (!worker) {
       // Wait for available or stopped worker.
-      await new Promise(f => this._workerClaimers.push(f));
+      await new Promise<void>(f => this._workerClaimers.push(f));
       worker = claimWorker();
     }
     return worker;
@@ -293,7 +295,7 @@ export class Dispatcher {
     this._isStopped = true;
     if (!this._workers.size)
       return;
-    const result = new Promise(f => this._stopCallback = f);
+    const result = new Promise<void>(f => this._stopCallback = f);
     for (const worker of this._workers)
       worker.stop();
     await result;
@@ -350,7 +352,11 @@ class Worker extends EventEmitter {
   }
 
   async init() {
-    this.process.send({ method: 'init', params: { workerIndex: this.index, ...this.runner._config } });
+    const params: WorkerInitParams = {
+      workerIndex: this.index,
+      fixtureFiles: this.runner._fixtureFiles,
+    };
+    this.process.send({ method: 'init', params });
     await new Promise(f => this.process.once('message', f));  // Ready ack
   }
 

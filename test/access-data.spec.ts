@@ -17,16 +17,16 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should access error in fixture', async ({ runInlineFixturesTest }) => {
-  const result = await runInlineFixturesTest({
-    'test-error-visible-in-fixture.spec.ts': `
-      const builder = baseFolio.extend<{ postProcess: string }>();
-      builder.postProcess.init(async ({testInfo}, runTest) => {
+it('should access error in fixture', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'fixtures.ts': `
+      async function postProcess({testInfo}, runTest) {
         await runTest('');
         console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
-      });
-      const { it } = builder.build();
-
+      }
+      export const toBeRenamed = { testFixtures: { postProcess } };
+    `,
+    'test-error-visible-in-fixture.spec.ts': `
       it('ensure fixture handles test error', async ({ postProcess }) => {
         expect(true).toBe(false);
       });
@@ -39,16 +39,16 @@ it('should access error in fixture', async ({ runInlineFixturesTest }) => {
   expect(data.message).toContain('Object.is equality');
 });
 
-it('should access data in fixture', async ({ runInlineFixturesTest }) => {
-  const { exitCode, report } = await runInlineFixturesTest({
-    'test-data-visible-in-fixture.spec.ts': `
-      const builder = baseFolio.extend<{ testInfoForward: TestInfo }>();
-      builder.testInfoForward.init(async ({testInfo}, runTest) => {
+it('should access data in fixture', async ({ runInlineTest }) => {
+  const { exitCode, report } = await runInlineTest({
+    'fixtures.ts': `
+      async function testInfoForward({testInfo}, runTest) {
         await runTest(testInfo);
         testInfo.data['myname'] = 'myvalue';
-      });
-      const { it } = builder.build();
-
+      }
+      export const toBeRenamed = { testFixtures: { testInfoForward } };
+    `,
+    'test-data-visible-in-fixture.spec.ts': `
       it('ensure fixture handles test error', async ({ testInfoForward }) => {
         console.log('console.log');
         console.error('console.error');

@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import { matrix } from './fixtures';
+import { FixturePool, matrix } from './fixtures';
 import { Configuration } from './ipc';
 import { Config } from './config';
 import { RunnerSuite, RunnerSpec, RunnerTest, ModifierFn } from './runnerTest';
 import { TestModifier } from './testModifier';
-import { rootFixtures } from './spec';
 
-export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuite {
-  const rootSuite = new RunnerSuite(rootFixtures, '');
+export function generateTests(suites: RunnerSuite[], config: Config, fixturePool: FixturePool): RunnerSuite {
+  const rootSuite = new RunnerSuite('');
   let grep: RegExp = null;
   if (config.grep) {
     const match = config.grep.match(/^\/(.*)\/(g|i|)$|.*/);
@@ -70,7 +69,7 @@ export function generateTests(suites: RunnerSuite[], config: Config): RunnerSuit
           modifierFn(modifier, parameters);
         for (let i = 0; i < config.repeatEach; ++i) {
           const parametersString = parametersStringPrefix +  `#repeat-${i}#`;
-          const workerHash = spec._folio._pool.id + '@' + parametersString;
+          const workerHash = fixturePool.id + '@' + parametersString;
           const test = new RunnerTest(spec);
           test.parameters = parameters;
           test.skipped = modifier._skipped;

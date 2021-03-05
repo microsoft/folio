@@ -133,7 +133,7 @@ class Fixture {
     let setupFenceFulfill: { (): void; (value?: unknown): void; };
     let setupFenceReject: { (arg0: any): any; (reason?: any): void; };
     let called = false;
-    const setupFence = new Promise((f, r) => { setupFenceFulfill = f; setupFenceReject = r; });
+    const setupFence = new Promise<void>((f, r) => { setupFenceFulfill = f; setupFenceReject = r; });
     const teardownFence = new Promise(f => this._teardownFenceCallback = f);
     debugLog(`setup fixture "${this.registration.name}"`);
     this._tearDownComplete = this.registration.fn(params, async (value: any) => {
@@ -219,10 +219,11 @@ export class FixturePool {
   registerFixture(name: string, scope: Scope, fn: Function, auto: boolean) {
     const previous = this.registrations.get(name);
     if (previous) {
+      // TODO: report file path of the existing fixture.
       if (previous.scope !== scope)
         throw errorWithCallLocation(`Fixture "${name}" has already been registered as a { scope: '${previous.scope}' } fixture. Use a different name for this ${scope} fixture.`);
       else
-        throw errorWithCallLocation(`Fixture "${name}" has already been registered. Use 'override' to override it in a specific test file.`);
+        throw errorWithCallLocation(`Fixture "${name}" has already been registered. Use a different name for this fixture.`);
     }
 
     const deps = fixtureParameterNames(fn);

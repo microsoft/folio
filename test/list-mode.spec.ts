@@ -18,17 +18,12 @@ import path from 'path';
 import { folio } from './fixtures';
 const { it } = folio;
 
-it('should work with parameters', async ({ runInlineFixturesTest }) => {
-  const result = await runInlineFixturesTest({
+it('should work with parameters', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
     'fixtures.js': `
-      const builder = baseFolio.extend();
-      builder.worker.initParameter('', '');
-      const fixtures = builder.build();
-      fixtures.generateParametrizedTests('worker', ['A', 'B', 'C']);
-      module.exports = fixtures;
+      exports.toBeRenamed = { parameters: { worker: { description: '', defaultValue: '', values: ['A', 'B', 'C'] } } };
     `,
     'a.test.js': `
-      const { it } = require('./fixtures.js');
       it('should use worker A', (test, parameters) => {
         test.fail(parameters.worker !== 'A');
       }, async ({worker}) => {
@@ -36,7 +31,6 @@ it('should work with parameters', async ({ runInlineFixturesTest }) => {
       });
     `,
     'b.test.js': `
-      const { it } = require('./fixtures.js');
       it('should use worker B', (test, parameters) => {
         test.fail(parameters.worker !== 'B');
       }, async ({worker}) => {
@@ -44,7 +38,6 @@ it('should work with parameters', async ({ runInlineFixturesTest }) => {
       });
     `,
     'c.test.js': `
-      const { it } = require('./fixtures.js');
       it('should use worker C', (test, parameters) => {
         test.fail(parameters.worker !== 'C');
       }, async ({worker}) => {

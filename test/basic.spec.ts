@@ -184,14 +184,3 @@ it('should respect focused tests', async ({ runInlineTest }) => {
   expect(passed).toBe(5);
   expect(exitCode).toBe(0);
 });
-
-it('should accept a single filename', async ({runInlineTest}) => {
-  const { passed } = await runInlineTest({
-    'test.spec.js': `
-      it('should work', async () => {
-        expect(1).toBe(1);
-      });
-    `
-  }, { testDir: 'test.spec.js' });
-  expect(passed).toBe(1);
-});
