@@ -47,14 +47,20 @@ it('should run in parallel', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should reuse worker for the same parameters', async ({ runInlineFixturesTest }) => {
-  const result = await runInlineFixturesTest({
-    'a.test.js': `
-      const builder = baseFolio.extend();
-      builder.worker1.init(({}, runTest) => runTest(), { scope: 'worker' });
-      builder.worker2.init(({}, runTest) => runTest(), { scope: 'worker' });
-      const { it } = builder.build();
+it('should reuse worker for the same parameters', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'fixtures.ts': `
+      async function worker1({}, runTest) {
+        await runTest();
+      }
 
+      async function worker2({}, runTest) {
+        await runTest();
+      }
+
+      export const toBeRenamed = { workerFixtures: { worker1, worker2 } };
+    `,
+    'a.test.js': `
       it('succeeds', async ({ worker1, testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);
       });
@@ -68,14 +74,14 @@ it('should reuse worker for the same parameters', async ({ runInlineFixturesTest
   expect(result.exitCode).toBe(0);
 });
 
-it('should not reuse worker for different parameters', async ({ runInlineFixturesTest }) => {
-  const result = await runInlineFixturesTest({
+it('should not reuse worker for different parameters', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'fixtures.ts': `
+      export const toBeRenamed = {
+        parameters: { param: { description: '', defaultValue: '' } }
+      };
+    `,
     'a.test.js': `
-      const builder = baseFolio.extend();
-      builder.param.initParameter('', '');
-      builder.worker2.init(({}, runTest) => runTest(), { scope: 'worker' });
-      const { it } = builder.build();
-
       it('succeeds', async ({ testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);
       });

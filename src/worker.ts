@@ -17,9 +17,10 @@
 import { Console } from 'console';
 import * as util from 'util';
 import { debugLog, setDebugWorkerIndex } from './debug';
-import { TestOutputPayload } from './ipc';
+import { loadedFixturePool } from './fixtureLoader';
+import { TestOutputPayload, WorkerInitParams } from './ipc';
 import { serializeError } from './util';
-import { fixturePool, WorkerRunner } from './workerRunner';
+import { WorkerRunner } from './workerRunner';
 
 let closed = false;
 
@@ -57,6 +58,7 @@ process.on('SIGTERM',() => {});
 
 let workerIndex: number;
 let testRunner: WorkerRunner;
+let fixturesFilesToLoad: string[] = [];
 
 process.on('unhandledRejection', (reason, promise) => {
   if (testRunner)
@@ -70,9 +72,12 @@ process.on('uncaughtException', error => {
 
 process.on('message', async message => {
   if (message.method === 'init') {
-    workerIndex = message.params.workerIndex;
+    const params = message.params as WorkerInitParams;
+    workerIndex = params.workerIndex;
     setDebugWorkerIndex(workerIndex);
-    debugLog(`init`, message.params);
+    // We will load fixtures upon the first "run".
+    fixturesFilesToLoad = params.fixtureFiles;
+    debugLog(`init`, params);
     return;
   }
   if (message.method === 'stop') {
@@ -86,6 +91,8 @@ process.on('message', async message => {
     testRunner = new WorkerRunner(message.params.entry, message.params.config, workerIndex);
     for (const event of ['testBegin', 'testEnd', 'done'])
       testRunner.on(event, sendMessageToParent.bind(null, event));
+    testRunner.loadFixtureFiles(fixturesFilesToLoad);
+    fixturesFilesToLoad = [];
     await testRunner.run();
     testRunner = null;
   }
@@ -101,8 +108,8 @@ async function gracefullyCloseAndExit() {
   if (testRunner)
     testRunner.stop();
   try {
-    await fixturePool.teardownScope('test');
-    await fixturePool.teardownScope('worker');
+    await loadedFixturePool().teardownScope('test');
+    await loadedFixturePool().teardownScope('worker');
   } catch (e) {
     process.send({ method: 'teardownError', params: { error: serializeError(e) } });
   }

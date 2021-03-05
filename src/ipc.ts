@@ -18,6 +18,11 @@ export type Configuration = { name: string, value: string | number | boolean | u
 export type Parameters = { [key: string]: string | number | boolean | null | undefined };
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
+export type WorkerInitParams = {
+  workerIndex: number;
+  fixtureFiles: string[];
+};
+
 export type TestBeginPayload = {
   testId: string;
   workerIndex: number,

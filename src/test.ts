@@ -16,8 +16,6 @@
 
 import { Parameters, TestError, TestStatus } from './ipc';
 export { Parameters, TestStatus, TestError } from './ipc';
-import type { FolioImpl } from './spec';
-import { errorWithCallLocation } from './util';
 
 class Base {
   title: string;
@@ -28,15 +26,10 @@ class Base {
 
   _only = false;
   _ordinal: number;
-  _folio: FolioImpl;
 
-  constructor(folio: FolioImpl, title: string, parent?: Suite) {
-    this._folio = folio;
+  constructor(title: string, parent?: Suite) {
     this.title = title;
     this.parent = parent;
-    // Root suite has default fixtures that do not match all others.
-    if (parent && parent.parent && parent._folio !== folio)
-      throw errorWithCallLocation(`Mixing different fixture sets in the same suite.\nAre you using it and describe from different fixture files?`);
   }
 
   titlePath(): string[] {
@@ -56,8 +49,8 @@ export class Spec extends Base {
   fn: Function;
   tests: Test[] = [];
 
-  constructor(fixtures: FolioImpl, title: string, fn: Function, suite: Suite) {
-    super(fixtures, title, suite);
+  constructor(title: string, fn: Function, suite: Suite) {
+    super(title, suite);
     this.fn = fn;
     suite._addSpec(this);
   }
@@ -73,8 +66,8 @@ export class Suite extends Base {
   _entries: (Suite | Spec)[] = [];
   total = 0;
 
-  constructor(fixtures: FolioImpl, title: string, parent?: Suite) {
-    super(fixtures, title, parent);
+  constructor(title: string, parent?: Suite) {
+    super(title, parent);
     if (parent)
       parent._addSuite(this);
   }

@@ -26,7 +26,7 @@ import { RunnerSuite } from './runnerTest';
 import { runnerSpec } from './runnerSpec';
 import { debugLog } from './debug';
 import { Suite } from './test';
-import { rootFixtures } from './spec';
+import { loadedFixturePool, loadFixtureFile } from './fixtureLoader';
 export { Reporter } from './reporter';
 export { Config } from './config';
 export { Test, TestResult, Suite, TestStatus, TestError } from './test';
@@ -39,18 +39,34 @@ export class Runner {
   private _reporter: Reporter;
   private _rootSuite: RunnerSuite;
   private _suites: RunnerSuite[] = [];
+  private _fixtureFiles: string[] = [];
 
   constructor(reporter: Reporter) {
     this._reporter = reporter;
   }
 
-  loadFiles(files: string[]): { parameters: Map<string, ParameterRegistration> } {
+  loadFixtures(files: string[]): { parameters: Map<string, ParameterRegistration> } {
+    debugLog(`loadFixtures`, files);
+    for (const file of files) {
+      this._fixtureFiles.push(file);
+      try {
+        loadFixtureFile(file);
+      } catch (e) {
+        prependErrorMessage(e, `Error while reading ${file}:\n`);
+        throw e;
+      }
+    }
+    loadedFixturePool().validate();
+    return { parameters: parameterRegistrations };
+  }
+
+  loadFiles(files: string[]) {
     debugLog(`loadFiles`, files);
     // First traverse tests.
     for (const file of files) {
-      const suite = new RunnerSuite(rootFixtures, '');
+      const suite = new RunnerSuite('');
       suite.file = file;
-      const revertBabelRequire = runnerSpec(suite, config);
+      const revertBabelRequire = runnerSpec(suite, loadedFixturePool(), config);
       try {
         require(file);
       } catch (e) {
@@ -60,13 +76,6 @@ export class Runner {
       this._suites.push(suite);
       revertBabelRequire();
     }
-
-    // Set default values
-    for (const param of parameterRegistrations.values()) {
-      if (!(param.name in matrix))
-        setParameterValues(param.name, [param.defaultValue]);
-    }
-    return { parameters: parameterRegistrations };
   }
 
   generateTests(options: { parameters?: { [key: string]: (string | boolean | number)[] } } = {}): Suite {
@@ -77,7 +86,7 @@ export class Runner {
 
     // We can only generate tests after parameters have been assigned.
     this._suites = excludeNonOnlyFiles(this._suites);
-    this._rootSuite = generateTests(this._suites, config);
+    this._rootSuite = generateTests(this._suites, config, loadedFixturePool());
     return this._rootSuite;
   }
 
@@ -109,10 +118,10 @@ export class Runner {
 
   private async _runTests(suite: RunnerSuite): Promise<RunResult> {
     // Trial run does not need many workers, use one.
-    const runner = new Dispatcher(suite, { ...config, workers: config.workers }, this._reporter);
+    const runner = new Dispatcher(suite, config, this._fixtureFiles, this._reporter);
     let sigint = false;
     let sigintCallback: () => void;
-    const sigIntPromise = new Promise(f => sigintCallback = f);
+    const sigIntPromise = new Promise<void>(f => sigintCallback = f);
     const sigintHandler = () => {
       process.off('SIGINT', sigintHandler);
       sigint = true;

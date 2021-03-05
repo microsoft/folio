@@ -16,22 +16,23 @@
 
 import { installTransform } from './transform';
 import { RunnerSuite, RunnerSpec } from './runnerTest';
-import { callLocation, errorWithCallLocation } from './util';
-import { FolioImpl, setImplementation, SpecType } from './spec';
+import { callLocation } from './util';
+import { setImplementation, SpecType } from './spec';
 import { TestModifier } from './testModifier';
 import { Config } from './config';
+import { FixturePool } from './fixtures';
 
-export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
+export function runnerSpec(suite: RunnerSuite, fixturePool: FixturePool, config: Config): () => void {
   const suites = [suite];
 
-  const it = (spec: SpecType, folio: FolioImpl, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const it = (spec: SpecType, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     const suite = suites[0];
     if (typeof fn !== 'function') {
       fn = modifierFn;
       modifierFn = null;
     }
-    const test = new RunnerSpec(folio, title, fn, suite);
-    test._usedParameters = folio._pool.parametersForFunction(fn, `Test`, true);
+    const test = new RunnerSpec(title, fn, suite);
+    test._usedParameters = fixturePool.parametersForFunction(fn, `Test`, true);
     const location = callLocation(suite.file);
     test.file = location.file;
     test.line = location.line;
@@ -50,12 +51,12 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
     return test;
   };
 
-  const describe = (spec: SpecType, folio: FolioImpl, title: string, modifierFn: (suite: TestModifier, parameters: any) => void | Function, fn?: Function) => {
+  const describe = (spec: SpecType, title: string, modifierFn: (suite: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     if (typeof fn !== 'function') {
       fn = modifierFn;
       modifierFn = null;
     }
-    const child = new RunnerSuite(folio, title, suites[0]);
+    const child = new RunnerSuite(title, suites[0]);
     const location = callLocation(suite.file);
     child.file = location.file;
     child.line = location.line;
@@ -77,23 +78,23 @@ export function runnerSpec(suite: RunnerSuite, config: Config): () => void {
     suites.shift();
   };
 
-  const hook = (hookName: string, folio: FolioImpl, fn: Function) => {
+  const hook = (hookName: string, fn: Function) => {
     const suite = suites[0];
-    if (!suite.parent)
-      throw errorWithCallLocation(`${hookName} hook should be called inside a describe block. Consider using an auto fixture.`);
-    if (suite._folio !== folio)
-      throw errorWithCallLocation(`Using ${hookName} hook from a different fixture set.\nAre you using describe and ${hookName} from different fixture files?`);
-    suite._usedParameters.push(...folio._pool.parametersForFunction(fn, `${hookName} hook`, hookName === 'beforeEach' || hookName === 'afterEach'));
+    suite._usedParameters.push(...fixturePool.parametersForFunction(fn, `${hookName} hook`, hookName === 'beforeEach' || hookName === 'afterEach'));
   };
 
   setImplementation({
     it,
     describe,
-    beforeEach: (folio, fn) => hook('beforeEach', folio, fn),
-    afterEach: (folio, fn) => hook('afterEach', folio, fn),
-    beforeAll: (folio, fn) => hook('beforeAll', folio, fn),
-    afterAll: (folio, fn) => hook('afterAll', folio, fn),
+    beforeEach: fn => hook('beforeEach', fn),
+    afterEach: fn => hook('afterEach', fn),
+    beforeAll: fn => hook('beforeAll', fn),
+    afterAll: fn => hook('afterAll', fn),
   });
 
-  return installTransform();
+  const revert = installTransform();
+  return () => {
+    setImplementation(undefined);
+    revert();
+  };
 }

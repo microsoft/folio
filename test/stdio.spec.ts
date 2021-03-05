@@ -37,16 +37,19 @@ it('should get top level stdio', async ({runInlineTest}) => {
   ]);
 });
 
-it('should get stdio from worker fixture teardown', async ({runInlineFixturesTest}) => {
-  const result = await runInlineFixturesTest({
-    'a.spec.js': `
-      const builder = baseFolio.extend();
-      builder.fixture.init(async ({}, runTest) => {
+it('should get stdio from worker fixture teardown', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'fixtures.js': `
+      async function fixture({}, runTest) {
         console.log('\\n%% worker setup');
         await runTest();
         console.log('\\n%% worker teardown');
-      }, { scope: 'worker' });
-      const { it } = builder.build();
+      }
+      exports.toBeRenamed = {
+        workerFixtures: { fixture }
+      };
+    `,
+    'a.spec.js': `
       it('is a test', async ({fixture}) => {});
     `
   });

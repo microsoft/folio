@@ -33,7 +33,7 @@ export type RunResult = {
 };
 
 type Files = { [key: string]: string | Buffer };
-type Params = { [key: string]: string | number };
+type Params = { [key: string]: string | number | boolean | string[] };
 
 async function innerRunTest(testInfo: TestInfo, header: string, files: { [key: string]: string | Buffer }, params: any = {}): Promise<RunResult> {
   const baseDir = testInfo.outputPath();
@@ -135,7 +135,7 @@ const fixtures = base.extend<{}, TestState>();
 fixtures.runInlineTest.init(async ({ testInfo }, run) => {
   const header = `
     const { folio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
-    const { it, fit, xit, test, describe, xdescribe, fdescribe } = folio;
+    const { it, fit, xit, test, describe, xdescribe, fdescribe, beforeEach, beforeAll, afterEach, afterAll } = folio;
   `;
   let result: RunResult;
   await run(async (files, options) => {

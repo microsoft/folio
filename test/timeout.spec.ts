@@ -17,15 +17,18 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should run fixture tear down on timeout', async ({ runInlineFixturesTest }) => {
-  const result = await runInlineFixturesTest({
-    'c.spec.ts': `
-      const builder = baseFolio.extend();
-      builder.foo.init(async ({ testInfo }, runTest) => {
+it('should run fixture tear down on timeout', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'fixtures.js': `
+      async function foo({testInfo}, runTest) {
         await runTest();
         console.log('STATUS:' + testInfo.status);
-      });
-      const { it } = builder.build();
+      }
+      exports.toBeRenamed = {
+        testFixtures: { foo }
+      };
+    `,
+    'c.spec.ts': `
       it('works', async ({ foo }) => {
         await new Promise(f => setTimeout(f, 100000));
       });

@@ -78,16 +78,16 @@ async function runTests(command) {
 
   if (!fs.existsSync(testDir))
     throw new Error(`${testDir} does not exist`);
+  if (!fs.statSync(testDir).isDirectory())
+    throw new Error(`${testDir} is not a directory`);
 
-  let files: string[];
-  if (fs.statSync(testDir).isDirectory())
-    files = filterFiles(testDir, await collectFiles(testDir), command.args.slice(1), command.testMatch, command.testIgnore);
-  else
-    files = [testDir];
+  const allFiles = await collectFiles(testDir);
+  const testFiles = filterFiles(testDir, allFiles, command.args.slice(1), command.testMatch, command.testIgnore);
+  const fixtureFiles = filterFiles(testDir, allFiles, [], command.fixtureMatch, command.fixtureIgnore);
 
   const reporter = new Multiplexer(reporterObjects);
   const runner = new Runner(reporter);
-  const parameterRegistrations = runner.loadFiles(files).parameters;
+  const parameterRegistrations = runner.loadFixtures(fixtureFiles).parameters;
   const parameters: { [key: string]: (string | boolean | number)[] } = {};
   for (const param of command.param || []) {
     const match = param.match(/([^=]+)=(.*)/);
@@ -114,6 +114,8 @@ async function runTests(command) {
     printParametersHelp([...parameterRegistrations.values()]);
     process.exit(0);
   }
+
+  runner.loadFiles(testFiles);
 
   // Assign config values after runner.loadFiles to set defaults from the command
   // line.
@@ -180,16 +182,16 @@ async function collectFiles(testDir: string): Promise<string[]> {
   return result;
 }
 
-function filterFiles(base: string, files: string[], filters: string[], testMatch: string, testIgnore: string): string[] {
-  if (!testIgnore.includes('/') && !testIgnore.includes('\\'))
-    testIgnore = '**/' + testIgnore;
-  if (!testMatch.includes('/') && !testMatch.includes('\\'))
-    testMatch = '**/' + testMatch;
+function filterFiles(base: string, files: string[], filters: string[], filesMatch: string, filesIgnore: string): string[] {
+  if (!filesIgnore.includes('/') && !filesIgnore.includes('\\'))
+    filesIgnore = '**/' + filesIgnore;
+  if (!filesMatch.includes('/') && !filesMatch.includes('\\'))
+    filesMatch = '**/' + filesMatch;
   return files.filter(file => {
     file = path.relative(base, file);
-    if (testIgnore && minimatch(file, testIgnore))
+    if (filesIgnore && minimatch(file, filesIgnore))
       return false;
-    if (testMatch && !minimatch(file, testMatch))
+    if (filesMatch && !minimatch(file, filesMatch))
       return false;
     if (filters.length && !filters.find(filter => file.includes(filter)))
       return false;
@@ -203,6 +205,8 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
       .option('-g, --grep <grep>', `Only run tests matching this string or regexp  (default: "${defaultConfig.grep}")`)
       .option('--global-timeout <timeout>', `Specify maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)
+      .option('--fixture-ignore <pattern>', `Pattern used to ignore fixture files`, 'node_modules/**')
+      .option('--fixture-match <pattern>', `Pattern used to find fixture files`, '**/?(*.)fixtures.[jt]s')
       .option('-h, --help', `Display help`)
       .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
       .option('--list', `Only collect all the test and report them`)
