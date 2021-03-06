@@ -19,28 +19,29 @@ const { it, expect } = folio;
 
 it('should consider dynamically set value', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixture.js': `
+    'fixtures.js': `
 		  config.timeout = 100;
+      exports.toBeRenamed = {};
     `,
     'a.test.js': `
-      require('./fixture.js');
-      it('pass', ({ testInfo }) => {
+      test('pass', ({ testInfo }) => {
         expect(testInfo.timeout).toBe(100);
       })
     `
   });
+  expect(result.report.config.timeout).toBe(100);
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
 });
 
 it('should prioritize value set via command line', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixture.js': `
-		  config.timeout = 100;
+    'fixtures.js': `
+      config.timeout = 100;
+      exports.toBeRenamed = {};
     `,
     'a.test.js': `
-      require('./fixture.js');
-      it('pass', ({ testInfo }) => {
+      test('pass', ({ testInfo }) => {
         expect(testInfo.timeout).toBe(1000);
       })
     `

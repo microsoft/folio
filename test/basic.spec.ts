@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('should fail', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'one-failure.spec.ts': `
-      it('fails', () => {
+      test('fails', () => {
         expect(1 + 1).toBe(7);
       });
     `
@@ -34,7 +34,7 @@ it('should fail', async ({ runInlineTest }) => {
 it('should timeout', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'one-timeout.spec.js': `
-      it('timeout', async () => {
+      test('timeout', async () => {
         await new Promise(f => setTimeout(f, 10000));
       });
     `
@@ -48,7 +48,7 @@ it('should timeout', async ({ runInlineTest }) => {
 it('should succeed', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'one-success.spec.js': `
-      it('succeeds', () => {
+      test('succeeds', () => {
         expect(1 + 1).toBe(2);
       });
     `
@@ -64,7 +64,7 @@ it('should report suite errors', async ({ runInlineTest }) => {
       if (new Error().stack.includes('workerRunner'))
         throw new Error('Suite error');
 
-      it('passes',() => {
+      test('passes',() => {
         expect(1 + 1).toBe(2);
       });
     `
@@ -77,10 +77,10 @@ it('should report suite errors', async ({ runInlineTest }) => {
 it('should respect nested skip', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, skipped } = await runInlineTest({
     'nested-skip.spec.js': `
-      describe('skipped', suite => {
+      test.describe('skipped', suite => {
         suite.skip(true);
       }, () => {
-        it('succeeds',() => {
+        test('succeeds',() => {
           expect(1 + 1).toBe(2);
         });
       });
@@ -95,7 +95,7 @@ it('should respect nested skip', async ({ runInlineTest }) => {
 it('should respect slow test', async ({ runInlineTest }) => {
   const { exitCode, output } = await runInlineTest({
     'slow.spec.js': `
-      it('slow', test => {
+      test('slow', test => {
         test.slow();
       }, async () => {
         await new Promise(f => setTimeout(f, 10000));
@@ -109,26 +109,26 @@ it('should respect slow test', async ({ runInlineTest }) => {
 it('should respect excluded tests', async ({ runInlineTest }) => {
   const { exitCode, passed } = await runInlineTest({
     'excluded.spec.ts': `
-      it('included test', () => {
+      test('included test', () => {
         expect(1 + 1).toBe(2);
       });
 
-      xit('excluded test', () => {
+      test.skip('excluded test', () => {
         expect(1 + 1).toBe(3);
       });
 
-      it.skip('excluded test', () => {
+      test.skip('excluded test', () => {
         expect(1 + 1).toBe(3);
       });
 
-      describe('included describe', () => {
-        it('included describe test', () => {
+      test.describe('included describe', () => {
+        test('included describe test', () => {
           expect(1 + 1).toBe(2);
         });
       });
 
-      describe.skip('excluded describe', () => {
-        it('excluded describe test', () => {
+      test.describe.skip('excluded describe', () => {
+        test('excluded describe test', () => {
           expect(1 + 1).toBe(3);
         });
       });
@@ -141,41 +141,41 @@ it('should respect excluded tests', async ({ runInlineTest }) => {
 it('should respect focused tests', async ({ runInlineTest }) => {
   const { exitCode, passed } = await runInlineTest({
     'focused.spec.ts': `
-      it('included test', () => {
+      test('included test', () => {
         expect(1 + 1).toBe(3);
       });
 
-      fit('focused test', () => {
+      test.only('focused test', () => {
         expect(1 + 1).toBe(2);
       });
 
-      it.only('focused only test', () => {
+      test.only('focused only test', () => {
         expect(1 + 1).toBe(2);
       });
 
-      describe.only('focused describe', () => {
-        it('describe test', () => {
+      test.describe.only('focused describe', () => {
+        test('describe test', () => {
           expect(1 + 1).toBe(2);
         });
       });
 
-      describe('non-focused describe', () => {
-        it('describe test', () => {
+      test.describe('non-focused describe', () => {
+        test('describe test', () => {
           expect(1 + 1).toBe(3);
         });
       });
 
-      describe.only('focused describe', () => {
-        it('test1', () => {
+      test.describe.only('focused describe', () => {
+        test('test1', () => {
           expect(1 + 1).toBe(2);
         });
-        it.only('test2', () => {
+        test.only('test2', () => {
           expect(1 + 1).toBe(2);
         });
-        it('test3', () => {
+        test('test3', () => {
           expect(1 + 1).toBe(2);
         });
-        it.only('test4', () => {
+        test.only('test4', () => {
           expect(1 + 1).toBe(2);
         });
       });

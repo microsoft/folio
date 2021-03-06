@@ -21,12 +21,12 @@ const { it, expect } = folio;
 it('render expected', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', async ({}) => {
+      test('one', async ({}) => {
         expect(1).toBe(1);
       });
     `,
     'b.test.js': `
-      it('two', async ({}) => {
+      test('two', async ({}) => {
         expect(1).toBe(1);
       });
     `,
@@ -46,7 +46,7 @@ it('render expected', async ({ runInlineTest }) => {
 it('render unexpected', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', async ({}) => {
+      test('one', async ({}) => {
         expect(1).toBe(0);
       });
     `,
@@ -65,7 +65,7 @@ it('render unexpected', async ({ runInlineTest }) => {
 it('render unexpected after retry', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', async ({}) => {
+      test('one', async ({}) => {
         expect(1).toBe(0);
       });
     `,
@@ -82,7 +82,7 @@ it('render unexpected after retry', async ({ runInlineTest }) => {
 it('render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', async ({testInfo}) => {
+      test('one', async ({testInfo}) => {
         expect(testInfo.retry).toBe(3);
       });
     `,
@@ -94,7 +94,7 @@ it('render flaky', async ({ runInlineTest }) => {
 it('render stdout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', async ({testInfo}) => {
+      test('one', async ({testInfo}) => {
         console.log('Hello world');
       });
     `,
@@ -109,10 +109,10 @@ it('render stdout', async ({ runInlineTest }) => {
 it('render skipped', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', async () => {
+      test('one', async () => {
         console.log('Hello world');
       });
-      it('two', test => test.skip(), async () => {
+      test('two', test => test.skip(), async () => {
         console.log('Hello world');
       });
     `,

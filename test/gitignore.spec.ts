@@ -21,10 +21,10 @@ it('should respect .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a.spec.js`,
     'a.spec.js': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'b.spec.js': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `
   });
   expect(result.exitCode).toBe(0);
@@ -35,10 +35,10 @@ it('should respect nested .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a/.gitignore': `a.spec.js`,
     'a/a.spec.js': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'a/b.spec.js': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `
   });
   expect(result.exitCode).toBe(0);
@@ -49,10 +49,10 @@ it('should respect enclosing .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a/a.spec.js`,
     'a/a.spec.js': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'a/b.spec.js': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `
   });
   expect(result.exitCode).toBe(0);
@@ -63,10 +63,10 @@ it('should respect enclosing .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a/a.spec.js`,
     'a/a.spec.js': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'a/b.spec.js': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `
   });
   expect(result.exitCode).toBe(0);

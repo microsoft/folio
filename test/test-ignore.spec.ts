@@ -19,13 +19,13 @@ const { it, expect } = folio;
 
 const tests = {
   'a.test.ts': `
-    it('pass', ({}) => {});
+    test('pass', ({}) => {});
   `,
   'b.test.ts': `
-    it('pass', ({}) => {});
+    test('pass', ({}) => {});
   `,
   'c.test.ts': `
-    it('pass', ({}) => {});
+    test('pass', ({}) => {});
   `
 };
 
@@ -44,16 +44,16 @@ it('should ignore a test', async ({ runInlineTest }) => {
 it('should ignore a folder', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'folder/a.test.ts': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'folder/b.test.ts': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'folder/c.test.ts': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `
   }, { 'test-ignore': 'folder/**' });
   expect(result.passed).toBe(1);
@@ -63,16 +63,16 @@ it('should ignore a folder', async ({ runInlineTest }) => {
 it('should ignore a node_modules', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'node_modules/a.test.ts': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'node_modules/b.test.ts': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `,
     'folder/c.test.ts': `
-      it('pass', ({}) => {});
+      test('pass', ({}) => {});
     `
   });
   expect(result.passed).toBe(2);

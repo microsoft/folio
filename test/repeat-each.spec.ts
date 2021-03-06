@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('should get top level stdio', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
-      it('test', ({testInfo}) => {
+      test('test', ({testInfo}) => {
         console.log('REPEAT ' + testInfo.repeatEachIndex);
         expect(1).toBe(1);
       });

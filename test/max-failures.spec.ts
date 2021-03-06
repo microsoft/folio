@@ -20,14 +20,14 @@ it('max-failures should work', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.js': `
       for (let i = 0; i < 10; ++i) {
-        it('fail_' + i, () => {
+        test('fail_' + i, () => {
           expect(true).toBe(false);
         });
       }
     `,
     'b.spec.js': `
       for (let i = 0; i < 10; ++i) {
-        it('fail_' + i, () => {
+        test('fail_' + i, () => {
           expect(true).toBe(false);
         });
       }
@@ -42,14 +42,14 @@ it('-x should work', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.js': `
       for (let i = 0; i < 10; ++i) {
-        it('fail_' + i, () => {
+        test('fail_' + i, () => {
           expect(true).toBe(false);
         });
       }
     `,
     'b.spec.js': `
       for (let i = 0; i < 10; ++i) {
-        it('fail_' + i, () => {
+        test('fail_' + i, () => {
           expect(true).toBe(false);
         });
       }

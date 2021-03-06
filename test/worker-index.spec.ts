@@ -22,7 +22,7 @@ it('should run in parallel', async ({ runInlineTest }) => {
     '1.spec.ts': `
       import * as fs from 'fs';
       import * as path from 'path';
-      it('succeeds', async ({ testWorkerIndex }) => {
+      test('succeeds', async ({ testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);
         // First test waits for the second to start to work around the race.
         while (true) {
@@ -35,7 +35,7 @@ it('should run in parallel', async ({ runInlineTest }) => {
     '2.spec.ts': `
       import * as fs from 'fs';
       import * as path from 'path';
-      it('succeeds', async ({ testWorkerIndex }) => {
+      test('succeeds', async ({ testWorkerIndex }) => {
         // First test waits for the second to start to work around the race.
         fs.mkdirSync(config.outputDir, { recursive: true });
         fs.writeFileSync(path.join(config.outputDir, 'parallel-index.txt'), 'TRUE');
@@ -61,11 +61,11 @@ it('should reuse worker for the same parameters', async ({ runInlineTest }) => {
       export const toBeRenamed = { workerFixtures: { worker1, worker2 } };
     `,
     'a.test.js': `
-      it('succeeds', async ({ worker1, testWorkerIndex }) => {
+      test('succeeds', async ({ worker1, testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);
       });
 
-      it('succeeds', async ({ worker2, testWorkerIndex }) => {
+      test('succeeds', async ({ worker2, testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);
       });
     `,
@@ -82,11 +82,11 @@ it('should not reuse worker for different parameters', async ({ runInlineTest })
       };
     `,
     'a.test.js': `
-      it('succeeds', async ({ testWorkerIndex }) => {
+      test('succeeds', async ({ testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);
       });
 
-      it('succeeds', async ({ param, testWorkerIndex }) => {
+      test('succeeds', async ({ param, testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(1);
       });
     `,

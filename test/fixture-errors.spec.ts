@@ -27,11 +27,11 @@ it('should handle fixture timeout', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { timeout } };
     `,
     'a.spec.ts': `
-      it('fixture timeout', async ({timeout}) => {
+      test('fixture timeout', async ({timeout}) => {
         expect(1).toBe(1);
       });
 
-      it('failing fixture timeout', async ({timeout}) => {
+      test('failing fixture timeout', async ({timeout}) => {
         expect(1).toBe(2);
       });
     `
@@ -49,7 +49,7 @@ it('should handle worker fixture timeout', async ({ runInlineTest }) => {
       export const toBeRenamed = { workerFixtures: { timeout } };
     `,
     'a.spec.ts': `
-      it('fails', async ({timeout}) => {
+      test('fails', async ({timeout}) => {
       });
     `
   }, { timeout: 500 });
@@ -66,7 +66,7 @@ it('should handle test fixture error', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { failure } };
     `,
     'a.spec.ts': `
-      it('fails', async ({failure}) => {
+      test('fails', async ({failure}) => {
       });
     `
   });
@@ -85,7 +85,7 @@ it('should handle worker tear down fixture error', async ({ runInlineTest }) => 
       export const toBeRenamed = { workerFixtures: { failure } };
     `,
     'a.spec.ts': `
-      it('pass', async ({failure}) => {
+      test('pass', async ({failure}) => {
         expect(true).toBe(true);
       });
     `
@@ -109,7 +109,7 @@ it('should throw when defining worker fixture twice', async ({ runInlineTest }) 
       export const toBeRenamed = { workerFixtures: { foo } };
     `,
     'b.spec.ts': `
-      it('works', async ({foo}) => {});
+      test('works', async ({foo}) => {});
     `
   });
   expect(stripAscii(result.output)).toContain(`Fixture "foo" has already been registered. Use a different name for this fixture.`);
@@ -131,7 +131,7 @@ it('should throw when defining test fixture twice', async ({ runInlineTest }) =>
       export const toBeRenamed = { testFixtures: { foo } };
     `,
     'd.spec.ts': `
-      it('works', async ({foo}) => {});
+      test('works', async ({foo}) => {});
     `
   });
   expect(stripAscii(result.output)).toContain(`Fixture "foo" has already been registered. Use a different name for this fixture.`);
@@ -147,7 +147,7 @@ it('should throw when defining test fixture with the same name as a worker fixtu
       export const toBeRenamed = { testFixtures: { foo }, workerFixtures: { foo } };
     `,
     'e.spec.ts': `
-      it('works', async ({foo}) => {});
+      test('works', async ({foo}) => {});
     `,
   });
   expect(stripAscii(result.output)).toContain(`Fixture "foo" has already been registered as a { scope: 'worker' } fixture. Use a different name for this test fixture.`);
@@ -166,7 +166,7 @@ it('should throw when worker fixture depends on a test fixture', async ({ runInl
       export const toBeRenamed = { testFixtures: { foo }, workerFixtures: { bar } };
     `,
     'f.spec.ts': `
-      it('works', async ({bar}) => {});
+      test('works', async ({bar}) => {});
     `,
   });
   expect(stripAscii(result.output)).toContain('Worker fixture "bar" cannot depend on a test fixture "foo".');
@@ -188,7 +188,7 @@ it('should detect fixture dependency cycle', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { foo, bar, good1, baz, qux } };
     `,
     'dir/x.spec.ts': `
-      it('works', async ({foo}) => {});
+      test('works', async ({foo}) => {});
     `,
   });
   expect(stripAscii(result.output)).toContain('Fixtures "foo" -> "bar" -> "baz" -> "qux" -> "foo" form a dependency cycle.');
@@ -207,7 +207,7 @@ it('should detect fixture dependency cycle across files', async ({ runInlineTest
       export const toBeRenamed = { testFixtures: { qux } };
     `,
     'x.spec.ts': `
-      it('works', async ({foo}) => {});
+      test('works', async ({foo}) => {});
     `,
   });
   expect(stripAscii(result.output)).toContain('Fixtures "foo" -> "bar" -> "qux" -> "foo" form a dependency cycle.');
@@ -224,20 +224,20 @@ it('should throw when calling runTest twice', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { foo } };
     `,
     'f.spec.ts': `
-      it('works', async ({foo}) => {});
+      test('works', async ({foo}) => {});
     `,
   });
   expect(result.results[0].error.message).toBe('Cannot provide fixture value for the second time');
   expect(result.exitCode).toBe(1);
 });
 
-it('should throw when test is called in fixutres file', async ({ runInlineTest }) => {
+it('should throw when createTest is called in fixutres file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'fixtures.js': `
-      it(async ({}) => {});
+      createTest({});
     `,
     'a.test.js': `
-      it('test', async ({}) => {
+      test('test', async ({}) => {
       });
     `,
   });

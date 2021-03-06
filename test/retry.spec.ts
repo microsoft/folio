@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('should retry failures', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'retry-failures.spec.js': `
-      it('flake', async ({ testInfo }) => {
+      test('flake', async ({ testInfo }) => {
         // Passes on the second run.
         expect(testInfo.retry).toBe(1);
       });
@@ -40,7 +40,7 @@ it('should retry failures', async ({ runInlineTest }) => {
 it('should retry timeout', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'one-timeout.spec.js': `
-      it('timeout', async () => {
+      test('timeout', async () => {
         await new Promise(f => setTimeout(f, 10000));
       });
     `
@@ -54,7 +54,7 @@ it('should retry timeout', async ({ runInlineTest }) => {
 it('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
   const { exitCode, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
-      it('succeeds', test => test.fail(), () => {
+      test('succeeds', test => test.fail(), () => {
         expect(1 + 1).toBe(2);
       });
     `
@@ -67,7 +67,7 @@ it('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
 it('should not retry unexpected pass', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
-      it('succeeds', test => test.fail(), () => {
+      test('succeeds', test => test.fail(), () => {
         expect(1 + 1).toBe(2);
       });
     `
@@ -81,11 +81,11 @@ it('should not retry unexpected pass', async ({ runInlineTest }) => {
 it('should not retry expected failure', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'expected-failure.spec.js': `
-      it('fails', test => test.fail(), () => {
+      test('fails', test => test.fail(), () => {
         expect(1 + 1).toBe(3);
       });
 
-      it('non-empty remaining',() => {
+      test('non-empty remaining',() => {
         expect(1 + 1).toBe(2);
       });
     `
@@ -99,7 +99,7 @@ it('should not retry expected failure', async ({ runInlineTest }) => {
 it('should retry unhandled rejection', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'unhandled-rejection.spec.js': `
-      it('unhandled rejection', async () => {
+      test('unhandled rejection', async () => {
         setTimeout(() => {
           throw new Error('Unhandled rejection in the test');
         });

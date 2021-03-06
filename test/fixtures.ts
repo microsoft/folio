@@ -35,16 +35,26 @@ export type RunResult = {
 type Files = { [key: string]: string | Buffer };
 type Params = { [key: string]: string | number | boolean | string[] };
 
-async function innerRunTest(testInfo: TestInfo, header: string, files: { [key: string]: string | Buffer }, params: any = {}): Promise<RunResult> {
+async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string | Buffer }, params: any = {}): Promise<RunResult> {
   const baseDir = testInfo.outputPath();
 
   await Promise.all(Object.keys(files).map(async name => {
     const fullName = path.join(baseDir, name);
     await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
-    if (fullName.endsWith('.js') || fullName.endsWith('.ts'))
+    if (/(spec|test)\.(js|ts)$/.test(name)) {
+      const header = `
+        const { createTest, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
+        const test = createTest({});
+      `;
       await fs.promises.writeFile(fullName, header + files[name]);
-    else
+    } else if (/\.(js|ts)$/.test(name)) {
+      const header = `
+        const { createTest, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
+      `;
+      await fs.promises.writeFile(fullName, header + files[name]);
+    } else {
       await fs.promises.writeFile(fullName, files[name]);
+    }
   }));
 
   let testDir = '.';
@@ -127,32 +137,14 @@ async function innerRunTest(testInfo: TestInfo, header: string, files: { [key: s
 
 type TestState = {
   runInlineTest: (files: Files, params?: Params) => Promise<RunResult>;
-  runInlineFixturesTest: (files: Files, params?: Params) => Promise<RunResult>;
 };
 
 const fixtures = base.extend<{}, TestState>();
 
 fixtures.runInlineTest.init(async ({ testInfo }, run) => {
-  const header = `
-    const { folio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
-    const { it, fit, xit, test, describe, xdescribe, fdescribe, beforeEach, beforeAll, afterEach, afterAll } = folio;
-  `;
   let result: RunResult;
   await run(async (files, options) => {
-    result = await innerRunTest(testInfo, header, files, options);
-    return result;
-  });
-  if (testInfo.status !== testInfo.expectedStatus)
-    console.log(result.output);
-});
-
-fixtures.runInlineFixturesTest.init(async ({ testInfo }, run) => {
-  const header = `
-    const { folio: baseFolio, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
-  `;
-  let result: RunResult;
-  await run(async (files, options) => {
-    result = await innerRunTest(testInfo, header, files, options);
+    result = await innerRunTest(testInfo, files, options);
     return result;
   });
   if (testInfo.status !== testInfo.expectedStatus)

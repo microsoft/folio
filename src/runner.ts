@@ -62,7 +62,6 @@ export class Runner {
 
   loadFiles(files: string[]) {
     debugLog(`loadFiles`, files);
-    // First traverse tests.
     for (const file of files) {
       const suite = new RunnerSuite('');
       suite.file = file;

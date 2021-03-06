@@ -24,7 +24,7 @@ it('should support golden', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot();
       });
     `
@@ -42,7 +42,7 @@ Line5
 Line6
 Line7`,
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         const data = [];
         data.push('Line1');
         data.push('Line22');
@@ -67,7 +67,7 @@ Line7`,
 it('should write missing expectations', async ({runInlineTest, testInfo}) => {
   const result = await runInlineTest({
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot();
       });
     `
@@ -82,7 +82,7 @@ it('should update expectations', async ({runInlineTest, testInfo}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect('Hello world updated').toMatchSnapshot();
       });
     `
@@ -100,7 +100,7 @@ it('should match multiple snapshots', async ({runInlineTest}) => {
     '__snapshots__/a/is-a-test/snapshot_1.txt': `Snapshot2`,
     '__snapshots__/a/is-a-test/snapshot_2.txt': `Snapshot3`,
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect('Snapshot1').toMatchSnapshot();
         expect('Snapshot2').toMatchSnapshot();
         expect('Snapshot3').toMatchSnapshot();
@@ -114,7 +114,7 @@ it('should use provided name', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot('provided.txt');
       });
     `
@@ -126,7 +126,7 @@ it('should use provided name via options', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot({ name: 'provided.txt' });
       });
     `
@@ -138,7 +138,7 @@ it('should compare binary', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.dat': Buffer.from([1,2,3,4]),
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect(Buffer.from([1,2,3,4])).toMatchSnapshot();
       });
     `
@@ -151,7 +151,7 @@ it('should compare PNG images', async ({runInlineTest}) => {
     '__snapshots__/a/is-a-test/snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64')).toMatchSnapshot();
       });
     `
@@ -164,7 +164,7 @@ it('should compare different PNG images', async ({runInlineTest}) => {
     '__snapshots__/a/is-a-test/snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVQYV2NgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII==', 'base64')).toMatchSnapshot();
       });
     `
@@ -181,7 +181,7 @@ it('should respect threshold', async ({runInlineTest}) => {
     '__snapshots__/a/is-a-test/snapshot.png': expected,
     '__snapshots__/a/is-a-test/snapshot2.png': expected,
     'a.spec.js': `
-      it('is a test', ({}) => {
+      test('is a test', ({}) => {
         expect(Buffer.from('${actual.toString('base64')}', 'base64')).toMatchSnapshot({ threshold: 0.3 });
         expect(Buffer.from('${actual.toString('base64')}', 'base64')).not.toMatchSnapshot({ threshold: 0.2 });
         expect(Buffer.from('${actual.toString('base64')}', 'base64')).toMatchSnapshot('snapshot2.png', { threshold: 0.3 });

@@ -26,7 +26,7 @@ it('should run with each configuration', async ({ runInlineTest }) => {
       } };
     `,
     'a.test.ts': `
-      it('runs 6 times', (test, parameters) => {
+      test('runs 6 times', (test, parameters) => {
         test.skip(parameters.foo === 'foo1' && parameters.bar === 'bar1');
       }, async ({ foo, bar }) => {
         expect(foo).toContain('foo');
@@ -38,7 +38,7 @@ it('should run with each configuration', async ({ runInlineTest }) => {
 
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(5);  // 6 total, one skipped
-  const parametersList = result.report.suites[0].specs[0].tests.map(r => r.parameters);
+  const parametersList = result.report.suites[0].suites[0].specs[0].tests.map(r => r.parameters);
   for (const foo of ['foo1', 'foo2', 'foo3']) {
     for (const bar of ['bar1', 'bar2']) {
       expect(parametersList.find(o => o.foo === foo && o.bar === bar)).toBeTruthy();
@@ -61,7 +61,7 @@ it('should throw on duplicate parameters', async ({ runInlineTest }) => {
       } };
     `,
     'a.spec.ts': `
-      it('success', async ({}) => {
+      test('success', async ({}) => {
       });
     `
   });
@@ -78,7 +78,7 @@ it('should use kebab for CLI name', async ({ runInlineTest }) => {
       } };
     `,
     'a.test.ts': `
-      it('test', async ({ fooCamelCase }) => {
+      test('test', async ({ fooCamelCase }) => {
         expect(fooCamelCase).toBe('kebab-value');
       });
     `
@@ -95,7 +95,7 @@ it('should show parameters descriptions', async ({ runInlineTest }) => {
       } };
     `,
     'a.test.ts': `
-      it('should work', () => {});
+      test('should work', () => {});
     `
   }, { 'help': true });
   expect(result.output).toContain(`-p, --param browserName=<value>`);
@@ -114,7 +114,7 @@ it('should support integer parameter', async ({ runInlineTest }) => {
       } };
     `,
     'a.test.ts': `
-      it('success', async ({integer}) => {
+      test('success', async ({integer}) => {
         expect(integer).toBe(6);
       });
     `
@@ -130,7 +130,7 @@ it('should support boolean parameter', async ({ runInlineTest }) => {
       } };
     `,
     'a.test.ts': `
-      it('success', async ({bool}) => {
+      test('success', async ({bool}) => {
         expect(bool).toBe(true);
       });
     `
@@ -146,7 +146,7 @@ it('should generate tests from CLI', async ({ runInlineTest }) => {
       } };
     `,
     'a.test.ts': `
-      it('success', async ({bool}) => {
+      test('success', async ({bool}) => {
         expect(bool).toBe(true);
       });
     `
@@ -173,13 +173,13 @@ it('tests respect automatic fixture parameters', async ({ runInlineTest }) => {
       };
     `,
     'a.test.js': `
-      it('test 1', async ({}) => {
+      test('test 1', async ({}) => {
         expect(1).toBe(1);
       });
     `
   });
   expect(result.exitCode).toBe(0);
-  expect(result.report.suites[0].specs[0].tests[0].parameters).toEqual({ param: 'value' });
+  expect(result.report.suites[0].suites[0].specs[0].tests[0].parameters).toEqual({ param: 'value' });
 });
 
 it('should not duplicate parameters in configuration', async ({ runInlineTest }) => {
@@ -201,7 +201,7 @@ it('should not duplicate parameters in configuration', async ({ runInlineTest })
       };
     `,
     'a.test.ts': `
-      it('runs 3 times', async ({ f1, f2 }) => {
+      test('runs 3 times', async ({ f1, f2 }) => {
         expect(f1).toContain('foo');
         expect(f2).toContain('foo');
         expect(f1).toBe(f2);
@@ -226,12 +226,12 @@ it('should generate tests when parameters are in beforeEach', async ({ runInline
       };
     `,
     'a.test.js': `
-      describe('suite', () => {
+      test.describe('suite', () => {
         let fooValue;
-        beforeEach(({ foo }) => {
+        test.beforeEach(({ foo }) => {
           fooValue = foo;
         });
-        it('runs 3 times', async ({}) => {
+        test('runs 3 times', async ({}) => {
           console.log(fooValue);
         });
       });

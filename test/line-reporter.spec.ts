@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('render unexpected after retry', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', async ({}) => {
+      test('one', async ({}) => {
         expect(1).toBe(0);
       });
     `,
@@ -38,7 +38,7 @@ it('render unexpected after retry', async ({ runInlineTest }) => {
 it('render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('one', async ({testInfo}) => {
+      test('one', async ({testInfo}) => {
         expect(testInfo.retry).toBe(3);
       });
     `,

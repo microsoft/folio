@@ -26,7 +26,7 @@ function monotonicTime(): number {
 it('should collect stdio', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'stdio.spec.js': `
-      it('stdio', () => {
+      test('stdio', () => {
         process.stdout.write('stdout text');
         process.stdout.write(Buffer.from('stdout buffer'));
         process.stderr.write('stderr text');
@@ -35,7 +35,7 @@ it('should collect stdio', async ({ runInlineTest }) => {
     `
   });
   expect(exitCode).toBe(0);
-  const testResult = report.suites[0].specs[0].tests[0].runs[0];
+  const testResult = report.suites[0].suites[0].specs[0].tests[0].runs[0];
   const { stdout, stderr } = testResult;
   expect(stdout).toEqual([{ text: 'stdout text' }, { buffer: Buffer.from('stdout buffer').toString('base64') }]);
   expect(stderr).toEqual([{ text: 'stderr text' }, { buffer: Buffer.from('stderr buffer').toString('base64') }]);
@@ -62,11 +62,11 @@ it('should work with typescript', async ({ runInlineTest }) => {
     'typescript.spec.ts': `
       import './global-foo';
 
-      it('should find global foo', () => {
+      test('should find global foo', () => {
         expect(global['foo']).toBe(true);
       });
 
-      it('should work with type annotations', () => {
+      test('should work with type annotations', () => {
         const x: number = 5;
         expect(x).toBe(5);
       });
@@ -78,21 +78,21 @@ it('should work with typescript', async ({ runInlineTest }) => {
 it('should repeat each', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'one-success.spec.js': `
-      it('succeeds', () => {
+      test('succeeds', () => {
         expect(1 + 1).toBe(2);
       });
     `
   }, { 'repeat-each': 3 });
   expect(exitCode).toBe(0);
   expect(report.suites.length).toBe(1);
-  expect(report.suites[0].specs.length).toBe(1);
-  expect(report.suites[0].specs[0].tests.length).toBe(3);
+  expect(report.suites[0].suites[0].specs.length).toBe(1);
+  expect(report.suites[0].suites[0].specs[0].tests.length).toBe(3);
 });
 
 it('should allow flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('flake', async ({ testInfo }) => {
+      test('flake', async ({ testInfo }) => {
         expect(testInfo.retry).toBe(1);
       });
     `,
@@ -104,7 +104,7 @@ it('should allow flaky', async ({ runInlineTest }) => {
 it('should fail on unexpected pass', async ({ runInlineTest }) => {
   const { exitCode, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
-      it('succeeds', test => test.fail(), () => {
+      test('succeeds', test => test.fail(), () => {
         expect(1 + 1).toBe(2);
       });
     `
@@ -118,7 +118,7 @@ it('should respect global timeout', async ({ runInlineTest }) => {
   const now = monotonicTime();
   const { exitCode, output } = await runInlineTest({
     'one-timeout.spec.js': `
-      it('timeout', async () => {
+      test('timeout', async () => {
         await new Promise(f => setTimeout(f, 10000));
       });
     `

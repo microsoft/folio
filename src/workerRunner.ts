@@ -139,6 +139,7 @@ export class WorkerRunner extends EventEmitter {
       line: test.line,
       column: test.column,
       fn: test.fn,
+      options: test._fullOptions(),
       parameters,
       repeatEachIndex: this._repeatEachIndex,
       workerIndex: this._workerIndex,
