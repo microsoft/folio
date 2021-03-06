@@ -42,7 +42,7 @@ it('should be able to import/export fixtures', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { testTypeOnly }, workerFixtures: { workerTypeOnly } };
     `,
     'import-fixtures-both.spec.ts': `
-      it('ensure that overrides work', async ({ testTypeOnly, workerTypeOnly, testWrap, workerWrap }) => {
+      test('ensure that overrides work', async ({ testTypeOnly, workerTypeOnly, testWrap, workerWrap }) => {
         expect(testWrap).toBe('testWrap');
         expect(workerWrap).toBe(42);
         expect(testTypeOnly).toBe('testTypeOnly');

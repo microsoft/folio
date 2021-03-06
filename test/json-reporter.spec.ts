@@ -20,15 +20,15 @@ const { it, expect } = folio;
 it('should support spec.ok', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('math works!', async ({}) => {
+      test('math works!', async ({}) => {
         expect(1 + 1).toBe(2);
       });
-      it('math fails!', async ({}) => {
+      test('math fails!', async ({}) => {
         expect(1 + 1).toBe(3);
       });
     `
   }, { });
   expect(result.exitCode).toBe(1);
-  expect(result.report.suites[0].specs[0].ok).toBe(true);
-  expect(result.report.suites[0].specs[1].ok).toBe(false);
+  expect(result.report.suites[0].suites[0].specs[0].ok).toBe(true);
+  expect(result.report.suites[0].suites[0].specs[1].ok).toBe(false);
 });

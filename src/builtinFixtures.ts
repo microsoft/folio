@@ -14,20 +14,6 @@
  * limitations under the License.
  */
 
-import type { TestInfo } from './fixtures';
-
-type BuiltinWorkerFixtures = {
-  // Worker index that runs this test.
-  testWorkerIndex: number;
-};
-
-type BuiltinTestFixtures = {
-  // Information about the test being run.
-  testInfo: TestInfo;
-  // Parameter-based relative path to be overridden, empty by default.
-  testParametersPathSegment: string;
-};
-
 async function testWorkerIndex({}, runTest) {
   // Worker injects the value for this one.
   await runTest(undefined as any);

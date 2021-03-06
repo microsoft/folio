@@ -17,16 +17,26 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should be able to redefine config', async ({ runInlineTest }) => {
+it('should create two suites with different options', async ({ runInlineTest }) => {
   const result = await runInlineTest({
+    'fixtures.ts': `
+      async function getFoo({ testInfo }, run) {
+        await run(testInfo.options.foo);
+      }
+      export const toBeRenamed = { testFixtures: { getFoo } };
+    `,
     'a.test.ts': `
-      config.timeout = 12345;
-      test('pass', async ({ testInfo }) => {
-        expect(testInfo.timeout).toBe(12345);
+      const test1 = createTest({ foo: 'bar' });
+      test1('test1', ({ testInfo, getFoo }) => {
+        expect(testInfo.options.foo).toBe('bar');
+        expect(getFoo).toBe('bar');
+      });
+      const test2 = createTest({ foo: 'baz' });
+      test2('test2', ({ testInfo, getFoo }) => {
+        expect(getFoo).toBe('baz');
       });
     `
   });
-
   expect(result.exitCode).toBe(0);
-  expect(result.passed).toBe(1);
+  expect(result.passed).toBe(2);
 });

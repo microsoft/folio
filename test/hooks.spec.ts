@@ -33,29 +33,29 @@ it('hooks should work with fixtures', async ({ runInlineTest }) => {
       export const toBeRenamed = { workerFixtures: { w }, testFixtures: { t } };
     `,
     'a.test.js': `
-      describe('suite', () => {
-        beforeAll(async ({w}) => {
+      test.describe('suite', () => {
+        test.beforeAll(async ({w}) => {
           global.logs.push('beforeAll-' + w);
         });
-        afterAll(async ({w}) => {
+        test.afterAll(async ({w}) => {
           global.logs.push('afterAll-' + w);
         });
 
-        beforeEach(async ({w, t}) => {
+        test.beforeEach(async ({w, t}) => {
           global.logs.push('beforeEach-' + w + '-' + t);
         });
-        afterEach(async ({w, t}) => {
+        test.afterEach(async ({w, t}) => {
           global.logs.push('afterEach-' + w + '-' + t);
         });
 
-        it('one', async ({w, t}) => {
+        test('one', async ({w, t}) => {
           global.logs.push('test');
           expect(w).toBe(17);
           expect(t).toBe(42);
         });
       });
 
-      it('two', async ({w}) => {
+      test('two', async ({w}) => {
         expect(global.logs).toEqual([
           '+w',
           'beforeAll-17',
@@ -83,15 +83,15 @@ it('afterEach failure should not prevent other hooks and fixture teardown', asyn
       export const toBeRenamed = { testFixtures: { t } };
     `,
     'a.test.js': `
-      describe('suite', () => {
-        afterEach(async ({}) => {
+      test.describe('suite', () => {
+        test.afterEach(async ({}) => {
           console.log('afterEach1');
         });
-        afterEach(async ({}) => {
+        test.afterEach(async ({}) => {
           console.log('afterEach2');
           throw new Error('afterEach2');
         });
-        it('one', async ({t}) => {
+        test('one', async ({t}) => {
           console.log('test');
           expect(t).toBe(42);
         });
@@ -105,18 +105,18 @@ it('afterEach failure should not prevent other hooks and fixture teardown', asyn
 it('beforeEach failure should prevent the test, but not other hooks', async ({ runInlineTest }) => {
   const report = await runInlineTest({
     'a.test.js': `
-      describe('suite', () => {
-        beforeEach(async ({}) => {
+      test.describe('suite', () => {
+        test.beforeEach(async ({}) => {
           console.log('beforeEach1');
         });
-        beforeEach(async ({}) => {
+        test.beforeEach(async ({}) => {
           console.log('beforeEach2');
           throw new Error('beforeEach2');
         });
-        afterEach(async ({}) => {
+        test.afterEach(async ({}) => {
           console.log('afterEach');
         });
-        it('one', async ({}) => {
+        test('one', async ({}) => {
           console.log('test');
         });
       });
@@ -126,25 +126,12 @@ it('beforeEach failure should prevent the test, but not other hooks', async ({ r
   expect(report.results[0].error.message).toContain('beforeEach2');
 });
 
-it('should throw when hook is called in fixutres file', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'fixtures.js': `
-      beforeEach(async ({}) => {});
-    `,
-    'a.test.js': `
-      it('test', async ({}) => {
-      });
-    `,
-  });
-  expect(stripAscii(result.output)).toContain('Hook cannot be defined in a fixture file.');
-});
-
 it('should throw when hook depends on unknown fixture', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.ts': `
-      describe('suite', () => {
-        beforeEach(async ({foo}) => {});
-        it('works', async ({}) => {});
+      test.describe('suite', () => {
+        test.beforeEach(async ({foo}) => {});
+        test('works', async ({}) => {});
       });
     `,
   });
@@ -162,9 +149,9 @@ it('should throw when beforeAll hook depends on test fixture', async ({ runInlin
       export const toBeRenamed = { testFixtures: { foo } };
     `,
     'a.spec.ts': `
-      describe('suite', () => {
-        beforeAll(async ({foo}) => {});
-        it('works', async ({foo}) => {});
+      test.describe('suite', () => {
+        test.beforeAll(async ({foo}) => {});
+        test('works', async ({foo}) => {});
       });
     `,
   });
@@ -182,9 +169,9 @@ it('should throw when afterAll hook depends on test fixture', async ({ runInline
       export const toBeRenamed = { testFixtures: { foo } };
     `,
     'a.spec.ts': `
-      describe('suite', () => {
-        afterAll(async ({foo}) => {});
-        it('works', async ({foo}) => {});
+      test.describe('suite', () => {
+        test.afterAll(async ({foo}) => {});
+        test('works', async ({foo}) => {});
       });
     `,
   });

@@ -20,41 +20,41 @@ const { it, expect } = folio;
 it('should grep test name', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'match-grep/a.test.ts': `
-      it('test A', () => {
+      test('test A', () => {
         expect(1 + 1).toBe(2);
       });
 
-      it('test B', () => {
+      test('test B', () => {
         expect(1 + 1).toBe(2);
       });
 
-      it('test C', () => {
+      test('test C', () => {
         expect(1 + 1).toBe(2);
       });
     `,
     'match-grep/b.test.ts': `
-      it('test A', () => {
+      test('test A', () => {
         expect(1 + 1).toBe(2);
       });
 
-      it('test B', () => {
+      test('test B', () => {
         expect(1 + 1).toBe(2);
       });
 
-      it('test C', () => {
+      test('test C', () => {
         expect(1 + 1).toBe(2);
       });
     `,
     'match-grep/c.test.ts': `
-      it('test A', () => {
+      test('test A', () => {
         expect(1 + 1).toBe(2);
       });
 
-      it('test B', () => {
+      test('test B', () => {
         expect(1 + 1).toBe(2);
       });
 
-      it('test C', () => {
+      test('test C', () => {
         expect(1 + 1).toBe(2);
       });
     `,

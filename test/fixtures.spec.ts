@@ -25,7 +25,7 @@ it('should work', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { asdf } };
     `,
     'a.test.js': `
-      it('should use asdf', async ({asdf}) => {
+      test('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(123);
       });
     `,
@@ -42,7 +42,7 @@ it('should work with a sync function', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { asdf } };
     `,
     'a.test.js': `
-      it('should use asdf', ({asdf}) => {
+      test('should use asdf', ({asdf}) => {
         expect(asdf).toBe(123);
       });
     `,
@@ -59,7 +59,7 @@ it('should work with a non-arrow function', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { asdf } };
     `,
     'a.test.js': `
-      it('should use asdf', function ({asdf}) {
+      test('should use asdf', function ({asdf}) {
         expect(asdf).toBe(123);
       });
     `,
@@ -76,7 +76,7 @@ it('should work with a named function', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { asdf } };
     `,
     'a.test.js': `
-      it('should use asdf', async function hello({asdf}) {
+      test('should use asdf', async function hello({asdf}) {
         expect(asdf).toBe(123);
       });
     `,
@@ -93,7 +93,7 @@ it('should work with renamed parameters', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { asdf } };
     `,
     'a.test.js': `
-      it('should use asdf', function ({asdf: renamed}) {
+      test('should use asdf', function ({asdf: renamed}) {
         expect(renamed).toBe(123);
       });
     `,
@@ -104,10 +104,10 @@ it('should work with renamed parameters', async ({ runInlineTest }) => {
 it('should fail if parameters are not destructured', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('should pass', function () {
+      test('should pass', function () {
         expect(1).toBe(1);
       });
-      it('should use asdf', function (abc) {
+      test('should use asdf', function (abc) {
         expect(abc.asdf).toBe(123);
       });
     `,
@@ -120,7 +120,7 @@ it('should fail if parameters are not destructured', async ({ runInlineTest }) =
 it('should fail with an unknown fixture', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('should use asdf', async ({asdf}) => {
+      test('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(123);
       });
     `,
@@ -140,13 +140,13 @@ it('should run the fixture every time', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { asdf } };
     `,
     'a.test.js': `
-      it('should use asdf', async ({asdf}) => {
+      test('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(0);
       });
-      it('should use asdf', async ({asdf}) => {
+      test('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(1);
       });
-      it('should use asdf', async ({asdf}) => {
+      test('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(2);
       });
     `,
@@ -164,13 +164,13 @@ it('should only run worker fixtures once', async ({ runInlineTest }) => {
       export const toBeRenamed = { workerFixtures: { asdf } };
     `,
     'a.test.js': `
-      it('should use asdf', async ({asdf}) => {
+      test('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(0);
       });
-      it('should use asdf', async ({asdf}) => {
+      test('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(0);
       });
-      it('should use asdf', async ({asdf}) => {
+      test('should use asdf', async ({asdf}) => {
         expect(asdf).toBe(0);
       });
     `,
@@ -190,19 +190,19 @@ it('all files should share fixtures', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { testFixture }, workerFixtures: { worker } };
     `,
     'a.test.js': `
-      it('should use worker', async ({worker, testFixture}) => {
+      test('should use worker', async ({worker, testFixture}) => {
         expect(worker).toBe('worker');
         expect(testFixture).toBe('test');
       });
     `,
     'b.test.js': `
-      it('should use worker', async ({worker, testFixture}) => {
+      test('should use worker', async ({worker, testFixture}) => {
         expect(worker).toBe('worker');
         expect(testFixture).toBe('test');
       });
     `,
     'c.test.js': `
-      it('should use worker', async ({worker, testFixture}) => {
+      test('should use worker', async ({worker, testFixture}) => {
         expect(worker).toBe('worker');
         expect(testFixture).toBe('test');
       });
@@ -222,10 +222,10 @@ it('tests respect automatic test fixtures', async ({ runInlineTest }) => {
       export const toBeRenamed = { autoTestFixtures: { automaticTestFixture } };
     `,
     'a.test.js': `
-      it('test 1', async ({}) => {
+      test('test 1', async ({}) => {
         expect(global.counter).toBe(1);
       });
-      it('test 2', async ({}) => {
+      test('test 2', async ({}) => {
         expect(global.counter).toBe(2);
       });
     `
@@ -245,10 +245,10 @@ it('tests respect automatic worker fixtures', async ({ runInlineTest }) => {
       export const toBeRenamed = { autoWorkerFixtures: { automaticWorkerFixture } };
     `,
     'a.test.js': `
-      it('test 1', async ({}) => {
+      test('test 1', async ({}) => {
         expect(global.counter).toBe(1);
       });
-      it('test 2', async ({}) => {
+      test('test 2', async ({}) => {
         expect(global.counter).toBe(1);
       });
     `
@@ -268,7 +268,7 @@ it('tests does not run non-automatic worker fixtures', async ({ runInlineTest })
       export const toBeRenamed = { workerFixtures: { workerFixture } };
     `,
     'a.test.js': `
-      it('test 1', async ({}) => {
+      test('test 1', async ({}) => {
         expect(global.counter).toBe(0);
       });
     `
@@ -297,7 +297,7 @@ it('should teardown fixtures after timeout', async ({ runInlineTest, testInfo })
       };
     `,
     'a.spec.ts': `
-      it('test', async ({t, w}) => {
+      test('test', async ({t, w}) => {
         expect(t).toBe('t');
         expect(w).toBe('w');
         await new Promise(() => {});

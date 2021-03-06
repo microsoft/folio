@@ -40,6 +40,7 @@ export type TestInfo = {
   fn: Function;
 
   // Parameters
+  options: folio.SuiteOptions;
   parameters: Parameters;
   workerIndex: number;
   repeatEachIndex: number;

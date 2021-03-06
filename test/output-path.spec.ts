@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('should include repeat token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
-      it('test', ({testInfo}) => {
+      test('test', ({testInfo}) => {
         if (testInfo.repeatEachIndex)
           expect(testInfo.outputPath('')).toContain('repeat' + testInfo.repeatEachIndex);
         else
@@ -35,7 +35,7 @@ it('should include repeat token', async ({runInlineTest}) => {
 it('should include retry token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
-      it('test', ({testInfo}) => {
+      test('test', ({testInfo}) => {
         expect(testInfo.outputPath('')).toContain('retry' + testInfo.retry);
         expect(testInfo.retry).toBe(2);
       });

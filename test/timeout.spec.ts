@@ -29,7 +29,7 @@ it('should run fixture tear down on timeout', async ({ runInlineTest }) => {
       };
     `,
     'c.spec.ts': `
-      it('works', async ({ foo }) => {
+      test('works', async ({ foo }) => {
         await new Promise(f => setTimeout(f, 100000));
       });
     `

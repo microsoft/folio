@@ -20,7 +20,7 @@ const { it } = folio;
 it('should work and remove empty dir', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my-test.spec.js': `
-      it('test 1', async ({testInfo}) => {
+      test('test 1', async ({testInfo}) => {
         if (testInfo.retry) {
           expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1-retry1', 'foo', 'bar'));
         } else {

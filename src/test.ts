@@ -26,6 +26,7 @@ class Base {
 
   _only = false;
   _ordinal: number;
+  _options: folio.SuiteOptions = {};
 
   constructor(title: string, parent?: Suite) {
     this.title = title;
@@ -42,6 +43,12 @@ class Base {
 
   fullTitle(): string {
     return this.titlePath().join(' ');
+  }
+
+  _fullOptions(): folio.SuiteOptions {
+    if (!this.parent)
+      return this._options;
+    return { ...this.parent._fullOptions(), ...this._options };
   }
 }
 

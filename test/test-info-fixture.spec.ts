@@ -20,10 +20,10 @@ const { it } = folio;
 it('should work directly', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      it('test 1', async ({testInfo}) => {
+      test('test 1', async ({testInfo}) => {
         expect(testInfo.title).toBe('test 1');
       });
-      it('test 2', async ({testInfo}) => {
+      test('test 2', async ({testInfo}) => {
         expect(testInfo.title).toBe('test 2');
       });
     `,
@@ -42,10 +42,10 @@ it('should work via fixture', async ({ runInlineTest }) => {
       };
     `,
     'a.test.js': `
-      it('test 1', async ({title}) => {
+      test('test 1', async ({title}) => {
         expect(title).toBe('test 1');
       });
-      it('test 2', async ({title}) => {
+      test('test 2', async ({title}) => {
         expect(title).toBe('test 2');
       });
     `,

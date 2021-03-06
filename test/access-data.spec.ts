@@ -27,7 +27,7 @@ it('should access error in fixture', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { postProcess } };
     `,
     'test-error-visible-in-fixture.spec.ts': `
-      it('ensure fixture handles test error', async ({ postProcess }) => {
+      test('ensure fixture handles test error', async ({ postProcess }) => {
         expect(true).toBe(false);
       });
     `
@@ -49,7 +49,7 @@ it('should access data in fixture', async ({ runInlineTest }) => {
       export const toBeRenamed = { testFixtures: { testInfoForward } };
     `,
     'test-data-visible-in-fixture.spec.ts': `
-      it('ensure fixture handles test error', async ({ testInfoForward }) => {
+      test('ensure fixture handles test error', async ({ testInfoForward }) => {
         console.log('console.log');
         console.error('console.error');
         expect(config.testDir).toBeTruthy();
@@ -58,7 +58,7 @@ it('should access data in fixture', async ({ runInlineTest }) => {
     `
   });
   expect(exitCode).toBe(0);
-  const testResult = report.suites[0].specs[0].tests[0].runs[0];
+  const testResult = report.suites[0].suites[0].specs[0].tests[0].runs[0];
   expect(testResult.data).toEqual({ 'myname': 'myvalue' });
   expect(testResult.stdout).toEqual([{ text: 'console.log\n' }]);
   expect(testResult.stderr).toEqual([{ text: 'console.error\n' }]);

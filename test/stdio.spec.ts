@@ -21,7 +21,7 @@ it('should get top level stdio', async ({runInlineTest}) => {
     'a.spec.js': `
       console.log('%% top level stdout');
       console.error('%% top level stderr');
-      it('is a test', () => {
+      test('is a test', () => {
         console.log('%% stdout in a test');
         console.error('%% stderr in a test');
       });
@@ -50,7 +50,7 @@ it('should get stdio from worker fixture teardown', async ({runInlineTest}) => {
       };
     `,
     'a.spec.js': `
-      it('is a test', async ({fixture}) => {});
+      test('is a test', async ({fixture}) => {});
     `
   });
   expect(result.output.split('\n').filter(x => x.startsWith('%%'))).toEqual([

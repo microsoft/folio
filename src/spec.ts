@@ -15,7 +15,6 @@
  */
 
 import { expect } from './expect';
-import { TestModifier } from './testModifier';
 import { errorWithCallLocation } from './util';
 
 Error.stackTraceLimit = 15;
@@ -23,6 +22,7 @@ Error.stackTraceLimit = 15;
 export type SpecType = 'default' | 'skip' | 'only';
 
 export type Implementation = {
+  startSuite: (options: folio.SuiteOptions) => void;
   it: (spec: SpecType, ...args: any[]) => void;
   describe: (spec: SpecType, ...args: any[]) => void;
   beforeEach: (fn: Function) => void;
@@ -37,99 +37,60 @@ export function setImplementation(i: Implementation | undefined) {
   implementation = i;
 }
 
-interface DescribeHelper<WorkerParameters> {
-  describe(name: string, inner: () => void): void;
-  describe(name: string, modifierFn: (modifier: TestModifier, parameters: WorkerParameters) => any, inner: () => void): void;
+export function createTestImpl(options: folio.SuiteOptions) {
+  if (!implementation)
+    throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
+  implementation.startSuite(options);
+  const test: any = ((...args: any[]) => {
+    if (!implementation)
+      throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
+    implementation.it('default', ...args);
+  });
+  test.expect = expect;
+  test.skip = (...args: any[]) => {
+    if (!implementation)
+      throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
+    implementation.it('skip', ...args);
+  };
+  test.only = (...args: any[]) => {
+    if (!implementation)
+      throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
+    implementation.it('only', ...args);
+  };
+  test.describe = ((...args: any[]) => {
+    if (!implementation)
+      throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
+    implementation.describe('default', ...args);
+  }) as any;
+  test.describe.skip = (...args: any[]) => {
+    if (!implementation)
+      throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
+    implementation.describe('skip', ...args);
+  };
+  test.describe.only = (...args: any[]) => {
+    if (!implementation)
+      throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
+    implementation.describe('only', ...args);
+  };
+  test.beforeEach = fn => {
+    if (!implementation)
+      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
+    implementation.beforeEach(fn);
+  };
+  test.afterEach = fn => {
+    if (!implementation)
+      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
+    implementation.afterEach(fn);
+  };
+  test.beforeAll = fn => {
+    if (!implementation)
+      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
+    implementation.beforeAll(fn);
+  };
+  test.afterAll = fn => {
+    if (!implementation)
+      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
+    implementation.afterAll(fn);
+  };
+  return test;
 }
-type DescribeFunction<WorkerParameters> = DescribeHelper<WorkerParameters>['describe'];
-interface ItHelper<WorkerParameters, WorkerFixtures, TestFixtures> {
-  it(name: string, inner: (fixtures: WorkerParameters & WorkerFixtures & TestFixtures) => Promise<void> | void): void;
-  it(name: string, modifierFn: (modifier: TestModifier, parameters: WorkerParameters) => any, inner: (fixtures: WorkerParameters & WorkerFixtures & TestFixtures) => Promise<void> | void): void;
-}
-type ItFunction<WorkerParameters, WorkerFixtures, TestFixtures> = ItHelper<WorkerParameters, WorkerFixtures, TestFixtures>['it'];
-type It<WorkerParameters, WorkerFixtures, TestFixtures> = ItFunction<WorkerParameters, WorkerFixtures, TestFixtures> & {
-  only: ItFunction<WorkerParameters, WorkerFixtures, TestFixtures>;
-  skip: ItFunction<WorkerParameters, WorkerFixtures, TestFixtures>;
-};
-type Fit<WorkerParameters, WorkerFixtures, TestFixtures> = ItFunction<WorkerParameters, WorkerFixtures, TestFixtures>;
-type Xit<WorkerParameters, WorkerFixtures, TestFixtures> = ItFunction<WorkerParameters, WorkerFixtures, TestFixtures>;
-type Describe<WorkerParameters> = DescribeFunction<WorkerParameters> & {
-  only: DescribeFunction<WorkerParameters>;
-  skip: DescribeFunction<WorkerParameters>;
-};
-type BeforeEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtures: WorkerParameters & WorkerFixtures & TestFixtures) => Promise<void>) => void;
-type AfterEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtures: WorkerParameters & WorkerFixtures & TestFixtures) => Promise<void>) => void;
-type BeforeAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
-type AfterAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
-
-class FolioImpl<TestFixtures = {}, WorkerFixtures = {}, WorkerParameters = {}> {
-  it: It<WorkerParameters, WorkerFixtures, TestFixtures>;
-  fit: Fit<WorkerParameters, WorkerFixtures, TestFixtures>;
-  xit: Xit<WorkerParameters, WorkerFixtures, TestFixtures>;
-  test: It<WorkerParameters, WorkerFixtures, TestFixtures>;
-  describe: Describe<WorkerParameters>;
-  beforeEach: BeforeEach<WorkerParameters, WorkerFixtures, TestFixtures>;
-  afterEach: AfterEach<WorkerParameters, WorkerFixtures, TestFixtures>;
-  beforeAll: BeforeAll<WorkerFixtures>;
-  afterAll: AfterAll<WorkerFixtures>;
-  expect: typeof expect;
-
-  constructor() {
-    this.expect = expect;
-    this.it = ((...args: any[]) => {
-      if (!implementation)
-        throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
-      implementation.it('default', ...args);
-    }) as any;
-    this.test = this.it;
-    this.it.skip = (...args: any[]) => {
-      if (!implementation)
-        throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
-      implementation.it('skip', ...args);
-    };
-    this.it.only = (...args: any[]) => {
-      if (!implementation)
-        throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
-      implementation.it('only', ...args);
-    };
-    this.fit = this.it.only;
-    this.xit = this.it.skip;
-    this.describe = ((...args: any[]) => {
-      if (!implementation)
-        throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
-      implementation.describe('default', ...args);
-    }) as any;
-    this.describe.skip = (...args: any[]) => {
-      if (!implementation)
-        throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
-      implementation.describe('skip', ...args);
-    };
-    this.describe.only = (...args: any[]) => {
-      if (!implementation)
-        throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
-      implementation.describe('only', ...args);
-    };
-    this.beforeEach = fn => {
-      if (!implementation)
-        throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-      implementation.beforeEach(fn);
-    };
-    this.afterEach = fn => {
-      if (!implementation)
-        throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-      implementation.afterEach(fn);
-    };
-    this.beforeAll = fn => {
-      if (!implementation)
-        throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-      implementation.beforeAll(fn);
-    };
-    this.afterAll = fn => {
-      if (!implementation)
-        throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-      implementation.afterAll(fn);
-    };
-  }
-}
-
-export const folio = new FolioImpl();
