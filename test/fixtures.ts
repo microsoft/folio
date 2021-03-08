@@ -35,7 +35,7 @@ export type RunResult = {
 type Files = { [key: string]: string | Buffer };
 type Params = { [key: string]: string | number | boolean | string[] };
 
-async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string | Buffer }, params: any = {}): Promise<RunResult> {
+async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string | Buffer }, params: any, env: any): Promise<RunResult> {
   const baseDir = testInfo.outputPath();
 
   await Promise.all(Object.keys(files).map(async name => {
@@ -81,6 +81,7 @@ async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string |
   ], {
     env: {
       ...process.env,
+      ...env,
       FOLIO_JSON_OUTPUT_NAME: reportFile,
     },
     cwd: baseDir
@@ -136,15 +137,15 @@ async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string |
 }
 
 type TestState = {
-  runInlineTest: (files: Files, params?: Params) => Promise<RunResult>;
+  runInlineTest: (files: Files, params?: Params, env?: any) => Promise<RunResult>;
 };
 
 const fixtures = base.extend<{}, TestState>();
 
 fixtures.runInlineTest.init(async ({ testInfo }, run) => {
   let result: RunResult;
-  await run(async (files, options) => {
-    result = await innerRunTest(testInfo, files, options);
+  await run(async (files, options = {}, env = {}) => {
+    result = await innerRunTest(testInfo, files, options, env);
     return result;
   });
   if (testInfo.status !== testInfo.expectedStatus)

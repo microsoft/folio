@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
+import { currentTestInfo, currentWorkerIndex } from './fixtures';
+
 async function testWorkerIndex({}, runTest) {
   // Worker injects the value for this one.
-  await runTest(undefined as any);
+  await runTest(currentWorkerIndex());
 }
 
 async function testInfo({}, runTest) {
   // Worker injects the value for this one.
-  await runTest(undefined as any);
+  await runTest(currentTestInfo());
 }
 
 async function testParametersPathSegment({}, runTest) {

@@ -99,3 +99,5 @@ export class TestModifier {
     return { condition: !!arg, description };
   }
 }
+
+export type ModifierFn = (modifier: TestModifier, parameters: any) => void;

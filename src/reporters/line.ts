@@ -17,16 +17,16 @@
 import colors from 'colors/safe';
 import * as path from 'path';
 import { Config } from '../config';
-import { BaseReporter, formatFailure, serializeParameters } from './base';
-import { Test, Suite, TestResult, Parameters } from '../test';
+import { BaseReporter, formatFailure, serializeVariation } from './base';
+import { Test, Suite, TestResult } from '../test';
 
 class LineReporter extends BaseReporter {
   private _total: number;
   private _current = 0;
   private _failures = 0;
   private _lastTest: Test;
-  private _parameterSnapshot: Parameters;
-  private _parametersToPreview = new Set<string>();
+  private _variationSnapshot: folio.SuiteVariation;
+  private _variationKeysToPreview = new Set<string>();
 
   onBegin(config: Config, suite: Suite) {
     super.onBegin(config, suite);
@@ -78,22 +78,22 @@ class LineReporter extends BaseReporter {
   }
 
   private _parametersString(test: Test): string {
-    if (!this._parameterSnapshot) {
-      this._parameterSnapshot = { ...test.parameters };
+    if (!this._variationSnapshot) {
+      this._variationSnapshot = { ...test.variation };
       return '';
     }
 
     // Collect names of parameters that have different values.
-    for (const key of Object.keys(test.parameters)) {
-      if (this._parameterSnapshot[key] !== test.parameters[key])
-        this._parametersToPreview.add(key);
+    for (const key of Object.keys(test.variation)) {
+      if (this._variationSnapshot[key] !== test.variation[key])
+        this._variationKeysToPreview.add(key);
     }
 
-    const preview: Parameters = {};
-    for (const key of this._parametersToPreview)
-      preview[key] = test.parameters[key];
+    const preview = {};
+    for (const key of this._variationKeysToPreview)
+      preview[key] = test.variation[key];
     if (Object.keys(preview).length)
-      return ' [' + serializeParameters(preview) + ']';
+      return ' [' + serializeVariation(preview) + ']';
     else
       return '';
   }

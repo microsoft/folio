@@ -17,10 +17,9 @@
 import { Console } from 'console';
 import * as util from 'util';
 import { debugLog, setDebugWorkerIndex } from './debug';
-import { loadedFixturePool } from './fixtureLoader';
 import { TestOutputPayload, WorkerInitParams } from './ipc';
 import { serializeError } from './util';
-import { WorkerRunner } from './workerRunner';
+import { fixtureLoader, WorkerRunner } from './workerRunner';
 
 let closed = false;
 
@@ -108,8 +107,8 @@ async function gracefullyCloseAndExit() {
   if (testRunner)
     testRunner.stop();
   try {
-    await loadedFixturePool().teardownScope('test');
-    await loadedFixturePool().teardownScope('worker');
+    await fixtureLoader.fixturePool.teardownScope('test');
+    await fixtureLoader.fixturePool.teardownScope('worker');
   } catch (e) {
     process.send({ method: 'teardownError', params: { error: serializeError(e) } });
   }

@@ -18,29 +18,32 @@ import path from 'path';
 import { folio } from './fixtures';
 const { it } = folio;
 
-it('should work with parameters', async ({ runInlineTest }) => {
+it('should work with variations', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'fixtures.js': `
-      exports.toBeRenamed = { parameters: { worker: { description: '', defaultValue: '', values: ['A', 'B', 'C'] } } };
+      function configureSuite(suite) {
+        suite.vary('worker', ['A', 'B', 'C']);
+      }
+      exports.toBeRenamed = { configureSuite };
     `,
     'a.test.js': `
-      test('should use worker A', (test, parameters) => {
-        test.fail(parameters.worker !== 'A');
-      }, async ({worker}) => {
+      test('should use worker A', (test, variation) => {
+        test.fail(variation.worker !== 'A');
+      }, async ({testInfo}) => {
         expect(true).toBe(false);
       });
     `,
     'b.test.js': `
-      test('should use worker B', (test, parameters) => {
-        test.fail(parameters.worker !== 'B');
-      }, async ({worker}) => {
+      test('should use worker B', (test, variation) => {
+        test.fail(variation.worker !== 'B');
+      }, async ({testInfo}) => {
         expect(true).toBe(false);
       });
     `,
     'c.test.js': `
-      test('should use worker C', (test, parameters) => {
-        test.fail(parameters.worker !== 'C');
-      }, async ({worker}) => {
+      test('should use worker C', (test, variation) => {
+        test.fail(variation.worker !== 'C');
+      }, async ({testInfo}) => {
         expect(true).toBe(false);
       });
     `,
@@ -48,17 +51,17 @@ it('should work with parameters', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
   const suites = result.report.suites;
   expect(suites[0].file).toContain('a.test.js');
-  expect(suites[0].suites[0].specs[0].tests.length).toBe(3);
+  expect(suites[0].specs[0].tests.length).toBe(3);
   expect(suites[1].file).toContain('b.test.js');
-  expect(suites[1].suites[0].specs[0].tests.length).toBe(3);
+  expect(suites[1].specs[0].tests.length).toBe(3);
   expect(suites[2].file).toContain('c.test.js');
-  expect(suites[2].suites[0].specs[0].tests.length).toBe(3);
+  expect(suites[2].specs[0].tests.length).toBe(3);
   const paramsLog = [];
   const resultsLog = [];
   for (let i = 0; i < 3; ++i) {
-    for (const test of suites[i].suites[0].specs[0].tests) {
-      for (const name of Object.keys(test.parameters))
-        paramsLog.push(name + '=' + test.parameters[name]);
+    for (const test of suites[i].specs[0].tests) {
+      for (const name of Object.keys(test.variation))
+        paramsLog.push(name + '=' + test.variation[name]);
       resultsLog.push(test.expectedStatus);
     }
   }
@@ -77,7 +80,7 @@ it('should emit test annotations', async ({ runInlineTest }) => {
     `
   }, { 'list': true });
   expect(result.exitCode).toBe(0);
-  expect(result.report.suites[0].suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fail', description: 'Fail annotation' }]);
+  expect(result.report.suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fail', description: 'Fail annotation' }]);
 });
 
 it('should have relative always-posix paths', async ({ runInlineTest }) => {
@@ -91,9 +94,9 @@ it('should have relative always-posix paths', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
   expect(result.report.config.testDir.indexOf(path.win32.sep)).toBe(-1);
   expect(result.report.config.outputDir.indexOf(path.win32.sep)).toBe(-1);
-  expect(result.report.suites[0].suites[0].specs[0].file).toBe('a.test.js');
-  expect(result.report.suites[0].suites[0].specs[0].line).toBe(5);
-  expect(result.report.suites[0].suites[0].specs[0].column).toBe(7);
+  expect(result.report.suites[0].specs[0].file).toBe('a.test.js');
+  expect(result.report.suites[0].specs[0].line).toBe(5);
+  expect(result.report.suites[0].specs[0].column).toBe(7);
 });
 
 it('should emit suite annotations', async ({ runInlineTest }) => {
@@ -109,5 +112,5 @@ it('should emit suite annotations', async ({ runInlineTest }) => {
     `
   }, { 'list': true });
   expect(result.exitCode).toBe(0);
-  expect(result.report.suites[0].suites[0].suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fixme', description: 'Fix me!' }]);
+  expect(result.report.suites[0].suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'fixme', description: 'Fix me!' }]);
 });

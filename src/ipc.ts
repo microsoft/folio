@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-export type Configuration = { name: string, value: string | number | boolean | undefined }[];
-export type Parameters = { [key: string]: string | number | boolean | null | undefined };
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
 export type WorkerInitParams = {
@@ -53,10 +51,10 @@ export type TestEntry = {
 export type RunPayload = {
   file: string;
   entries: TestEntry[];
-  parametersString: string;
-  parameters: Parameters;
-  hash: string;
-  repeatEachIndex: number;
+  variation: folio.SuiteVariation;  // Note: we should move this to WorkerInitParams.
+  variationString: string;  // Note: we should move this to WorkerInitParams.
+  hash: string;  // Note: we should move this to WorkerInitParams.
+  repeatEachIndex: number;  // Note: we should move this to WorkerInitParams.
 };
 
 export type DonePayload = {

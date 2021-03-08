@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { Parameters, TestError, TestStatus } from './ipc';
-export { Parameters, TestStatus, TestError } from './ipc';
+import { TestError, TestStatus } from './ipc';
+export { TestStatus, TestError } from './ipc';
+import { ModifierFn } from './testModifier';
 
 class Base {
   title: string;
@@ -26,7 +27,6 @@ class Base {
 
   _only = false;
   _ordinal: number;
-  _options: folio.SuiteOptions = {};
 
   constructor(title: string, parent?: Suite) {
     this.title = title;
@@ -45,16 +45,15 @@ class Base {
     return this.titlePath().join(' ');
   }
 
-  _fullOptions(): folio.SuiteOptions {
-    if (!this.parent)
-      return this._options;
-    return { ...this.parent._fullOptions(), ...this._options };
+  _options(): folio.SuiteOptions {
+    return this.parent ? this.parent._options() : {};
   }
 }
 
 export class Spec extends Base {
   fn: Function;
   tests: Test[] = [];
+  _modifierFn: ModifierFn | null;
 
   constructor(title: string, fn: Function, suite: Suite) {
     super(title, suite);
@@ -71,6 +70,8 @@ export class Suite extends Base {
   suites: Suite[] = [];
   specs: Spec[] = [];
   _entries: (Suite | Spec)[] = [];
+  _modifierFn: ModifierFn | null;
+  _hooks: { type: string, fn: Function } [] = [];
   total = 0;
 
   constructor(title: string, parent?: Suite) {
@@ -159,11 +160,15 @@ export class Suite extends Base {
     if (this.specs.find(spec => spec._only))
       return true;
   }
+
+  _addHook(type: string, fn: any) {
+    this._hooks.push({ type, fn });
+  }
 }
 
 export class Test {
   spec: Spec;
-  parameters: Parameters;
+  variation: folio.SuiteVariation;
   results: TestResult[] = [];
 
   skipped = false;
@@ -213,3 +218,23 @@ export type TestResult = {
   stderr: (string | Buffer)[];
   data: any;
 };
+
+export class RootSuite extends Suite {
+  options: folio.SuiteOptions = {};
+  variations: folio.SuiteVariation[] = [{}];
+
+  vary<K extends keyof folio.SuiteVariation>(key: K, values: folio.SuiteVariation[K][]): void {
+    const newVariations: folio.SuiteVariation[] = [];
+    for (const v of this.variations) {
+      if (key in v)
+        throw new Error(`Duplicate variation key "${key}"`);
+      for (const value of values)
+        newVariations.push({ ...v, [key]: value });
+    }
+    this.variations = newVariations;
+  }
+
+  _options(): folio.SuiteOptions {
+    return this.options;
+  }
+}

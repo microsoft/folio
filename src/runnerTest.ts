@@ -15,47 +15,16 @@
  */
 
 import { Spec, Suite, Test, TestResult } from './test';
-import { TestModifier } from './testModifier';
-
-export type ModifierFn = (modifier: TestModifier, parameters: any) => void;
 
 export class RunnerSpec extends Spec {
-  _modifierFn: ModifierFn | null;
-  _usedParameters: string[];
-
-  _allUsedParameters(): string[] {
-    const result = new Set<string>(this._usedParameters);
-    (this.parent! as RunnerSuite)._collectUsedParameters(result);
-    return [...result];
-  }
 }
 
 export class RunnerSuite extends Suite {
-  _modifierFn: ModifierFn | null;
-  _usedParameters: string[] = [];
-  _hooks: { type: string, fn: Function, stack: string } [] = [];
-
-  _collectUsedParameters(result: Set<string>) {
-    for (const param of this._usedParameters)
-      result.add(param);
-    if (this.parent)
-      (this.parent as RunnerSuite)._collectUsedParameters(result);
-  }
-
-  _assignIds() {
-    this.findSpec((test: RunnerSpec) => {
-      for (const run of test.tests as RunnerTest[])
-        run._id = `${test._ordinal}@${run.spec.file}::[${run._parametersString}]`;
-    });
-  }
-
-  _addHook(type: string, fn: any, stack: string) {
-    this._hooks.push({ type, fn, stack });
-  }
 }
 
 export class RunnerTest extends Test {
-  _parametersString: string;
+  // Note that variation string is equal to worker hash.
+  _variationString: string;
   _workerHash: string;
   _id: string;
   _repeatEachIndex: number;

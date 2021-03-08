@@ -73,24 +73,3 @@ it('should reuse worker for the same parameters', async ({ runInlineTest }) => {
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
 });
-
-it('should not reuse worker for different parameters', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'fixtures.ts': `
-      export const toBeRenamed = {
-        parameters: { param: { description: '', defaultValue: '' } }
-      };
-    `,
-    'a.test.js': `
-      test('succeeds', async ({ testWorkerIndex }) => {
-        expect(testWorkerIndex).toBe(0);
-      });
-
-      test('succeeds', async ({ param, testWorkerIndex }) => {
-        expect(testWorkerIndex).toBe(1);
-      });
-    `,
-  });
-  expect(result.passed).toBe(2);
-  expect(result.exitCode).toBe(0);
-});

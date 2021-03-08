@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { FixturePool, matrix } from './fixtures';
-import { Configuration } from './ipc';
 import { Config } from './config';
-import { RunnerSuite, RunnerSpec, RunnerTest, ModifierFn } from './runnerTest';
-import { TestModifier } from './testModifier';
+import { RunnerSuite, RunnerSpec, RunnerTest } from './runnerTest';
+import { ModifierFn, TestModifier } from './testModifier';
+import { FixtureLoader } from './fixtureLoader';
+import { RootSuite } from './test';
 
-export function generateTests(suites: RunnerSuite[], config: Config, fixturePool: FixturePool): RunnerSuite {
+export function generateTests(suites: RootSuite[], config: Config, fixtureLoader: FixtureLoader): RunnerSuite {
   const rootSuite = new RunnerSuite('');
   let grep: RegExp = null;
   if (config.grep) {
@@ -32,30 +32,21 @@ export function generateTests(suites: RunnerSuite[], config: Config, fixturePool
     // Name each test.
     suite._renumber();
 
-    for (const spec of suite._allSpecs() as RunnerSpec[]) {
+    const specs = (suite._allSpecs() as RunnerSpec[]).filter(spec => {
       if (grep && !grep.test(spec.fullTitle()))
-        continue;
+        return false;
+      return true;
+    });
+    if (!specs.length)
+      continue;
 
-      const generatorConfigurations: Configuration[] = [];
-      // For generator fixtures, collect all variants of the fixture values
-      // to build different workers for them.
-      for (const name of spec._allUsedParameters()) {
-        const values = matrix[name];
-        const state = generatorConfigurations.length ? generatorConfigurations.slice() : [[]];
-        generatorConfigurations.length = 0;
-        for (const gen of state) {
-          for (const value of values)
-            generatorConfigurations.push([...gen, { name, value }]);
-        }
-      }
+    for (const fn of fixtureLoader.configureFunctions)
+      fn(suite);
 
-      // No generator fixtures for test, include empty set.
-      if (!generatorConfigurations.length)
-        generatorConfigurations.push([]);
-
-      for (const configuration of generatorConfigurations) {
-        const parametersStringPrefix = serializeParameters(configuration);
-        const parameters = parametersObject(configuration);
+    const variations = suite.variations;
+    for (const variation of variations) {
+      const variationStringPrefix = serializeVariation(variation);
+      for (const spec of specs) {
         const modifierFns: ModifierFn[] = [];
         if (spec._modifierFn)
           modifierFns.push(spec._modifierFn);
@@ -66,19 +57,19 @@ export function generateTests(suites: RunnerSuite[], config: Config, fixturePool
         modifierFns.reverse();
         const modifier = new TestModifier();
         for (const modifierFn of modifierFns)
-          modifierFn(modifier, parameters);
+          modifierFn(modifier, variation);
         for (let i = 0; i < config.repeatEach; ++i) {
-          const parametersString = parametersStringPrefix +  `#repeat-${i}#`;
-          const workerHash = fixturePool.id + '@' + parametersString;
+          const variationString = variationStringPrefix + `#repeat-${i}#`;
           const test = new RunnerTest(spec);
-          test.parameters = parameters;
+          test._workerHash = variationString;
+          test._variationString = variationString;
+          test._id = `${suite._ordinal}/${spec._ordinal}@${spec.file}::[${variationString}]`;
+          test.variation = variation;
           test.skipped = modifier._skipped;
           test.slow = modifier._slow;
           test.expectedStatus = modifier._expectedStatus;
           test.timeout = modifier._timeout;
           test.annotations = modifier._annotations;
-          test._parametersString = parametersString;
-          test._workerHash = workerHash;
           test._repeatEachIndex = i;
           spec.tests.push(test);
         }
@@ -87,7 +78,6 @@ export function generateTests(suites: RunnerSuite[], config: Config, fixturePool
     rootSuite._addSuite(suite);
   }
   filterOnly(rootSuite);
-  rootSuite._assignIds();
   rootSuite._countTotal();
   return rootSuite;
 }
@@ -103,16 +93,9 @@ function filterOnly(suite: RunnerSuite) {
   return false;
 }
 
-function serializeParameters(parameters: Configuration): string {
+function serializeVariation(variation: folio.SuiteVariation): string {
   const tokens = [];
-  for (const { name, value } of parameters)
+  for (const [name, value] of Object.entries(variation))
     tokens.push(`${name}=${value}`);
   return tokens.join(', ');
-}
-
-function parametersObject(configuration: Configuration): any {
-  const result = {};
-  for (const { name, value } of configuration)
-    result[name] = value;
-  return result;
 }

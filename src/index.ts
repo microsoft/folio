@@ -23,7 +23,7 @@ import { createTestImpl } from './spec';
 declare global {
   namespace folio {
     interface SuiteOptions {}
-    interface WorkerParameters {}
+    interface SuiteVariation {}
     interface WorkerFixtures {}
     interface TestFixtures {}
   }
@@ -31,22 +31,22 @@ declare global {
 
 interface SuiteFunction {
   (name: string, inner: () => void): void;
-  (name: string, modifierFn: (modifier: TestModifier, parameters: folio.WorkerParameters) => any, inner: () => void): void;
+  (name: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => any, inner: () => void): void;
 }
 interface SuiteFunctionWithModifiers extends SuiteFunction {
   only: SuiteFunction;
   skip: SuiteFunction;
 }
 interface SuiteHookFunction {
-  (inner: (fixtures: folio.WorkerParameters & folio.WorkerFixtures) => Promise<void> | void): void;
+  (inner: (fixtures: folio.WorkerFixtures) => Promise<void> | void): void;
 }
 
 interface TestFunction {
-  (name: string, inner: (fixtures: folio.WorkerParameters & folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
-  (name: string, modifierFn: (modifier: TestModifier, parameters: folio.WorkerParameters) => any, inner: (fixtures: folio.WorkerParameters & folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
+  (name: string, inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
+  (name: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => any, inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
 }
 interface TestHookFunction {
-  (inner: (fixtures: folio.WorkerParameters & folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
+  (inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
 }
 
 interface TestSuiteFunction extends TestFunction {
@@ -66,10 +66,10 @@ export { config, currentTestInfo } from './fixtures';
 export { expect } from './expect';
 
 export interface WorkerFixture<R = any> {
-  (fixtures: folio.WorkerParameters & folio.WorkerFixtures, run: (value: R) => Promise<void>): Promise<any>;
+  (fixtures: folio.WorkerFixtures, run: (value: R) => Promise<void>): Promise<any>;
 }
 export interface TestFixture<R = any> {
-  (fixtures: folio.WorkerParameters & folio.WorkerFixtures & folio.TestFixtures, run: (value: R) => Promise<void>): Promise<any>;
+  (fixtures: folio.WorkerFixtures & folio.TestFixtures, run: (value: R) => Promise<void>): Promise<any>;
 }
 
 export function createTest(options: folio.SuiteOptions): TestSuiteFunction {
@@ -90,7 +90,7 @@ declare global {
       testInfo: TestInfo;
 
       // Parameter-based relative path to be overridden, empty by default.
-      testParametersPathSegment: string;
+      testParametersPathSegment: string;  // Note: it is impossible to configure this one.
     }
   }
 }
