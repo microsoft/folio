@@ -26,9 +26,7 @@ type FixtureRegistration = {
   scope: Scope;
   fn: Function;
   auto: boolean;
-  isOverride: boolean;  // Note: this is not used.
   deps: string[];
-  super?: FixtureRegistration;  // Note: this is not used.
 };
 
 export type TestInfo = {
@@ -206,17 +204,7 @@ export class FixturePool {
     }
 
     const deps = fixtureParameterNames(fn);
-    const registration: FixtureRegistration = { name, scope, fn, auto, isOverride: false, deps, super: previous };
-    this.registrations.set(name, registration);
-  }
-
-  overrideFixture(name: string, fn: Function) {
-    const previous = this.registrations.get(name);
-    if (!previous)
-      throw errorWithCallLocation(`Fixture "${name}" has not been registered yet. Use 'init' instead.`);
-
-    const deps = fixtureParameterNames(fn);
-    const registration: FixtureRegistration = { name, scope: previous.scope, fn, auto: previous.auto, isOverride: true, deps, super: previous };
+    const registration: FixtureRegistration = { name, scope, fn, auto, deps };
     this.registrations.set(name, registration);
   }
 
@@ -312,8 +300,6 @@ export class FixturePool {
   }
 
   _resolveDependency(registration: FixtureRegistration, name: string): FixtureRegistration | undefined {
-    if (name === registration.name)
-      return registration.super;
     return this.registrations.get(name);
   }
 }

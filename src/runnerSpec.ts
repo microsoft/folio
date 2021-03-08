@@ -15,13 +15,12 @@
  */
 
 import { installTransform } from './transform';
-import { RunnerSuite, RunnerSpec } from './runnerTest';
 import { callLocation } from './util';
 import { setImplementation, SpecType } from './spec';
 import { TestModifier } from './testModifier';
 import { Config } from './config';
 import { FixturePool } from './fixtures';
-import { RootSuite, Suite } from './test';
+import { RootSuite, Spec, Suite } from './test';
 
 export function runnerSpec(file: string, rootSuites: RootSuite[], fixturePool: FixturePool, config: Config): () => void {
   let suites: Suite[] = [];
@@ -45,7 +44,7 @@ export function runnerSpec(file: string, rootSuites: RootSuite[], fixturePool: F
       fn = modifierFn;
       modifierFn = null;
     }
-    const test = new RunnerSpec(title, fn, suite);
+    const test = new Spec(title, fn, suite);
     fixturePool.validateFunction(fn, `Test`, true);
     const location = callLocation(file);
     test.file = location.file;
@@ -70,7 +69,7 @@ export function runnerSpec(file: string, rootSuites: RootSuite[], fixturePool: F
       fn = modifierFn;
       modifierFn = null;
     }
-    const child = new RunnerSuite(title, suites[0]);
+    const child = new Suite(title, suites[0]);
     const location = callLocation(file);
     child.file = location.file;
     child.line = location.line;

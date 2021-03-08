@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { WorkerSpec, WorkerSuite } from './workerTest';
 import { installTransform } from './transform';
 import { callLocation } from './util';
 import { setImplementation, SpecType } from './spec';
 import { TestModifier } from './testModifier';
-import { RootSuite, Suite } from './test';
+import { RootSuite, Suite, Spec } from './test';
 
 export function workerSpec(file: string, rootSuites: RootSuite[]): () => void {
   let suites: Suite[] = [];
@@ -39,7 +38,7 @@ export function workerSpec(file: string, rootSuites: RootSuite[]): () => void {
 
   const it = (spec: SpecType, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     fn = fn || modifierFn;
-    const test = new WorkerSpec(title, fn, suites[0]);
+    const test = new Spec(title, fn, suites[0]);
     const location = callLocation(file);
     test.file = location.file;
     test.line = location.line;
@@ -49,7 +48,7 @@ export function workerSpec(file: string, rootSuites: RootSuite[]): () => void {
 
   const describe = (spec: SpecType, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     fn = fn || modifierFn;
-    const child = new WorkerSuite(title, suites[0]);
+    const child = new Suite(title, suites[0]);
     const location = callLocation(file);
     child.file = location.file;
     child.line = location.line;

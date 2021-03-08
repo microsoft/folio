@@ -22,7 +22,6 @@ import { config } from './fixtures';
 import { Reporter } from './reporter';
 import { generateTests } from './testGenerator';
 import { monotonicTime, prependErrorMessage, raceAgainstDeadline } from './util';
-import { RunnerSuite } from './runnerTest';
 import { runnerSpec } from './runnerSpec';
 import { debugLog } from './debug';
 import { RootSuite, Suite } from './test';
@@ -39,7 +38,7 @@ export class Runner {
   private _reporter: Reporter;
   private _suites: RootSuite[] = [];
   private _fixtureLoader: FixtureLoader;
-  private _rootSuite: RunnerSuite;
+  private _rootSuite: Suite;
 
   constructor(reporter: Reporter) {
     this._reporter = reporter;
@@ -104,7 +103,7 @@ export class Runner {
     return result;
   }
 
-  private async _runTests(suite: RunnerSuite): Promise<RunResult> {
+  private async _runTests(suite: Suite): Promise<RunResult> {
     // Trial run does not need many workers, use one.
     const runner = new Dispatcher(suite, config, this._fixtureLoader.fixtureFiles, this._reporter);
     let sigint = false;
