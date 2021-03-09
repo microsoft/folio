@@ -101,7 +101,7 @@ async function runTests(command) {
     config.grep = command.grep;
   if (command.maxFailures || command.x)
     config.maxFailures = command.x ? 1 : parseInt(command.maxFailures, 10);
-  if (command.outputDir)
+  if (command.output)
     config.outputDir = command.output;
   if (command.quiet)
     config.quiet = command.quiet;
@@ -146,13 +146,18 @@ async function runTests(command) {
 }
 
 async function collectFiles(testDir: string): Promise<string[]> {
-  const list: string[] = [];
-  let callback: (list: string[]) => void;
-  const result = new Promise<string[]>(f => callback = f);
-  ignore({ path: testDir, ignoreFiles: ['.gitignore']})
-      .on('child', (c: any) => list.push(c.path))
-      .on('end', () => callback(list));
-  return result;
+  const entries: any[] = [];
+  let callback: () => void;
+  const promise = new Promise<void>(f => callback = f);
+  ignore({ path: testDir, ignoreFiles: ['.gitignore'] })
+      .on('child', (entry: any) => entries.push(entry))
+      .on('end', callback);
+  await promise;
+  return entries.filter(e => e.type === 'File').sort((a, b) => {
+    if (a.depth !== b.depth && (a.dirname.startsWith(b.dirname) || b.dirname.startsWith(a.dirname)))
+      return a.depth - b.depth;
+    return a.path > b.path ? 1 : (a.path < b.path ? -1 : 0);
+  }).map(e => e.path);
 }
 
 function filterFiles(base: string, files: string[], filters: string[], filesMatch: string, filesIgnore: string): string[] {
@@ -184,7 +189,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
       .option('--list', `Only collect all the test and report them`)
       .option('--max-failures <N>', `Stop after the first N failures (default: ${defaultConfig.maxFailures})`)
-      .option('--output <outputDir>', `Folder for output artifacts (default: "test-results")`)
+      .option('--output <dir>', `Folder for output artifacts (default: "test-results")`)
       .option('--quiet', `Suppress stdio`)
       .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: ${defaultConfig.repeatEach})`)
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')

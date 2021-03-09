@@ -86,6 +86,8 @@ export class WorkerRunner extends EventEmitter {
     clearCurrentFile();
     revertBabelRequire();
     for (const suite of suites) {
+      for (const fn of fixtureLoader.configureFunctions)
+        fn(suite);
       suite._renumber();
       suite.findSpec(spec => {
         spec._appendTest(this._variation, this._repeatEachIndex);
@@ -216,9 +218,9 @@ export class WorkerRunner extends EventEmitter {
     try {
       // Do not run the test when beforeEach hook fails.
       if (!this._isStopped && testInfo.status !== 'failed') {
-        // Run internal fixtures to resolve artifacts and output paths
-        const parametersPathSegment = (await fixtureLoader.fixturePool.setupFixture('testParametersPathSegment')).value;
-        testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, parametersPathSegment);
+        // Resolve artifacts and output paths.
+        const testPathSegment = test.spec._options().testPathSegment || '';
+        testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, testPathSegment);
         testInfo.outputPath = outputPath(testInfo);
         testInfo.snapshotPath = snapshotPath(testInfo);
         await fixtureLoader.fixturePool.resolveParametersAndRunHookOrTest(test.spec.fn);

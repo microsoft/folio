@@ -15,7 +15,7 @@
  */
 
 import { expect } from './expect';
-import { config, FixturePool } from './fixtures';
+import { FixturePool } from './fixtures';
 import { RootSuite, Spec, Suite } from './test';
 import { TestModifier } from './testModifier';
 import { callLocation, errorWithCallLocation } from './util';
@@ -63,14 +63,9 @@ export function createTestImpl(options: folio.SuiteOptions) {
 
     if (type === 'only')
       spec._only = true;
-    spec._modifierFn = (modifier: TestModifier, variation: folio.SuiteVariation) => {
-      if (type === 'skip')
-        modifier.skip();
-      if (!modifier._timeout)
-        modifier.setTimeout(config.timeout);
-      if (modifierFn)
-        modifierFn(modifier, variation);
-    };
+    if (type === 'skip')
+      spec._skip = true;
+    spec._modifierFn = modifierFn;
   }
 
   function describe(type: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) {
@@ -89,14 +84,9 @@ export function createTestImpl(options: folio.SuiteOptions) {
 
     if (type === 'only')
       child._only = true;
-    child._modifierFn = (modifier: TestModifier, variation: folio.SuiteVariation) => {
-      if (type === 'skip')
-        modifier.skip();
-      if (!modifier._timeout)
-        modifier.setTimeout(config.timeout);
-      if (modifierFn)
-        modifierFn(modifier, variation);
-    };
+    if (type === 'skip')
+      child._skip = true;
+    child._modifierFn = modifierFn;
 
     suites.unshift(child);
     fn();

@@ -15,6 +15,7 @@
  */
 
 import { currentTestInfo, currentWorkerIndex } from './fixtures';
+import { ToBeRenamedInterface } from './types';
 
 async function testWorkerIndex({}, runTest) {
   // Worker injects the value for this one.
@@ -26,11 +27,7 @@ async function testInfo({}, runTest) {
   await runTest(currentTestInfo());
 }
 
-async function testParametersPathSegment({}, runTest) {
-  await runTest('');
-}
-
-export const builtinFixtures = {
+export const builtinFixtures: ToBeRenamedInterface = {
   workerFixtures: { testWorkerIndex },
-  testFixtures: { testInfo, testParametersPathSegment },
+  testFixtures: { testInfo },
 };
