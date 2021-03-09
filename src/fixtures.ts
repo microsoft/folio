@@ -15,7 +15,7 @@
  */
 
 import { Config } from './config';
-import { TestStatus, Parameters } from './test';
+import { TestStatus } from './test';
 import { debugLog } from './debug';
 import { errorWithCallLocation } from './util';
 
@@ -26,9 +26,9 @@ type FixtureRegistration = {
   scope: Scope;
   fn: Function;
   auto: boolean;
-  isOverride: boolean;
+  isOverride: boolean;  // Note: this is not used.
   deps: string[];
-  super?: FixtureRegistration;
+  super?: FixtureRegistration;  // Note: this is not used.
 };
 
 export type TestInfo = {
@@ -41,7 +41,7 @@ export type TestInfo = {
 
   // Parameters
   options: folio.SuiteOptions;
-  parameters: Parameters;
+  variation: folio.SuiteVariation;
   workerIndex: number;
   repeatEachIndex: number;
   retry: number;
@@ -65,31 +65,19 @@ export type TestInfo = {
 };
 
 let currentTestInfoValue: TestInfo | null = null;
-
 export function setCurrentTestInfo(testInfo: TestInfo | null) {
   currentTestInfoValue = testInfo;
 }
-
 export function currentTestInfo(): TestInfo | null {
   return currentTestInfoValue;
 }
 
-export type ParameterRegistration = {
-  name: string;
-  description: string;
-  defaultValue: string | number | boolean;
-};
-export const parameterRegistrations = new Map<string, ParameterRegistration>();
-export let parameters: Parameters = {};
-export function assignParameters(params: any) {
-  parameters = Object.assign(parameters, params);
+let workerIndex: number = 0;
+export function setCurrentWorkerIndex(index: number) {
+  workerIndex = index;
 }
-
-export const matrix: { [name: string]: any } = {};
-export function setParameterValues(name: string, values: any[]) {
-  if (!(name in matrix))
-    throw errorWithCallLocation(`Unregistered parameter '${name}' was set.`);
-  matrix[name] = values;
+export function currentWorkerIndex() {
+  return workerIndex;
 }
 
 export let config: Config = {} as any;
@@ -101,7 +89,6 @@ class Fixture {
   pool: FixturePool;
   registration: FixtureRegistration;
   usages: Set<Fixture>;
-  hasGeneratorValue: boolean;
   value: any;
   _teardownFenceCallback: (value?: unknown) => void;
   _tearDownComplete: Promise<void>;
@@ -112,15 +99,10 @@ class Fixture {
     this.pool = pool;
     this.registration = registration;
     this.usages = new Set();
-    this.hasGeneratorValue = registration.name in parameters;
-    this.value = this.hasGeneratorValue ? parameters[registration.name] : null;
-    if (this.hasGeneratorValue && this.registration.deps.length)
-      throw errorWithCallLocation(`Parameter fixture "${this.registration.name}" should not have dependencies`);
+    this.value = null;
   }
 
   async setup() {
-    if (this.hasGeneratorValue)
-      return;
     const params = {};
     for (const name of this.registration.deps) {
       const registration = this.pool._resolveDependency(this.registration, name);
@@ -156,10 +138,6 @@ class Fixture {
   }
 
   async teardown() {
-    if (this.hasGeneratorValue) {
-      this.pool.instances.delete(this.registration);
-      return;
-    }
     if (this._teardown)
       return;
     this._teardown = true;
@@ -242,13 +220,6 @@ export class FixturePool {
     this.registrations.set(name, registration);
   }
 
-  registerWorkerParameter(parameter: ParameterRegistration) {
-    if (parameterRegistrations.has(parameter.name))
-      throw errorWithCallLocation(`Parameter "${parameter.name}" has been already registered`);
-    parameterRegistrations.set(parameter.name, parameter);
-    matrix[parameter.name] = [parameter.defaultValue];
-  }
-
   validate() {
     const markers = new Map<FixtureRegistration, VisitMarker>();
     const stack: FixtureRegistration[] = [];
@@ -276,11 +247,8 @@ export class FixturePool {
       visit(registration);
   }
 
-  parametersForFunction(fn: Function, prefix: string, allowTestFixtures: boolean): string[] {
-    const result = new Set<string>();
+  validateFunction(fn: Function, prefix: string, allowTestFixtures: boolean) {
     const visit = (registration: FixtureRegistration) => {
-      if (parameterRegistrations.has(registration.name))
-        result.add(registration.name);
       for (const name of registration.deps)
         visit(this._resolveDependency(registration, name)!);
     };
@@ -299,7 +267,6 @@ export class FixturePool {
         visit(registration);
       }
     }
-    return Array.from(result);
   }
 
   async setupFixture(name: string): Promise<Fixture> {

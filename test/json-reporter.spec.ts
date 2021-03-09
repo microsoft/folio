@@ -29,6 +29,6 @@ it('should support spec.ok', async ({ runInlineTest }) => {
     `
   }, { });
   expect(result.exitCode).toBe(1);
-  expect(result.report.suites[0].suites[0].specs[0].ok).toBe(true);
-  expect(result.report.suites[0].suites[0].specs[1].ok).toBe(false);
+  expect(result.report.suites[0].specs[0].ok).toBe(true);
+  expect(result.report.suites[0].specs[1].ok).toBe(false);
 });

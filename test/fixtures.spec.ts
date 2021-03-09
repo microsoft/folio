@@ -282,18 +282,17 @@ it('should teardown fixtures after timeout', async ({ runInlineTest, testInfo })
   require('fs').writeFileSync(file, '', 'utf8');
   const result = await runInlineTest({
     'fixtures.ts': `
-      async function t({ file }, runTest) {
+      async function t({}, runTest) {
         await runTest('t');
-        require('fs').appendFileSync(file, 'test fixture teardown\\n', 'utf8');
+        require('fs').appendFileSync(process.env.TEST_FILE, 'test fixture teardown\\n', 'utf8');
       }
-      async function w({ file }, runTest) {
+      async function w({}, runTest) {
         await runTest('w');
-        require('fs').appendFileSync(file, 'worker fixture teardown\\n', 'utf8');
+        require('fs').appendFileSync(process.env.TEST_FILE, 'worker fixture teardown\\n', 'utf8');
       }
       export const toBeRenamed = {
         testFixtures: { t },
         workerFixtures: { w },
-        parameters: { file: { defaultValue: '', description: 'File' } }
       };
     `,
     'a.spec.ts': `
@@ -303,7 +302,7 @@ it('should teardown fixtures after timeout', async ({ runInlineTest, testInfo })
         await new Promise(() => {});
       });
     `,
-  }, { timeout: 1000, param: 'file=' + file });
+  }, { timeout: 1000 }, { TEST_FILE: file });
   expect(result.results[0].status).toBe('timedOut');
   const content = require('fs').readFileSync(file, 'utf8');
   expect(content).toContain('worker fixture teardown');

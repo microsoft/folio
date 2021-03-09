@@ -19,24 +19,28 @@ import { installTransform } from './transform';
 import { callLocation } from './util';
 import { setImplementation, SpecType } from './spec';
 import { TestModifier } from './testModifier';
+import { RootSuite, Suite } from './test';
 
-export function workerSpec(rootSuite: WorkerSuite): () => void {
-  let suites = [rootSuite];
+export function workerSpec(file: string, rootSuites: RootSuite[]): () => void {
+  let suites: Suite[] = [];
+  let ordinalInFile = 0;
 
   const startSuite = (options: folio.SuiteOptions) => {
-    const suite = new WorkerSuite('', rootSuite);
-    suite._options = options;
-    const location = callLocation(rootSuite.file);
+    const suite = new RootSuite('');
+    suite.options = options;
+    suite._ordinal = ordinalInFile++;
+    rootSuites.push(suite);
+    const location = callLocation(file);
     suite.file = location.file;
     suite.line = location.line;
     suite.column = location.column;
-    suites = [suite, rootSuite];
+    suites = [suite];
   };
 
   const it = (spec: SpecType, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     fn = fn || modifierFn;
     const test = new WorkerSpec(title, fn, suites[0]);
-    const location = callLocation(rootSuite.file);
+    const location = callLocation(file);
     test.file = location.file;
     test.line = location.line;
     test.column = location.column;
@@ -46,7 +50,7 @@ export function workerSpec(rootSuite: WorkerSuite): () => void {
   const describe = (spec: SpecType, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
     fn = fn || modifierFn;
     const child = new WorkerSuite(title, suites[0]);
-    const location = callLocation(rootSuite.file);
+    const location = callLocation(file);
     child.file = location.file;
     child.line = location.line;
     child.column = location.column;

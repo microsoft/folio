@@ -23,8 +23,11 @@ import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
-import { assignConfig, assignParameters, config, setCurrentTestInfo, TestInfo, parameters } from './fixtures';
-import { loadedFixturePool, loadFixtureFile } from './fixtureLoader';
+import { assignConfig, config, setCurrentTestInfo, TestInfo, setCurrentWorkerIndex } from './fixtures';
+import { FixtureLoader } from './fixtureLoader';
+import { RootSuite, Suite } from './test';
+
+export const fixtureLoader = new FixtureLoader();
 
 export class WorkerRunner extends EventEmitter {
   private _failedTestId: string | undefined;
@@ -32,32 +35,32 @@ export class WorkerRunner extends EventEmitter {
   private _entries: Map<string, TestEntry>;
   private _remaining: Map<string, TestEntry>;
   private _isStopped: any;
-  private _parsedParameters: any = {};
+  private _variation: folio.SuiteVariation;
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
-  private _suite: WorkerSuite;
+  private _rootSuite: WorkerSuite;
   private _loaded = false;
-  private _parametersString: string;
+  private _variationString: string;
   private _workerIndex: number;
   private _repeatEachIndex: number;
 
   constructor(runPayload: RunPayload, config: Config, workerIndex: number) {
     super();
     assignConfig(config);
-    this._suite = new WorkerSuite('');
-    this._suite.file = runPayload.file;
+    this._rootSuite = new WorkerSuite('');
+    this._rootSuite.file = runPayload.file;
     this._workerIndex = workerIndex;
     this._repeatEachIndex = runPayload.repeatEachIndex;
-    this._parametersString = runPayload.parametersString;
+    this._variationString = runPayload.variationString;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
-    this._parsedParameters = runPayload.parameters;
-    this._parsedParameters['testWorkerIndex'] = workerIndex;
+    this._variation = runPayload.variation;
+    setCurrentWorkerIndex(workerIndex);
   }
 
   loadFixtureFiles(files: string[]) {
     for (const file of files)
-      loadFixtureFile(file);
+      fixtureLoader.loadFixtureFile(file);
   }
 
   stop() {
@@ -82,23 +85,26 @@ export class WorkerRunner extends EventEmitter {
   }
 
   async run() {
-    assignParameters(this._parsedParameters);
-
-    const revertBabelRequire = workerSpec(this._suite);
-
-    require(this._suite.file);
+    const suites: RootSuite[] = [];
+    const revertBabelRequire = workerSpec(this._rootSuite.file, suites);
+    require(this._rootSuite.file);
     revertBabelRequire();
-    // Enumerate tests to assign ordinals.
-    this._suite._renumber();
-    // Build ids from ordinals + parameters strings.
-    this._suite._assignIds(this._parametersString);
+    for (const suite of suites) {
+      // Enumerate tests to assign ordinals.
+      suite._renumber();
+      // Build ids from ordinals + variation strings.
+      suite.findSpec((spec: WorkerSpec) => {
+        spec._id = `${suite._ordinal}/${spec._ordinal}@${this._rootSuite.file}::[${this._variationString}]`;
+      });
+      this._rootSuite._addSuite(suite);
+    }
     this._loaded = true;
 
-    await this._runSuite(this._suite);
+    await this._runSuite(this._rootSuite);
     this._reportDoneAndStop();
   }
 
-  private async _runSuite(suite: WorkerSuite) {
+  private async _runSuite(suite: Suite) {
     if (this._isStopped)
       return;
     try {
@@ -108,7 +114,7 @@ export class WorkerRunner extends EventEmitter {
       this._reportDoneAndStop();
     }
     for (const entry of suite._entries) {
-      if (entry instanceof WorkerSuite)
+      if (entry instanceof Suite)
         await this._runSuite(entry);
       else
         await this._runTest(entry as WorkerSpec);
@@ -139,8 +145,8 @@ export class WorkerRunner extends EventEmitter {
       line: test.line,
       column: test.column,
       fn: test.fn,
-      options: test._fullOptions(),
-      parameters,
+      options: test._options(),
+      variation: this._variation,
       repeatEachIndex: this._repeatEachIndex,
       workerIndex: this._workerIndex,
       retry,
@@ -155,7 +161,6 @@ export class WorkerRunner extends EventEmitter {
       outputPath: () => '',
       snapshotPath: () => ''
     });
-    assignParameters({ 'testInfo': this._testInfo });
 
     this.emit('testBegin', buildTestBeginPayload(testId, this._testInfo));
 
@@ -217,11 +222,11 @@ export class WorkerRunner extends EventEmitter {
       // Do not run the test when beforeEach hook fails.
       if (!this._isStopped && testInfo.status !== 'failed') {
         // Run internal fixtures to resolve artifacts and output paths
-        const parametersPathSegment = (await loadedFixturePool().setupFixture('testParametersPathSegment')).value;
+        const parametersPathSegment = (await fixtureLoader.fixturePool.setupFixture('testParametersPathSegment')).value;
         testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, parametersPathSegment);
         testInfo.outputPath = outputPath(testInfo);
         testInfo.snapshotPath = snapshotPath(testInfo);
-        await loadedFixturePool().resolveParametersAndRunHookOrTest(test.fn);
+        await fixtureLoader.fixturePool.resolveParametersAndRunHookOrTest(test.fn);
         testInfo.status = 'passed';
       }
     } catch (error) {
@@ -247,7 +252,7 @@ export class WorkerRunner extends EventEmitter {
     if (this._isStopped)
       return;
     try {
-      await loadedFixturePool().teardownScope('test');
+      await fixtureLoader.fixturePool.teardownScope('test');
     } catch (error) {
       // Do not overwrite test failure or hook error.
       if (testInfo.status === 'passed') {
@@ -273,7 +278,7 @@ export class WorkerRunner extends EventEmitter {
     let error: Error | undefined;
     for (const hook of all) {
       try {
-        await loadedFixturePool().resolveParametersAndRunHookOrTest(hook);
+        await fixtureLoader.fixturePool.resolveParametersAndRunHookOrTest(hook);
       } catch (e) {
         // Always run all the hooks, and capture the first error.
         error = error || e;

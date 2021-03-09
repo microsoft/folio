@@ -21,17 +21,22 @@ import { setImplementation, SpecType } from './spec';
 import { TestModifier } from './testModifier';
 import { Config } from './config';
 import { FixturePool } from './fixtures';
+import { RootSuite, Suite } from './test';
 
-export function runnerSpec(rootSuite: RunnerSuite, fixturePool: FixturePool, config: Config): () => void {
-  let suites = [rootSuite];
+export function runnerSpec(file: string, rootSuites: RootSuite[], fixturePool: FixturePool, config: Config): () => void {
+  let suites: Suite[] = [];
+  let ordinalInFile = 0;
 
   const startSuite = (options: folio.SuiteOptions) => {
-    const suite = new RunnerSuite('', rootSuite);
-    const location = callLocation(rootSuite.file);
+    const suite = new RootSuite('');
+    suite.options = options;
+    suite._ordinal = ordinalInFile++;
+    rootSuites.push(suite);
+    const location = callLocation(file);
     suite.file = location.file;
     suite.line = location.line;
     suite.column = location.column;
-    suites = [suite, rootSuite];
+    suites = [suite];
   };
 
   const it = (spec: SpecType, title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) => {
@@ -41,8 +46,8 @@ export function runnerSpec(rootSuite: RunnerSuite, fixturePool: FixturePool, con
       modifierFn = null;
     }
     const test = new RunnerSpec(title, fn, suite);
-    test._usedParameters = fixturePool.parametersForFunction(fn, `Test`, true);
-    const location = callLocation(rootSuite.file);
+    fixturePool.validateFunction(fn, `Test`, true);
+    const location = callLocation(file);
     test.file = location.file;
     test.line = location.line;
     test.column = location.column;
@@ -66,7 +71,7 @@ export function runnerSpec(rootSuite: RunnerSuite, fixturePool: FixturePool, con
       modifierFn = null;
     }
     const child = new RunnerSuite(title, suites[0]);
-    const location = callLocation(rootSuite.file);
+    const location = callLocation(file);
     child.file = location.file;
     child.line = location.line;
     child.column = location.column;
@@ -88,8 +93,7 @@ export function runnerSpec(rootSuite: RunnerSuite, fixturePool: FixturePool, con
   };
 
   const hook = (hookName: string, fn: Function) => {
-    const suite = suites[0];
-    suite._usedParameters.push(...fixturePool.parametersForFunction(fn, `${hookName} hook`, hookName === 'beforeEach' || hookName === 'afterEach'));
+    fixturePool.validateFunction(fn, `${hookName} hook`, hookName === 'beforeEach' || hookName === 'afterEach');
   };
 
   setImplementation({

@@ -27,7 +27,7 @@ import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
 import { Multiplexer } from './reporters/multiplexer';
 import { Runner } from './runner';
-import { assignConfig, config, ParameterRegistration } from './fixtures';
+import { assignConfig, config } from './fixtures';
 import { defaultConfig } from './config';
 
 export const reporters = {
@@ -42,7 +42,7 @@ export const reporters = {
 const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
 
 const loadProgram = new commander.Command();
-addRunnerOptions(loadProgram, true);
+addRunnerOptions(loadProgram);
 loadProgram.helpOption(false);
 loadProgram.action(async command => {
   try {
@@ -87,34 +87,7 @@ async function runTests(command) {
 
   const reporter = new Multiplexer(reporterObjects);
   const runner = new Runner(reporter);
-  const parameterRegistrations = runner.loadFixtures(fixtureFiles).parameters;
-  const parameters: { [key: string]: (string | boolean | number)[] } = {};
-  for (const param of command.param || []) {
-    const match = param.match(/([^=]+)=(.*)/);
-    const [_, name, value] = match ? match : ['', param, 'true'];
-    if (!parameterRegistrations.has(name)) {
-      console.error(`unknown parameter '${name}'`);
-      process.exit(1);
-    }
-    const registration = parameterRegistrations.get(name);
-    let list = parameters[name];
-    if (!list) {
-      list = [];
-      parameters[name] = list;
-    }
-    if (typeof registration.defaultValue === 'string')
-      list.push(value);
-    else if (typeof registration.defaultValue === 'number')
-      list.push(parseFloat(value));
-    else if (typeof registration.defaultValue === 'boolean')
-      list.push(value === 'true');
-  }
-
-  if (command.help === undefined) {
-    printParametersHelp([...parameterRegistrations.values()]);
-    process.exit(0);
-  }
-
+  runner.loadFixtures(fixtureFiles);
   runner.loadFiles(testFiles);
 
   // Assign config values after runner.loadFiles to set defaults from the command
@@ -147,7 +120,7 @@ async function runTests(command) {
   if (command.workers)
     config.workers = parseInt(command.workers, 10);
 
-  runner.generateTests({ parameters });
+  runner.generateTests();
   if (command.list) {
     runner.list();
     return;
@@ -199,7 +172,7 @@ function filterFiles(base: string, files: string[], filters: string[], filesMatc
   });
 }
 
-function addRunnerOptions(program: commander.Command, param: boolean) {
+function addRunnerOptions(program: commander.Command) {
   program = program
       .version('Version ' + /** @type {any} */ (require)('../package.json').version)
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
@@ -211,10 +184,7 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
       .option('--list', `Only collect all the test and report them`)
       .option('--max-failures <N>', `Stop after the first N failures (default: ${defaultConfig.maxFailures})`)
-      .option('--output <outputDir>', `Folder for output artifacts (default: "test-results")`);
-  if (param)
-    program = program.option('-p, --param <name=value...>', `Specify fixture parameter value`);
-  program = program
+      .option('--output <outputDir>', `Folder for output artifacts (default: "test-results")`)
       .option('--quiet', `Suppress stdio`)
       .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: ${defaultConfig.repeatEach})`)
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
@@ -226,16 +196,4 @@ function addRunnerOptions(program: commander.Command, param: boolean) {
       .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: ${defaultConfig.timeout})`)
       .option('-u, --update-snapshots', `Whether to update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
       .option('-x', `Stop after the first failure`);
-}
-
-function printParametersHelp(parameterRegistrations: ParameterRegistration[]) {
-  const program = new commander.Command();
-  for (const registration of parameterRegistrations) {
-    if (typeof registration.defaultValue === 'boolean')
-      program.option(`-p, --param*${registration.name}`, registration.description, registration.defaultValue);
-    else
-      program.option(`-p, --param*${registration.name}=<value>`, registration.description, String(registration.defaultValue));
-  }
-  addRunnerOptions(program, false);
-  console.log(program.helpInformation().replace(/--param\*/g, '--param '));
 }

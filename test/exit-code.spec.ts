@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import path from 'path';
 import { folio, stripAscii } from './fixtures';
 const { it, expect } = folio;
 
@@ -35,7 +34,7 @@ it('should collect stdio', async ({ runInlineTest }) => {
     `
   });
   expect(exitCode).toBe(0);
-  const testResult = report.suites[0].suites[0].specs[0].tests[0].runs[0];
+  const testResult = report.suites[0].specs[0].tests[0].runs[0];
   const { stdout, stderr } = testResult;
   expect(stdout).toEqual([{ text: 'stdout text' }, { buffer: Buffer.from('stdout buffer').toString('base64') }]);
   expect(stderr).toEqual([{ text: 'stderr text' }, { buffer: Buffer.from('stderr buffer').toString('base64') }]);
@@ -85,8 +84,8 @@ it('should repeat each', async ({ runInlineTest }) => {
   }, { 'repeat-each': 3 });
   expect(exitCode).toBe(0);
   expect(report.suites.length).toBe(1);
-  expect(report.suites[0].suites[0].specs.length).toBe(1);
-  expect(report.suites[0].suites[0].specs[0].tests.length).toBe(3);
+  expect(report.suites[0].specs.length).toBe(1);
+  expect(report.suites[0].specs[0].tests.length).toBe(3);
 });
 
 it('should allow flaky', async ({ runInlineTest }) => {

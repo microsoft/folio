@@ -17,7 +17,7 @@
 import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, Parameters, TestStatus, WorkerInitParams } from './ipc';
+import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, TestStatus, WorkerInitParams } from './ipc';
 import { Config } from './config';
 import { Reporter } from './reporter';
 import { RunnerSuite, RunnerTest } from './runnerTest';
@@ -92,8 +92,8 @@ export class Dispatcher {
     for (const suite of this._suite.suites) {
       const testsByWorkerHash = new Map<string, {
         tests: RunnerTest[],
-        parameters: Parameters,
-        parametersString: string,
+        variation: folio.SuiteVariation,
+        variationString: string,
         repeatEachIndex: number,
       }>();
       for (const spec of suite._allSpecs()) {
@@ -102,8 +102,8 @@ export class Dispatcher {
           if (!entry) {
             entry = {
               tests: [],
-              parameters: test.parameters,
-              parametersString: test._parametersString,
+              variation: test.variation,
+              variationString: test._variationString,
               repeatEachIndex: test._repeatEachIndex,
             };
             testsByWorkerHash.set(test._workerHash, entry);
@@ -126,8 +126,8 @@ export class Dispatcher {
         runPayloads.push({
           entries,
           file: suite.file,
-          parameters: entry.parameters,
-          parametersString: entry.parametersString,
+          variation: entry.variation,
+          variationString: entry.variationString,
           repeatEachIndex: entry.repeatEachIndex,
           hash,
         });

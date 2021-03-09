@@ -14,72 +14,65 @@
  * limitations under the License.
  */
 
-import { FixturePool, setParameterValues } from './fixtures';
+import { FixturePool } from './fixtures';
 import { installTransform } from './transform';
 import { builtinFixtures } from './builtinFixtures';
+import { RootSuite } from './test';
 
 const kExportsName = 'toBeRenamed';
 
-const fixturePool = new FixturePool(undefined);
-loadFixturesObject(builtinFixtures);
+export class FixtureLoader {
+  readonly fixtureFiles: string[] = [];
+  readonly fixturePool: FixturePool = new FixturePool(undefined);
+  readonly configureFunctions: ((suite: RootSuite) => void)[] = [];
 
-function loadFixturesObject(fixturesObject: any) {
-  if ('workerFixtures' in fixturesObject)
-    loadFixtureSet('workerFixtures', fixturesObject.workerFixtures, 'worker', false);
-  if ('autoWorkerFixtures' in fixturesObject)
-    loadFixtureSet('autoWorkerFixtures', fixturesObject.autoWorkerFixtures, 'worker', true);
-  if ('testFixtures' in fixturesObject)
-    loadFixtureSet('testFixtures', fixturesObject.testFixtures, 'test', false);
-  if ('autoTestFixtures' in fixturesObject)
-    loadFixtureSet('autoTestFixtures', fixturesObject.autoTestFixtures, 'test', true);
-  if ('parameters' in fixturesObject) {
-    if (!fixturesObject.parameters || typeof fixturesObject.parameters !== 'object')
-      throw new Error(`"${kExportsName}.parameters" must be an object with parameters`);
-    for (const [name, parameter] of Object.entries(fixturesObject.parameters)) {
-      if (!parameter || typeof parameter !== 'object')
-        throw new Error(`"${kExportsName}.parameters.${name}" must be an object with "description", "defaultValue" and "values"`);
-      if (typeof (parameter as any).description !== 'string')
-        throw new Error(`"${kExportsName}.parameters.${name}.description" must be a string`);
-      const defaultValue = (parameter as any).defaultValue;
-      fixturePool.registerWorkerParameter({
-        name,
-        description: (parameter as any).description,
-        defaultValue,
-      });
-      fixturePool.registerFixture(name, 'worker', async ({}, runTest) => runTest(defaultValue), false);
-      if (Array.isArray((parameter as any).values))
-        setParameterValues(name, (parameter as any).values);
-      else
-        setParameterValues(name, [defaultValue]);
+  constructor() {
+    this._loadFolioObject(builtinFixtures);
+  }
+
+  private _loadFolioObject(folioObject: any) {
+    if ('workerFixtures' in folioObject)
+      this._loadFixtureSet('workerFixtures', folioObject.workerFixtures, 'worker', false);
+    if ('autoWorkerFixtures' in folioObject)
+      this._loadFixtureSet('autoWorkerFixtures', folioObject.autoWorkerFixtures, 'worker', true);
+    if ('testFixtures' in folioObject)
+      this._loadFixtureSet('testFixtures', folioObject.testFixtures, 'test', false);
+    if ('autoTestFixtures' in folioObject)
+      this._loadFixtureSet('autoTestFixtures', folioObject.autoTestFixtures, 'test', true);
+    if ('configureSuite' in folioObject) {
+      if (typeof folioObject.configureSuite !== 'function')
+        throw new Error(`"${kExportsName}.configureSuite" must be a function`);
+      this.configureFunctions.push(folioObject.configureSuite);
     }
   }
-}
 
-function loadFixtureSet(objectName: string, fixtureSet: any, scope: 'test' | 'worker', auto: boolean) {
-  if (!fixtureSet || typeof fixtureSet !== 'object')
-    throw new Error(`"${kExportsName}.${objectName}" must be an object with fixture functions`);
-  for (const [name, fixture] of Object.entries(fixtureSet)) {
-    if (typeof fixture !== 'function')
-      throw new Error(`"${kExportsName}.${objectName}.${name}" must be a fixture function`);
-    fixturePool.registerFixture(name, scope, fixture, auto);
+  private _loadFixtureSet(objectName: string, fixtureSet: any, scope: 'test' | 'worker', auto: boolean) {
+    if (!fixtureSet || typeof fixtureSet !== 'object')
+      throw new Error(`"${kExportsName}.${objectName}" must be an object with fixture functions`);
+    for (const [name, fixture] of Object.entries(fixtureSet)) {
+      if (typeof fixture !== 'function')
+        throw new Error(`"${kExportsName}.${objectName}.${name}" must be a fixture function`);
+      this.fixturePool.registerFixture(name, scope, fixture, auto);
+    }
   }
-}
 
-export function loadFixtureFile(file: string) {
-  const revertBabelRequire = installTransform();
-  try {
-    const fileExports = require(file);
-    if (!fileExports || typeof fileExports !== 'object' || !fileExports[kExportsName] || typeof fileExports[kExportsName] !== 'object')
-      throw new Error(`Fixture file did not export "${kExportsName}" object`);
-    loadFixturesObject(fileExports[kExportsName]);
-  } catch (e) {
-    // Drop the stack.
-    throw new Error(e.message);
-  } finally {
-    revertBabelRequire();
+  loadFixtureFile(file: string) {
+    this.fixtureFiles.push(file);
+    const revertBabelRequire = installTransform();
+    try {
+      const fileExports = require(file);
+      if (!fileExports || typeof fileExports !== 'object' || !fileExports[kExportsName] || typeof fileExports[kExportsName] !== 'object')
+        throw new Error(`Fixture file did not export "${kExportsName}" object`);
+      this._loadFolioObject(fileExports[kExportsName]);
+    } catch (e) {
+      // Drop the stack.
+      throw new Error(e.message);
+    } finally {
+      revertBabelRequire();
+    }
   }
-}
 
-export function loadedFixturePool() {
-  return fixturePool;
+  finish() {
+    this.fixturePool.validate();
+  }
 }

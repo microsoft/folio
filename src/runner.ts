@@ -18,15 +18,15 @@
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { config, matrix, ParameterRegistration, parameterRegistrations, setParameterValues } from './fixtures';
+import { config } from './fixtures';
 import { Reporter } from './reporter';
 import { generateTests } from './testGenerator';
 import { monotonicTime, prependErrorMessage, raceAgainstDeadline } from './util';
 import { RunnerSuite } from './runnerTest';
 import { runnerSpec } from './runnerSpec';
 import { debugLog } from './debug';
-import { Suite } from './test';
-import { loadedFixturePool, loadFixtureFile } from './fixtureLoader';
+import { RootSuite, Suite } from './test';
+import { FixtureLoader } from './fixtureLoader';
 export { Reporter } from './reporter';
 export { Config } from './config';
 export { Test, TestResult, Suite, TestStatus, TestError } from './test';
@@ -37,56 +37,45 @@ type RunResult = 'passed' | 'failed' | 'sigint' | 'forbid-only' | 'no-tests';
 
 export class Runner {
   private _reporter: Reporter;
+  private _suites: RootSuite[] = [];
+  private _fixtureLoader: FixtureLoader;
   private _rootSuite: RunnerSuite;
-  private _suites: RunnerSuite[] = [];
-  private _fixtureFiles: string[] = [];
 
   constructor(reporter: Reporter) {
     this._reporter = reporter;
+    this._fixtureLoader = new FixtureLoader();
   }
 
-  loadFixtures(files: string[]): { parameters: Map<string, ParameterRegistration> } {
+  loadFixtures(files: string[]) {
     debugLog(`loadFixtures`, files);
     for (const file of files) {
-      this._fixtureFiles.push(file);
       try {
-        loadFixtureFile(file);
+        this._fixtureLoader.loadFixtureFile(file);
       } catch (e) {
         prependErrorMessage(e, `Error while reading ${file}:\n`);
         throw e;
       }
     }
-    loadedFixturePool().validate();
-    return { parameters: parameterRegistrations };
+    this._fixtureLoader.finish();
   }
 
   loadFiles(files: string[]) {
     debugLog(`loadFiles`, files);
     for (const file of files) {
-      const suite = new RunnerSuite('');
-      suite.file = file;
-      const revertBabelRequire = runnerSpec(suite, loadedFixturePool(), config);
+      const revertBabelRequire = runnerSpec(file, this._suites, this._fixtureLoader.fixturePool, config);
       try {
         require(file);
       } catch (e) {
         prependErrorMessage(e, `Error while reading ${file}:\n`);
         throw e;
       }
-      this._suites.push(suite);
       revertBabelRequire();
     }
   }
 
-  generateTests(options: { parameters?: { [key: string]: (string | boolean | number)[] } } = {}): Suite {
-    if (options.parameters) {
-      for (const name of Object.keys(options.parameters))
-        setParameterValues(name, options.parameters[name]);
-    }
-
-    // We can only generate tests after parameters have been assigned.
+  generateTests() {
     this._suites = excludeNonOnlyFiles(this._suites);
-    this._rootSuite = generateTests(this._suites, config, loadedFixturePool());
-    return this._rootSuite;
+    this._rootSuite = generateTests(this._suites, config, this._fixtureLoader);
   }
 
   list() {
@@ -117,7 +106,7 @@ export class Runner {
 
   private async _runTests(suite: RunnerSuite): Promise<RunResult> {
     // Trial run does not need many workers, use one.
-    const runner = new Dispatcher(suite, config, this._fixtureFiles, this._reporter);
+    const runner = new Dispatcher(suite, config, this._fixtureLoader.fixtureFiles, this._reporter);
     let sigint = false;
     let sigintCallback: () => void;
     const sigIntPromise = new Promise<void>(f => sigintCallback = f);
@@ -137,7 +126,7 @@ export class Runner {
   }
 }
 
-function excludeNonOnlyFiles(suites: RunnerSuite[]): RunnerSuite[] {
+function excludeNonOnlyFiles(suites: RootSuite[]): RootSuite[] {
   // This makes sure we don't generate 1000000 tests if only one spec is focused.
   const filtered = suites.filter(suite => suite._hasOnly());
   return filtered.length === 0 ? suites : filtered;

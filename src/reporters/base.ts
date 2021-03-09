@@ -22,7 +22,7 @@ import path from 'path';
 import StackUtils from 'stack-utils';
 import { TestError, TestStatus } from '../ipc';
 import { Reporter, Config } from '../runner';
-import { Test, Suite, TestResult, Parameters } from '../test';
+import { Test, Suite, TestResult } from '../test';
 
 const stackUtils = new StackUtils();
 
@@ -173,8 +173,8 @@ function formatTestHeader(config: Config, test: Test, indent: string, index?: nu
   tokens.push(colors.red(pad(header, '=')));
 
   // Print parameters.
-  if (Object.keys(test.parameters).length)
-    tokens.push(indent + (index ? ' '.repeat(String(index).length + 2) : '') + colors.gray(serializeParameters(test.parameters)));
+  if (Object.keys(test.variation).length)
+    tokens.push(indent + (index ? ' '.repeat(String(index).length + 2) : '') + colors.gray(serializeVariation(test.variation)));
   return tokens.join('\n');
 }
 
@@ -239,10 +239,10 @@ function positionInFile(stack: string, file: string): { column: number; line: nu
   return null;
 }
 
-export function serializeParameters(parameters: Parameters): string {
+export function serializeVariation(variation: folio.SuiteVariation): string {
   const tokens = [];
-  for (const name of Object.keys(parameters))
-    tokens.push(`${name}=${parameters[name]}`);
+  for (const name of Object.keys(variation))
+    tokens.push(`${name}=${variation[name]}`);
   return tokens.join(', ');
 }
 

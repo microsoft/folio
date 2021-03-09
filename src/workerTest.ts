@@ -21,15 +21,4 @@ export class WorkerSpec extends Spec {
 }
 
 export class WorkerSuite extends Suite {
-  _hooks: { type: string, fn: Function } [] = [];
-
-  _assignIds(parametersString: string) {
-    this.findSpec((test: WorkerSpec) => {
-      test._id = `${test._ordinal}@${this.file}::[${parametersString}]`;
-    });
-  }
-
-  _addHook(type: string, fn: any) {
-    this._hooks.push({ type, fn });
-  }
 }
