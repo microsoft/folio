@@ -15,82 +15,112 @@
  */
 
 import { expect } from './expect';
-import { errorWithCallLocation } from './util';
+import { config, FixturePool } from './fixtures';
+import { RootSuite, Spec, Suite } from './test';
+import { TestModifier } from './testModifier';
+import { callLocation, errorWithCallLocation } from './util';
 
 Error.stackTraceLimit = 15;
 
-export type SpecType = 'default' | 'skip' | 'only';
+let currentFile: { file: string, rootSuites: RootSuite[], fixturePool: FixturePool, ordinal: number } | undefined;
 
-export type Implementation = {
-  startSuite: (options: folio.SuiteOptions) => void;
-  it: (spec: SpecType, ...args: any[]) => void;
-  describe: (spec: SpecType, ...args: any[]) => void;
-  beforeEach: (fn: Function) => void;
-  afterEach: (fn: Function) => void;
-  beforeAll: (fn: Function) => void;
-  afterAll: (fn: Function) => void;
-};
-
-let implementation: Implementation | undefined;
-
-export function setImplementation(i: Implementation | undefined) {
-  implementation = i;
+export function setCurrentFile(file: string, rootSuites: RootSuite[], fixturePool: FixturePool) {
+  currentFile = { file, rootSuites, ordinal: 0, fixturePool };
+}
+export function clearCurrentFile() {
+  currentFile = undefined;
 }
 
 export function createTestImpl(options: folio.SuiteOptions) {
-  if (!implementation)
+  if (!currentFile)
     throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
-  implementation.startSuite(options);
-  const test: any = ((...args: any[]) => {
-    if (!implementation)
+
+  const rootSuite = new RootSuite('');
+  rootSuite.options = options;
+  rootSuite._ordinal = currentFile.ordinal++;
+  currentFile.rootSuites.push(rootSuite);
+  const location = callLocation(currentFile.file);
+  rootSuite.file = location.file;
+  rootSuite.line = location.line;
+  rootSuite.column = location.column;
+
+  const suites: Suite[] = [rootSuite];
+
+  function spec(type: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => void | Function, fn?: Function) {
+    if (!currentFile)
       throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
-    implementation.it('default', ...args);
-  });
+
+    if (typeof fn !== 'function') {
+      fn = modifierFn;
+      modifierFn = null;
+    }
+    const spec = new Spec(title, fn, suites[0]);
+    const location = callLocation(currentFile.file);
+    spec.file = location.file;
+    spec.line = location.line;
+    spec.column = location.column;
+    currentFile.fixturePool.validateFunction(fn, `Test`, true);
+
+    if (type === 'only')
+      spec._only = true;
+    spec._modifierFn = (modifier: TestModifier, variation: folio.SuiteVariation) => {
+      if (type === 'skip')
+        modifier.skip();
+      if (!modifier._timeout)
+        modifier.setTimeout(config.timeout);
+      if (modifierFn)
+        modifierFn(modifier, variation);
+    };
+  }
+
+  function describe(type: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) {
+    if (!currentFile)
+      throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
+
+    if (typeof fn !== 'function') {
+      fn = modifierFn;
+      modifierFn = null;
+    }
+    const child = new Suite(title, suites[0]);
+    const location = callLocation(currentFile.file);
+    child.file = location.file;
+    child.line = location.line;
+    child.column = location.column;
+
+    if (type === 'only')
+      child._only = true;
+    child._modifierFn = (modifier: TestModifier, variation: folio.SuiteVariation) => {
+      if (type === 'skip')
+        modifier.skip();
+      if (!modifier._timeout)
+        modifier.setTimeout(config.timeout);
+      if (modifierFn)
+        modifierFn(modifier, variation);
+    };
+
+    suites.unshift(child);
+    fn();
+    suites.shift();
+  }
+
+  function hook(name: string, fn: Function) {
+    if (!currentFile)
+      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
+
+    currentFile.fixturePool.validateFunction(fn, `${name} hook`, name === 'beforeEach' || name === 'afterEach');
+    suites[0]._addHook(name, fn);
+  }
+
+  const test: any = spec.bind(null, 'default');
   test.expect = expect;
-  test.skip = (...args: any[]) => {
-    if (!implementation)
-      throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
-    implementation.it('skip', ...args);
-  };
-  test.only = (...args: any[]) => {
-    if (!implementation)
-      throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
-    implementation.it('only', ...args);
-  };
-  test.describe = ((...args: any[]) => {
-    if (!implementation)
-      throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
-    implementation.describe('default', ...args);
-  }) as any;
-  test.describe.skip = (...args: any[]) => {
-    if (!implementation)
-      throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
-    implementation.describe('skip', ...args);
-  };
-  test.describe.only = (...args: any[]) => {
-    if (!implementation)
-      throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
-    implementation.describe('only', ...args);
-  };
-  test.beforeEach = fn => {
-    if (!implementation)
-      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-    implementation.beforeEach(fn);
-  };
-  test.afterEach = fn => {
-    if (!implementation)
-      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-    implementation.afterEach(fn);
-  };
-  test.beforeAll = fn => {
-    if (!implementation)
-      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-    implementation.beforeAll(fn);
-  };
-  test.afterAll = fn => {
-    if (!implementation)
-      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-    implementation.afterAll(fn);
-  };
+  test.skip = spec.bind(null, 'skip');
+  test.only = spec.bind(null, 'only');
+  test.describe = describe.bind(null, 'default');
+  test.describe.skip = describe.bind(null, 'skip');
+  test.describe.only = describe.bind(null, 'only');
+  test.beforeEach = hook.bind(null, 'beforeEach');
+  test.afterEach = hook.bind(null, 'afterEach');
+  test.beforeAll = hook.bind(null, 'beforeAll');
+  test.afterAll = hook.bind(null, 'afterAll');
   return test;
 }

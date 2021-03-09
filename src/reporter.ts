@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { Config } from './config';
-import { Test, Suite, TestResult, TestError } from './test';
+import { Config, TestResult, Test, Suite, TestError } from './types';
 
 export interface Reporter {
   onBegin(config: Config, suite: Suite): void;

@@ -16,9 +16,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { Config } from '../config';
 import { EmptyReporter } from '../reporter';
-import { Test, Suite, Spec, TestResult, TestError } from '../test';
+import { Config, Test, Suite, Spec, TestResult, TestError } from '../types';
 
 export interface SerializedSuite {
   title: string;

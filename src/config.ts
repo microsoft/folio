@@ -15,23 +15,7 @@
  */
 
 import path from 'path';
-
-export type Config = {
-  forbidOnly?: boolean;
-  globalTimeout: number;
-  grep?: string;
-  maxFailures: number;
-  outputDir: string;
-  quiet?: boolean;
-  repeatEach: number;
-  retries: number,
-  shard: { total: number, current: number } | undefined,
-  snapshotDir: string;
-  testDir: string;
-  timeout: number;
-  updateSnapshots: boolean;
-  workers: number;
-};
+import { Config } from './types';
 
 export const defaultConfig: Config = {
   forbidOnly: false,

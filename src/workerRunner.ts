@@ -19,11 +19,13 @@ import path from 'path';
 import { EventEmitter } from 'events';
 import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
-import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
-import { config, setCurrentTestInfo, TestInfo, currentWorkerIndex } from './fixtures';
+import { config, setCurrentTestInfo, currentWorkerIndex } from './fixtures';
 import { FixtureLoader } from './fixtureLoader';
 import { RootSuite, Spec, Suite, Test } from './test';
+import { installTransform } from './transform';
+import { clearCurrentFile, setCurrentFile } from './spec';
+import { TestInfo } from './types';
 
 export const fixtureLoader = new FixtureLoader();
 
@@ -78,8 +80,10 @@ export class WorkerRunner extends EventEmitter {
 
   async run() {
     const suites: RootSuite[] = [];
-    const revertBabelRequire = workerSpec(this._rootSuite.file, suites);
+    const revertBabelRequire = installTransform();
+    setCurrentFile(this._rootSuite.file, suites, fixtureLoader.fixturePool);
     require(this._rootSuite.file);
+    clearCurrentFile();
     revertBabelRequire();
     for (const suite of suites) {
       suite._renumber();

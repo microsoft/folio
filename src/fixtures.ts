@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { Config } from './config';
-import { TestStatus } from './test';
+import { Config, TestInfo } from './types';
 import { debugLog } from './debug';
 import { errorWithCallLocation } from './util';
 
@@ -27,39 +26,6 @@ type FixtureRegistration = {
   fn: Function;
   auto: boolean;
   deps: string[];
-};
-
-export type TestInfo = {
-  // Declaration
-  title: string;
-  file: string;
-  line: number;
-  column: number;
-  fn: Function;
-
-  // Parameters
-  options: folio.SuiteOptions;
-  variation: folio.SuiteVariation;
-  workerIndex: number;
-  repeatEachIndex: number;
-  retry: number;
-
-  // Modifiers
-  expectedStatus: TestStatus;
-  timeout: number;
-
-  // Results
-  duration: number;
-  status?: TestStatus;
-  error?: any;
-  stdout: (string | Buffer)[];
-  stderr: (string | Buffer)[];
-  data: any;
-
-  // Paths
-  relativeArtifactsPath: string;
-  snapshotPath: (...pathSegments: string[]) => string;
-  outputPath: (...pathSegments: string[]) => string;
 };
 
 let currentTestInfoValue: TestInfo | null = null;

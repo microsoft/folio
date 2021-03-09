@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { Config } from './config';
-
-export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
+import type { Config, TestStatus, TestError } from './types';
+export type { TestStatus } from './types';
 
 export type WorkerInitParams = {
   workerIndex: number;
@@ -30,12 +29,6 @@ export type TestBeginPayload = {
   testId: string;
   workerIndex: number,
 };
-
-export type TestError = {
-  message?: string;
-  stack?: string;
-  value?: string;
-}
 
 export type TestEndPayload = {
   testId: string;

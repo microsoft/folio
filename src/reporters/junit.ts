@@ -16,7 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { Config } from '../config';
+import { Config } from '../types';
 import { EmptyReporter } from '../reporter';
 import { Suite, Test } from '../test';
 import { monotonicTime } from '../util';

@@ -18,9 +18,9 @@ import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
 import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, TestStatus, WorkerInitParams } from './ipc';
-import { Config } from './config';
+import { Config, TestResult } from './types';
 import { Reporter } from './reporter';
-import { Suite, Test, TestResult } from './test';
+import { Suite, Test } from './test';
 
 type DispatcherEntry = {
   runPayload: RunPayload;
@@ -61,11 +61,11 @@ export class Dispatcher {
     this._queue = this._filesSortedByWorkerHash();
 
     // Shard tests.
-    let total = this._suite.total;
+    let total = this._suite.totalTestCount();
     let shardDetails = '';
     if (this._config.shard) {
       total = 0;
-      const shardSize = Math.ceil(this._suite.total / this._config.shard.total);
+      const shardSize = Math.ceil(total / this._config.shard.total);
       const from = shardSize * this._config.shard.current;
       const to = shardSize * (this._config.shard.current + 1);
       shardDetails = `, shard ${this._config.shard.current + 1} of ${this._config.shard.total}`;
