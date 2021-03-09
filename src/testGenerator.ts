@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { Config } from './config';
-import { ModifierFn, TestModifier } from './testModifier';
+import { Config } from './types';
+import { TestModifierFunction } from './types';
+import { TestModifier } from './testModifier';
 import { FixtureLoader } from './fixtureLoader';
 import { RootSuite, Suite } from './test';
 
@@ -44,7 +45,7 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
 
     for (const variation of suite.variations) {
       for (const spec of specs) {
-        const modifierFns: ModifierFn[] = [];
+        const modifierFns: TestModifierFunction[] = [];
         if (spec._modifierFn)
           modifierFns.push(spec._modifierFn);
         for (let parent = spec.parent; parent; parent = parent.parent) {
@@ -68,7 +69,6 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
     rootSuite._addSuite(suite);
   }
   filterOnly(rootSuite);
-  rootSuite._countTotal();
   return rootSuite;
 }
 

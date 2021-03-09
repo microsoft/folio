@@ -20,9 +20,9 @@ import fs from 'fs';
 import milliseconds from 'ms';
 import path from 'path';
 import StackUtils from 'stack-utils';
-import { TestError, TestStatus } from '../ipc';
-import { Reporter, Config } from '../runner';
-import { Test, Suite, TestResult } from '../test';
+import { Reporter } from '../runner';
+import { TestStatus, Test, Suite, TestResult, TestError } from '../types';
+import { Config } from '../types';
 
 const stackUtils = new StackUtils();
 
@@ -172,7 +172,7 @@ function formatTestHeader(config: Config, test: Test, indent: string, index?: nu
   const header = `${indent}${index ? index + ') ' : ''}${relativePath} › ${spec.fullTitle()}${passedUnexpectedlySuffix}`;
   tokens.push(colors.red(pad(header, '=')));
 
-  // Print parameters.
+  // Print variation.
   if (Object.keys(test.variation).length)
     tokens.push(indent + (index ? ' '.repeat(String(index).length + 2) : '') + colors.gray(serializeVariation(test.variation)));
   return tokens.join('\n');

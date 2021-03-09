@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { Config } from '../config';
 import { Reporter } from '../reporter';
-import { Suite, Test, TestError, TestResult } from '../test';
+import { Config, Suite, Test, TestError, TestResult } from '../types';
 
 export class Multiplexer implements Reporter {
   private _reporters: Reporter[];

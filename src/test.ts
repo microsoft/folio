@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { TestError, TestStatus } from './ipc';
-export { TestStatus, TestError } from './ipc';
-import { ModifierFn } from './testModifier';
+import * as types from './types';
 
 class Base {
   title: string;
@@ -54,10 +52,10 @@ class Base {
   }
 }
 
-export class Spec extends Base {
+export class Spec extends Base implements types.Spec {
   fn: Function;
   tests: Test[] = [];
-  _modifierFn: ModifierFn | null;
+  _modifierFn: types.TestModifierFunction | null;
 
   constructor(title: string, fn: Function, suite: Suite) {
     super(title, suite);
@@ -82,13 +80,12 @@ export class Spec extends Base {
   }
 }
 
-export class Suite extends Base {
+export class Suite extends Base implements types.Suite {
   suites: Suite[] = [];
   specs: Spec[] = [];
   _entries: (Suite | Spec)[] = [];
-  _modifierFn: ModifierFn | null;
+  _modifierFn: types.TestModifierFunction | null;
   _hooks: { type: string, fn: Function } [] = [];
-  total = 0;
 
   constructor(title: string, parent?: Suite) {
     super(title, parent);
@@ -144,6 +141,15 @@ export class Suite extends Base {
     return false;
   }
 
+  totalTestCount(): number {
+    let total = 0;
+    for (const suite of this.suites)
+      total += suite.totalTestCount();
+    for (const spec of this.specs)
+      total += spec.tests.length;
+    return total;
+  }
+
   _allSpecs(): Spec[] {
     const result: Spec[] = [];
     this.findSpec(test => { result.push(test); });
@@ -156,16 +162,6 @@ export class Suite extends Base {
     this.findSpec((test: Spec) => {
       test._ordinal = ordinal++;
     });
-  }
-
-  _countTotal() {
-    this.total = 0;
-    for (const suite of this.suites) {
-      suite._countTotal();
-      this.total += suite.total;
-    }
-    for (const spec of this.specs)
-      this.total += spec.tests.length;
   }
 
   _hasOnly(): boolean {
@@ -182,14 +178,14 @@ export class Suite extends Base {
   }
 }
 
-export class Test {
+export class Test implements types.Test {
   spec: Spec;
   variation: folio.SuiteVariation;
-  results: TestResult[] = [];
+  results: types.TestResult[] = [];
 
   skipped = false;
   slow = false;
-  expectedStatus: TestStatus = 'passed';
+  expectedStatus: types.TestStatus = 'passed';
   timeout = 0;
   annotations: any[] = [];
 
@@ -227,8 +223,8 @@ export class Test {
     return status === 'expected' || status === 'flaky' || status === 'skipped';
   }
 
-  _appendTestResult(): TestResult {
-    const result: TestResult = {
+  _appendTestResult(): types.TestResult {
+    const result: types.TestResult = {
       retry: this.results.length,
       workerIndex: 0,
       duration: 0,
@@ -241,18 +237,7 @@ export class Test {
   }
 }
 
-export type TestResult = {
-  retry: number;
-  workerIndex: number,
-  duration: number;
-  status?: TestStatus;
-  error?: TestError;
-  stdout: (string | Buffer)[];
-  stderr: (string | Buffer)[];
-  data: any;
-};
-
-export class RootSuite extends Suite {
+export class RootSuite extends Suite implements types.RootSuite {
   options: folio.SuiteOptions = {};
   variations: folio.SuiteVariation[] = [{}];
 

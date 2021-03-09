@@ -17,7 +17,7 @@
 import path from 'path';
 import util from 'util';
 import StackUtils from 'stack-utils';
-import { TestError } from './ipc';
+import { TestError } from './types';
 
 const FOLIO_DIRS = [__dirname, path.join(__dirname, '..', 'src')];
 const cwd = process.cwd();

@@ -22,13 +22,13 @@ import { config } from './fixtures';
 import { Reporter } from './reporter';
 import { generateTests } from './testGenerator';
 import { monotonicTime, prependErrorMessage, raceAgainstDeadline } from './util';
-import { runnerSpec } from './runnerSpec';
 import { debugLog } from './debug';
 import { RootSuite, Suite } from './test';
 import { FixtureLoader } from './fixtureLoader';
+import { installTransform } from './transform';
+import { clearCurrentFile, setCurrentFile } from './spec';
 export { Reporter } from './reporter';
-export { Config } from './config';
-export { Test, TestResult, Suite, TestStatus, TestError } from './test';
+export { Test, TestResult, Suite, TestStatus, TestError } from './types';
 
 const removeFolderAsync = promisify(rimraf);
 
@@ -61,13 +61,15 @@ export class Runner {
   loadFiles(files: string[]) {
     debugLog(`loadFiles`, files);
     for (const file of files) {
-      const revertBabelRequire = runnerSpec(file, this._suites, this._fixtureLoader.fixturePool, config);
+      const revertBabelRequire = installTransform();
+      setCurrentFile(file, this._suites, this._fixtureLoader.fixturePool);
       try {
         require(file);
       } catch (e) {
         prependErrorMessage(e, `Error while reading ${file}:\n`);
         throw e;
       }
+      clearCurrentFile();
       revertBabelRequire();
     }
   }
@@ -91,7 +93,7 @@ export class Runner {
         return 'forbid-only';
     }
 
-    const total = this._rootSuite.total;
+    const total = this._rootSuite.totalTestCount();
     if (!total)
       return 'no-tests';
     const globalDeadline = config.globalTimeout ? config.globalTimeout + monotonicTime() : 0;

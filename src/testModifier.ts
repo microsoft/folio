@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { TestStatus } from './ipc';
+import * as types from './types';
 
-export class TestModifier {
+export class TestModifier implements types.TestModifier {
   _skipped = false;
   _slow = false;
-  _expectedStatus?: TestStatus = 'passed';
+  _expectedStatus?: types.TestStatus = 'passed';
   _annotations: any[] = [];
   _timeout = 0;
 
@@ -30,10 +30,6 @@ export class TestModifier {
     this._timeout = timeout;
   }
 
-  slow(): void;
-  slow(condition: boolean): void;
-  slow(description: string): void;
-  slow(condition: boolean, description: string): void;
   slow(arg?: boolean | string, description?: string) {
     const processed = this._interpretCondition(arg, description);
     if (processed.condition) {
@@ -46,10 +42,6 @@ export class TestModifier {
     }
   }
 
-  skip(): void;
-  skip(condition: boolean): void;
-  skip(description: string): void;
-  skip(condition: boolean, description: string): void;
   skip(arg?: boolean | string, description?: string) {
     const processed = this._interpretCondition(arg, description);
     if (processed.condition) {
@@ -61,10 +53,6 @@ export class TestModifier {
     }
   }
 
-  fixme(): void;
-  fixme(condition: boolean): void;
-  fixme(description: string): void;
-  fixme(condition: boolean, description: string): void;
   fixme(arg?: boolean | string, description?: string) {
     const processed = this._interpretCondition(arg, description);
     if (processed.condition) {
@@ -76,10 +64,6 @@ export class TestModifier {
     }
   }
 
-  fail(): void;
-  fail(condition: boolean): void;
-  fail(description: string): void;
-  fail(condition: boolean, description: string): void;
   fail(arg?: boolean | string, description?: string) {
     const processed = this._interpretCondition(arg, description);
     if (processed.condition) {
@@ -99,5 +83,3 @@ export class TestModifier {
     return { condition: !!arg, description };
   }
 }
-
-export type ModifierFn = (modifier: TestModifier, parameters: any) => void;
