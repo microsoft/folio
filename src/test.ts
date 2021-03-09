@@ -24,6 +24,7 @@ class Base {
   parent?: Suite;
 
   _only = false;
+  _skip = false;
   _ordinal: number;
 
   constructor(title: string, parent?: Suite) {
@@ -44,7 +45,7 @@ class Base {
   }
 
   _options(): folio.SuiteOptions {
-    return this.parent ? this.parent._options() : {};
+    return this.parent ? this.parent._options() : {} as any;
   }
 
   _rootSuite(): RootSuite | null {
@@ -238,7 +239,7 @@ export class Test implements types.Test {
 }
 
 export class RootSuite extends Suite implements types.RootSuite {
-  options: folio.SuiteOptions = {};
+  options: folio.SuiteOptions = {} as any;
   variations: folio.SuiteVariation[] = [{}];
 
   vary<K extends keyof folio.SuiteVariation>(key: K, values: folio.SuiteVariation[K][]): void {

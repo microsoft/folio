@@ -134,11 +134,11 @@ export interface TestFixture<R = any> {
   (fixtures: folio.WorkerFixtures & folio.TestFixtures, run: (value: R) => Promise<void>): Promise<any>;
 }
 export interface ToBeRenamedInterface {
-  testFixtures?: { [key: string]: TestFixture },
-  autoTestFixtures?: { [key: string]: TestFixture },
-  workerFixtures?: { [key: string]: WorkerFixture },
-  autoWorkerFixtures?: { [key: string]: WorkerFixture },
-  configureSuite?: (suite: RootSuite) => any,
+  testFixtures?: { [key: string]: TestFixture };
+  autoTestFixtures?: { [key: string]: TestFixture };
+  workerFixtures?: { [key: string]: WorkerFixture };
+  autoWorkerFixtures?: { [key: string]: WorkerFixture };
+  configureSuite?: (suite: RootSuite) => any;
 }
 
 
@@ -207,13 +207,12 @@ declare global {
     interface TestFixtures {
       // Information about the test being run, built-in Folio fixture.
       testInfo: TestInfo;
-
-      // Parameter-based relative path to be overridden, empty by default, built-in Folio fixture.
-      testParametersPathSegment: string;  // Note: it is impossible to configure this one.
     }
 
     // Options that can be passed to createTest().
     interface SuiteOptions {
+      // Relative path, empty by default, built-in Folio option.
+      testPathSegment?: string;
     }
 
     // A bag of key/value properties. Tests may be run multiple times, with some combinations of these properties.

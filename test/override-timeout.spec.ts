@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('should consider dynamically set value', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'fixtures.js': `
-		  config.timeout = 100;
+      config.timeout = 100;
       exports.toBeRenamed = {};
     `,
     'a.test.js': `
@@ -29,7 +29,6 @@ it('should consider dynamically set value', async ({ runInlineTest }) => {
       })
     `
   });
-  expect(result.report.config.timeout).toBe(100);
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
 });

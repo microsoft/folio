@@ -29,9 +29,6 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
   }
 
   for (const suite of suites) {
-    // Name each test.
-    suite._renumber();
-
     const specs = suite._allSpecs().filter(spec => {
       if (grep && !grep.test(spec.fullTitle()))
         return false;
@@ -43,19 +40,28 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
     for (const fn of fixtureLoader.configureFunctions)
       fn(suite);
 
+    suite._renumber();
+
     for (const variation of suite.variations) {
       for (const spec of specs) {
+        const modifier = new TestModifier();
+        modifier.setTimeout(config.timeout);
+
         const modifierFns: TestModifierFunction[] = [];
         if (spec._modifierFn)
           modifierFns.push(spec._modifierFn);
+        if (spec._skip)
+          modifier.skip();
         for (let parent = spec.parent; parent; parent = parent.parent) {
           if (parent._modifierFn)
             modifierFns.push(parent._modifierFn);
+          if (parent._skip)
+            modifier.skip();
         }
         modifierFns.reverse();
-        const modifier = new TestModifier();
         for (const modifierFn of modifierFns)
           modifierFn(modifier, variation);
+
         for (let i = 0; i < config.repeatEach; ++i) {
           const test = spec._appendTest(variation, i);
           test.skipped = modifier._skipped;

@@ -19,19 +19,6 @@ const { it, expect } = folio;
 
 it('should grep test name', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'match-grep/a.test.ts': `
-      test('test A', () => {
-        expect(1 + 1).toBe(2);
-      });
-
-      test('test B', () => {
-        expect(1 + 1).toBe(2);
-      });
-
-      test('test C', () => {
-        expect(1 + 1).toBe(2);
-      });
-    `,
     'match-grep/b.test.ts': `
       test('test A', () => {
         expect(1 + 1).toBe(2);
@@ -45,7 +32,20 @@ it('should grep test name', async ({ runInlineTest }) => {
         expect(1 + 1).toBe(2);
       });
     `,
-    'match-grep/c.test.ts': `
+    'match-grep/fdir/c.test.ts': `
+      test('test A', () => {
+        expect(1 + 1).toBe(2);
+      });
+
+      test('test B', () => {
+        expect(1 + 1).toBe(2);
+      });
+
+      test('test C', () => {
+        expect(1 + 1).toBe(2);
+      });
+    `,
+    'match-grep/adir/a.test.ts': `
       test('test A', () => {
         expect(1 + 1).toBe(2);
       });
