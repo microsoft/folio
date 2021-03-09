@@ -48,6 +48,10 @@ class Base {
   _options(): folio.SuiteOptions {
     return this.parent ? this.parent._options() : {};
   }
+
+  _rootSuite(): RootSuite | null {
+    return this.parent ? this.parent._rootSuite() : null;
+  }
 }
 
 export class Spec extends Base {
@@ -63,6 +67,18 @@ export class Spec extends Base {
 
   ok(): boolean {
     return !this.tests.find(r => !r.ok());
+  }
+
+  _appendTest(variation: folio.SuiteVariation, repeatEachIndex: number) {
+    const rootSuite = this._rootSuite()!;
+    const test = new Test(this);
+    const variationString = serializeVariation(variation) + `#repeat-${repeatEachIndex}#`;
+    test._id = `${rootSuite._ordinal}/${this._ordinal}@${this.file}::[${variationString}]`;
+    test.variation = variation;
+    test._repeatEachIndex = repeatEachIndex;
+    test._workerHash = variationString;
+    this.tests.push(test);
+    return test;
   }
 }
 
@@ -177,6 +193,10 @@ export class Test {
   timeout = 0;
   annotations: any[] = [];
 
+  _id: string;
+  _workerHash: string;
+  _repeatEachIndex: number;
+
   constructor(spec: Spec) {
     this.spec = spec;
   }
@@ -205,6 +225,19 @@ export class Test {
   ok(): boolean {
     const status = this.status();
     return status === 'expected' || status === 'flaky' || status === 'skipped';
+  }
+
+  _appendTestResult(): TestResult {
+    const result: TestResult = {
+      retry: this.results.length,
+      workerIndex: 0,
+      duration: 0,
+      stdout: [],
+      stderr: [],
+      data: {}
+    };
+    this.results.push(result);
+    return result;
   }
 }
 
@@ -237,4 +270,17 @@ export class RootSuite extends Suite {
   _options(): folio.SuiteOptions {
     return this.options;
   }
+
+  _rootSuite(): RootSuite {
+    return this;
+  }
+}
+
+function serializeVariation(variation: folio.SuiteVariation): string {
+  const tokens = [];
+  const entries = Object.entries(variation);
+  entries.sort((a, b) => a[0].localeCompare(b[0]));
+  for (const [name, value] of entries)
+    tokens.push(`${name}=${value}`);
+  return tokens.join(', ');
 }

@@ -17,15 +17,13 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { WorkerSpec, WorkerSuite } from './workerTest';
-import { Config } from './config';
 import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { workerSpec } from './workerSpec';
 import { debugLog } from './debug';
-import { assignConfig, config, setCurrentTestInfo, TestInfo, setCurrentWorkerIndex } from './fixtures';
+import { config, setCurrentTestInfo, TestInfo, currentWorkerIndex } from './fixtures';
 import { FixtureLoader } from './fixtureLoader';
-import { RootSuite, Suite } from './test';
+import { RootSuite, Spec, Suite, Test } from './test';
 
 export const fixtureLoader = new FixtureLoader();
 
@@ -38,24 +36,18 @@ export class WorkerRunner extends EventEmitter {
   private _variation: folio.SuiteVariation;
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
-  private _rootSuite: WorkerSuite;
+  private _rootSuite: Suite;
   private _loaded = false;
-  private _variationString: string;
-  private _workerIndex: number;
   private _repeatEachIndex: number;
 
-  constructor(runPayload: RunPayload, config: Config, workerIndex: number) {
+  constructor(variation: folio.SuiteVariation, repeatEachIndex: number, runPayload: RunPayload) {
     super();
-    assignConfig(config);
-    this._rootSuite = new WorkerSuite('');
+    this._rootSuite = new Suite('');
     this._rootSuite.file = runPayload.file;
-    this._workerIndex = workerIndex;
-    this._repeatEachIndex = runPayload.repeatEachIndex;
-    this._variationString = runPayload.variationString;
+    this._repeatEachIndex = repeatEachIndex;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
-    this._variation = runPayload.variation;
-    setCurrentWorkerIndex(workerIndex);
+    this._variation = variation;
   }
 
   loadFixtureFiles(files: string[]) {
@@ -90,11 +82,9 @@ export class WorkerRunner extends EventEmitter {
     require(this._rootSuite.file);
     revertBabelRequire();
     for (const suite of suites) {
-      // Enumerate tests to assign ordinals.
       suite._renumber();
-      // Build ids from ordinals + variation strings.
-      suite.findSpec((spec: WorkerSpec) => {
-        spec._id = `${suite._ordinal}/${spec._ordinal}@${this._rootSuite.file}::[${this._variationString}]`;
+      suite.findSpec(spec => {
+        spec._appendTest(this._variation, this._repeatEachIndex);
       });
       this._rootSuite._addSuite(suite);
     }
@@ -117,7 +107,7 @@ export class WorkerRunner extends EventEmitter {
       if (entry instanceof Suite)
         await this._runSuite(entry);
       else
-        await this._runTest(entry as WorkerSpec);
+        await this._runSpec(entry);
     }
     try {
       await this._runHooks(suite, 'afterAll', 'after');
@@ -127,9 +117,10 @@ export class WorkerRunner extends EventEmitter {
     }
   }
 
-  private async _runTest(test: WorkerSpec) {
+  private async _runSpec(spec: Spec) {
     if (this._isStopped)
       return;
+    const test = spec.tests[0];
     if (!this._entries.has(test._id))
       return;
     const { timeout, expectedStatus, skipped, retry } = this._entries.get(test._id);
@@ -140,15 +131,15 @@ export class WorkerRunner extends EventEmitter {
     this._testId = testId;
 
     this._setCurrentTestInfo({
-      title: test.title,
-      file: test.file,
-      line: test.line,
-      column: test.column,
-      fn: test.fn,
-      options: test._options(),
+      title: spec.title,
+      file: spec.file,
+      line: spec.line,
+      column: spec.column,
+      fn: spec.fn,
+      options: spec._options(),
       variation: this._variation,
       repeatEachIndex: this._repeatEachIndex,
-      workerIndex: this._workerIndex,
+      workerIndex: currentWorkerIndex(),
       retry,
       expectedStatus,
       duration: 0,
@@ -208,16 +199,16 @@ export class WorkerRunner extends EventEmitter {
     setCurrentTestInfo(testInfo);
   }
 
-  private async _runTestWithFixturesAndHooks(test: WorkerSpec, testInfo: TestInfo) {
+  private async _runTestWithFixturesAndHooks(test: Test, testInfo: TestInfo) {
     try {
-      await this._runHooks(test.parent as WorkerSuite, 'beforeEach', 'before');
+      await this._runHooks(test.spec.parent, 'beforeEach', 'before');
     } catch (error) {
       testInfo.status = 'failed';
       testInfo.error = serializeError(error);
       // Continue running afterEach hooks even after the failure.
     }
 
-    debugLog(`running test "${test.fullTitle()}"`);
+    debugLog(`running test "${test.spec.fullTitle()}"`);
     try {
       // Do not run the test when beforeEach hook fails.
       if (!this._isStopped && testInfo.status !== 'failed') {
@@ -226,7 +217,7 @@ export class WorkerRunner extends EventEmitter {
         testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, parametersPathSegment);
         testInfo.outputPath = outputPath(testInfo);
         testInfo.snapshotPath = snapshotPath(testInfo);
-        await fixtureLoader.fixturePool.resolveParametersAndRunHookOrTest(test.fn);
+        await fixtureLoader.fixturePool.resolveParametersAndRunHookOrTest(test.spec.fn);
         testInfo.status = 'passed';
       }
     } catch (error) {
@@ -234,9 +225,9 @@ export class WorkerRunner extends EventEmitter {
       testInfo.error = serializeError(error);
       // Continue running afterEach hooks and fixtures teardown even after the failure.
     }
-    debugLog(`done running test "${test.fullTitle()}"`);
+    debugLog(`done running test "${test.spec.fullTitle()}"`);
     try {
-      await this._runHooks(test.parent as WorkerSuite, 'afterEach', 'after');
+      await this._runHooks(test.spec.parent, 'afterEach', 'after');
     } catch (error) {
       // Do not overwrite test failure error.
       if (testInfo.status === 'passed') {
@@ -262,14 +253,14 @@ export class WorkerRunner extends EventEmitter {
     }
   }
 
-  private async _runHooks(suite: WorkerSuite, type: string, dir: 'before' | 'after') {
+  private async _runHooks(suite: Suite, type: string, dir: 'before' | 'after') {
     if (this._isStopped)
       return;
     debugLog(`running hooks "${type}" for suite "${suite.fullTitle()}"`);
     if (!this._hasTestsToRun(suite))
       return;
     const all = [];
-    for (let s = suite; s; s = s.parent as WorkerSuite) {
+    for (let s = suite; s; s = s.parent) {
       const funcs = s._hooks.filter(e => e.type === type).map(e => e.fn);
       all.push(...funcs.reverse());
     }
@@ -301,9 +292,9 @@ export class WorkerRunner extends EventEmitter {
     this.stop();
   }
 
-  private _hasTestsToRun(suite: WorkerSuite): boolean {
-    return suite.findSpec((test: WorkerSpec) => {
-      const entry = this._entries.get(test._id);
+  private _hasTestsToRun(suite: Suite): boolean {
+    return suite.findSpec(spec => {
+      const entry = this._entries.get(spec.tests[0]._id);
       if (!entry)
         return;
       const { skipped } = entry;

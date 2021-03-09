@@ -20,26 +20,32 @@ import { EventEmitter } from 'events';
 import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, TestStatus, WorkerInitParams } from './ipc';
 import { Config } from './config';
 import { Reporter } from './reporter';
-import { RunnerSuite, RunnerTest } from './runnerTest';
-import { Test, TestResult } from './test';
+import { Suite, Test, TestResult } from './test';
+
+type DispatcherEntry = {
+  runPayload: RunPayload;
+  variation: folio.SuiteVariation;
+  hash: string;
+  repeatEachIndex: number;
+};
 
 export class Dispatcher {
   private _workers = new Set<Worker>();
   private _freeWorkers: Worker[] = [];
   private _workerClaimers: (() => void)[] = [];
 
-  private _testById = new Map<string, { test: RunnerTest, result: TestResult }>();
-  private _queue: RunPayload[] = [];
+  private _testById = new Map<string, { test: Test, result: TestResult }>();
+  private _queue: DispatcherEntry[] = [];
   private _stopCallback: () => void;
   readonly _config: Config;
   readonly _fixtureFiles: string[];
-  private _suite: RunnerSuite;
+  private _suite: Suite;
   private _reporter: Reporter;
   private _hasWorkerErrors = false;
   private _isStopped = false;
   private _failureCount = 0;
 
-  constructor(suite: RunnerSuite, config: Config, fixtureFiles: string[], reporter: Reporter) {
+  constructor(suite: Suite, config: Config, fixtureFiles: string[], reporter: Reporter) {
     this._config = config;
     this._fixtureFiles = fixtureFiles;
     this._reporter = reporter;
@@ -47,7 +53,7 @@ export class Dispatcher {
     this._suite = suite;
     for (const suite of this._suite.suites) {
       for (const spec of suite._allSpecs()) {
-        for (const test of spec.tests as RunnerTest[])
+        for (const test of spec.tests)
           this._testById.set(test._id, { test, result: test._appendTestResult() });
       }
     }
@@ -64,13 +70,13 @@ export class Dispatcher {
       const to = shardSize * (this._config.shard.current + 1);
       shardDetails = `, shard ${this._config.shard.current + 1} of ${this._config.shard.total}`;
       let current = 0;
-      const filteredQueue: RunPayload[] = [];
-      for (const runPayload of this._queue) {
+      const filteredQueue: DispatcherEntry[] = [];
+      for (const entry of this._queue) {
         if (current >= from && current < to) {
-          filteredQueue.push(runPayload);
-          total += runPayload.entries.length;
+          filteredQueue.push(entry);
+          total += entry.runPayload.entries.length;
         }
-        current += runPayload.entries.length;
+        current += entry.runPayload.entries.length;
       }
       this._queue = filteredQueue;
     }
@@ -78,7 +84,7 @@ export class Dispatcher {
     if (process.stdout.isTTY) {
       const workers = new Set<string>();
       suite.findSpec(test => {
-        for (const variant of test.tests as RunnerTest[])
+        for (const variant of test.tests)
           workers.add(test.file + variant._workerHash);
       });
       console.log();
@@ -87,23 +93,21 @@ export class Dispatcher {
     }
   }
 
-  _filesSortedByWorkerHash(): RunPayload[] {
-    const runPayloads: RunPayload[] = [];
+  _filesSortedByWorkerHash(): DispatcherEntry[] {
+    const result: DispatcherEntry[] = [];
     for (const suite of this._suite.suites) {
       const testsByWorkerHash = new Map<string, {
-        tests: RunnerTest[],
+        tests: Test[],
         variation: folio.SuiteVariation,
-        variationString: string,
         repeatEachIndex: number,
       }>();
       for (const spec of suite._allSpecs()) {
-        for (const test of spec.tests as RunnerTest[]) {
+        for (const test of spec.tests) {
           let entry = testsByWorkerHash.get(test._workerHash);
           if (!entry) {
             entry = {
               tests: [],
               variation: test.variation,
-              variationString: test._variationString,
               repeatEachIndex: test._repeatEachIndex,
             };
             testsByWorkerHash.set(test._workerHash, entry);
@@ -123,18 +127,19 @@ export class Dispatcher {
             skipped: test.skipped
           };
         });
-        runPayloads.push({
-          entries,
-          file: suite.file,
+        result.push({
           variation: entry.variation,
-          variationString: entry.variationString,
+          runPayload: {
+            entries,
+            file: suite.file,
+          },
           repeatEachIndex: entry.repeatEachIndex,
           hash,
         });
       }
     }
-    runPayloads.sort((a, b) => a.hash < b.hash ? -1 : (a.hash === b.hash ? 0 : 1));
-    return runPayloads;
+    result.sort((a, b) => a.hash < b.hash ? -1 : (a.hash === b.hash ? 0 : 1));
+    return result;
   }
 
   async run() {
@@ -148,22 +153,22 @@ export class Dispatcher {
     while (this._queue.length) {
       if (this._isStopped)
         break;
-      const file = this._queue.shift();
-      const requiredHash = file.hash;
-      let worker = await this._obtainWorker();
+      const entry = this._queue.shift();
+      const requiredHash = entry.hash;
+      let worker = await this._obtainWorker(entry);
       while (!this._isStopped && worker.hash && worker.hash !== requiredHash) {
         worker.stop();
-        worker = await this._obtainWorker();
+        worker = await this._obtainWorker(entry);
       }
       if (this._isStopped)
         break;
-      jobs.push(this._runJob(worker, file));
+      jobs.push(this._runJob(worker, entry));
     }
     await Promise.all(jobs);
   }
 
-  async _runJob(worker: Worker, runPayload: RunPayload) {
-    worker.run(runPayload);
+  async _runJob(worker: Worker, entry: DispatcherEntry) {
+    worker.run(entry.runPayload);
     let doneCallback;
     const result = new Promise(f => doneCallback = f);
     worker.once('done', (params: DonePayload) => {
@@ -184,7 +189,7 @@ export class Dispatcher {
       // In case of fatal error, we are done with the entry.
       if (params.fatalError) {
         // Report all the tests are failing with this error.
-        for (const { testId } of runPayload.entries) {
+        for (const { testId } of entry.runPayload.entries) {
           const { test, result } = this._testById.get(testId);
           this._reporter.onTestBegin(test);
           result.error = params.fatalError;
@@ -212,7 +217,7 @@ export class Dispatcher {
       }
 
       if (remaining.length)
-        this._queue.unshift({ ...runPayload, entries: remaining });
+        this._queue.unshift({ ...entry, runPayload: { ...entry.runPayload, entries: remaining } });
 
       // This job is over, we just scheduled another one.
       doneCallback();
@@ -220,14 +225,14 @@ export class Dispatcher {
     return result;
   }
 
-  async _obtainWorker() {
+  async _obtainWorker(entry: DispatcherEntry) {
     const claimWorker = (): Promise<Worker> | null => {
       // Use available worker.
       if (this._freeWorkers.length)
         return Promise.resolve(this._freeWorkers.pop());
       // Create a new worker.
       if (this._workers.size < this._config.workers)
-        return this._createWorker();
+        return this._createWorker(entry);
       return null;
     };
 
@@ -249,7 +254,7 @@ export class Dispatcher {
     callback();
   }
 
-  _createWorker() {
+  _createWorker(entry: DispatcherEntry) {
     const worker = new Worker(this);
     worker.on('testBegin', (params: TestBeginPayload) => {
       const { test, result: testRun  } = this._testById.get(params.testId);
@@ -288,7 +293,7 @@ export class Dispatcher {
         this._stopCallback();
     });
     this._workers.add(worker);
-    return worker.init().then(() => worker);
+    return worker.init(entry).then(() => worker);
   }
 
   async stop() {
@@ -351,18 +356,21 @@ class Worker extends EventEmitter {
     });
   }
 
-  async init() {
+  async init(entry: DispatcherEntry) {
+    this.hash = entry.hash;
     const params: WorkerInitParams = {
       workerIndex: this.index,
       fixtureFiles: this.runner._fixtureFiles,
+      variation: entry.variation,
+      repeatEachIndex: entry.repeatEachIndex,
+      config: this.runner._config,
     };
     this.process.send({ method: 'init', params });
     await new Promise(f => this.process.once('message', f));  // Ready ack
   }
 
-  run(entry: RunPayload) {
-    this.hash = entry.hash;
-    this.process.send({ method: 'run', params: { entry, config: this.runner._config } });
+  run(runPayload: RunPayload) {
+    this.process.send({ method: 'run', params: runPayload });
   }
 
   stop() {

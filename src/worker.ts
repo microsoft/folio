@@ -17,7 +17,8 @@
 import { Console } from 'console';
 import * as util from 'util';
 import { debugLog, setDebugWorkerIndex } from './debug';
-import { TestOutputPayload, WorkerInitParams } from './ipc';
+import { assignConfig, setCurrentWorkerIndex } from './fixtures';
+import { RunPayload, TestOutputPayload, WorkerInitParams } from './ipc';
 import { serializeError } from './util';
 import { fixtureLoader, WorkerRunner } from './workerRunner';
 
@@ -55,9 +56,9 @@ process.on('disconnect', gracefullyCloseAndExit);
 process.on('SIGINT',() => {});
 process.on('SIGTERM',() => {});
 
-let workerIndex: number;
 let testRunner: WorkerRunner;
 let fixturesFilesToLoad: string[] = [];
+let initParams: WorkerInitParams;
 
 process.on('unhandledRejection', (reason, promise) => {
   if (testRunner)
@@ -71,12 +72,13 @@ process.on('uncaughtException', error => {
 
 process.on('message', async message => {
   if (message.method === 'init') {
-    const params = message.params as WorkerInitParams;
-    workerIndex = params.workerIndex;
-    setDebugWorkerIndex(workerIndex);
+    initParams = message.params as WorkerInitParams;
+    setDebugWorkerIndex(initParams.workerIndex);
+    setCurrentWorkerIndex(initParams.workerIndex);
+    assignConfig(initParams.config);
     // We will load fixtures upon the first "run".
-    fixturesFilesToLoad = params.fixtureFiles;
-    debugLog(`init`, params);
+    fixturesFilesToLoad = initParams.fixtureFiles;
+    debugLog(`init`, initParams);
     return;
   }
   if (message.method === 'stop') {
@@ -86,8 +88,9 @@ process.on('message', async message => {
     return;
   }
   if (message.method === 'run') {
-    debugLog(`run`, message.params);
-    testRunner = new WorkerRunner(message.params.entry, message.params.config, workerIndex);
+    const runPayload = message.params as RunPayload;
+    debugLog(`run`, runPayload);
+    testRunner = new WorkerRunner(initParams.variation, initParams.repeatEachIndex, runPayload);
     for (const event of ['testBegin', 'testEnd', 'done'])
       testRunner.on(event, sendMessageToParent.bind(null, event));
     testRunner.loadFixtureFiles(fixturesFilesToLoad);

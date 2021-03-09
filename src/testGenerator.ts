@@ -15,13 +15,12 @@
  */
 
 import { Config } from './config';
-import { RunnerSuite, RunnerSpec, RunnerTest } from './runnerTest';
 import { ModifierFn, TestModifier } from './testModifier';
 import { FixtureLoader } from './fixtureLoader';
-import { RootSuite } from './test';
+import { RootSuite, Suite } from './test';
 
-export function generateTests(suites: RootSuite[], config: Config, fixtureLoader: FixtureLoader): RunnerSuite {
-  const rootSuite = new RunnerSuite('');
+export function generateTests(suites: RootSuite[], config: Config, fixtureLoader: FixtureLoader): Suite {
+  const rootSuite = new Suite('');
   let grep: RegExp = null;
   if (config.grep) {
     const match = config.grep.match(/^\/(.*)\/(g|i|)$|.*/);
@@ -32,7 +31,7 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
     // Name each test.
     suite._renumber();
 
-    const specs = (suite._allSpecs() as RunnerSpec[]).filter(spec => {
+    const specs = suite._allSpecs().filter(spec => {
       if (grep && !grep.test(spec.fullTitle()))
         return false;
       return true;
@@ -43,14 +42,12 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
     for (const fn of fixtureLoader.configureFunctions)
       fn(suite);
 
-    const variations = suite.variations;
-    for (const variation of variations) {
-      const variationStringPrefix = serializeVariation(variation);
+    for (const variation of suite.variations) {
       for (const spec of specs) {
         const modifierFns: ModifierFn[] = [];
         if (spec._modifierFn)
           modifierFns.push(spec._modifierFn);
-        for (let parent = spec.parent as RunnerSuite; parent; parent = parent.parent as RunnerSuite) {
+        for (let parent = spec.parent; parent; parent = parent.parent) {
           if (parent._modifierFn)
             modifierFns.push(parent._modifierFn);
         }
@@ -59,19 +56,12 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
         for (const modifierFn of modifierFns)
           modifierFn(modifier, variation);
         for (let i = 0; i < config.repeatEach; ++i) {
-          const variationString = variationStringPrefix + `#repeat-${i}#`;
-          const test = new RunnerTest(spec);
-          test._workerHash = variationString;
-          test._variationString = variationString;
-          test._id = `${suite._ordinal}/${spec._ordinal}@${spec.file}::[${variationString}]`;
-          test.variation = variation;
+          const test = spec._appendTest(variation, i);
           test.skipped = modifier._skipped;
           test.slow = modifier._slow;
           test.expectedStatus = modifier._expectedStatus;
           test.timeout = modifier._timeout;
           test.annotations = modifier._annotations;
-          test._repeatEachIndex = i;
-          spec.tests.push(test);
         }
       }
     }
@@ -82,9 +72,9 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
   return rootSuite;
 }
 
-function filterOnly(suite: RunnerSuite) {
-  const onlySuites = suite.suites.filter((child: RunnerSuite) => filterOnly(child) || child._only);
-  const onlyTests = suite.specs.filter((test: RunnerSpec) => test._only);
+function filterOnly(suite: Suite) {
+  const onlySuites = suite.suites.filter(child => filterOnly(child) || child._only);
+  const onlyTests = suite.specs.filter(spec => spec._only);
   if (onlySuites.length || onlyTests.length) {
     suite.suites = onlySuites;
     suite.specs = onlyTests;

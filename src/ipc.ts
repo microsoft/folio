@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
+import { Config } from './config';
+
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
 export type WorkerInitParams = {
   workerIndex: number;
   fixtureFiles: string[];
+  variation: folio.SuiteVariation;
+  repeatEachIndex: number;
+  config: Config;
 };
 
 export type TestBeginPayload = {
@@ -51,10 +56,6 @@ export type TestEntry = {
 export type RunPayload = {
   file: string;
   entries: TestEntry[];
-  variation: folio.SuiteVariation;  // Note: we should move this to WorkerInitParams.
-  variationString: string;  // Note: we should move this to WorkerInitParams.
-  hash: string;  // Note: we should move this to WorkerInitParams.
-  repeatEachIndex: number;  // Note: we should move this to WorkerInitParams.
 };
 
 export type DonePayload = {
