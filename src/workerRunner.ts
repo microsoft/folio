@@ -17,7 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
+import { interpretCondition, monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { debugLog } from './debug';
 import { config, setCurrentTestInfo, currentWorkerIndex } from './fixtures';
@@ -129,14 +129,16 @@ export class WorkerRunner extends EventEmitter {
     const test = spec.tests[0];
     if (!this._entries.has(test._id))
       return;
-    const { timeout, expectedStatus, skipped, retry } = this._entries.get(test._id);
+    const { retry } = this._entries.get(test._id);
+    // TODO: support some of test.slow(), test.setTimeout(), describe.slow() and describe.setTimeout()
+    const timeout = config.timeout;
     const deadline = timeout ? monotonicTime() + timeout : 0;
     this._remaining.delete(test._id);
 
     const testId = test._id;
     this._testId = testId;
 
-    this._setCurrentTestInfo({
+    const testInfo: TestInfo = {
       title: spec.title,
       file: spec.file,
       line: spec.line,
@@ -147,7 +149,8 @@ export class WorkerRunner extends EventEmitter {
       repeatEachIndex: this._repeatEachIndex,
       workerIndex: currentWorkerIndex(),
       retry,
-      expectedStatus,
+      expectedStatus: 'passed',
+      annotations: [],
       duration: 0,
       status: 'passed',
       stdout: [],
@@ -156,13 +159,48 @@ export class WorkerRunner extends EventEmitter {
       data: {},
       relativeArtifactsPath: '',
       outputPath: () => '',
-      snapshotPath: () => ''
-    });
+      snapshotPath: () => '',
+
+      skip: (arg?: boolean | string, description?: string) => {
+        const processed = interpretCondition(arg, description);
+        if (processed.condition) {
+          testInfo.annotations.push({ type: 'skip', description: processed.description });
+          testInfo.expectedStatus = 'skipped';
+          throw new SkipError(processed.description);
+        }
+      },
+
+      fail: (arg?: boolean | string, description?: string) => {
+        const processed = interpretCondition(arg, description);
+        if (processed.condition) {
+          testInfo.annotations.push({ type: 'fail', description: processed.description });
+          if (testInfo.expectedStatus !== 'skipped')
+            testInfo.expectedStatus = 'failed';
+        }
+      },
+
+      fixme: (arg?: boolean | string, description?: string) => {
+        const processed = interpretCondition(arg, description);
+        if (processed.condition) {
+          testInfo.annotations.push({ type: 'fixme', description: processed.description });
+          testInfo.expectedStatus = 'skipped';
+          throw new SkipError(processed.description);
+        }
+      },
+    };
+    this._setCurrentTestInfo(testInfo);
+
+    // Preprocess suite annotations.
+    for (let parent = spec.parent; parent; parent = parent.parent)
+      testInfo.annotations.push(...parent._annotations);
+    if (testInfo.annotations.some(a => a.type === 'skip' || a.type === 'fixme'))
+      testInfo.expectedStatus = 'skipped';
+    else if (testInfo.annotations.some(a => a.type === 'fail'))
+      testInfo.expectedStatus = 'failed';
 
     this.emit('testBegin', buildTestBeginPayload(testId, this._testInfo));
 
-    if (skipped) {
-      // TODO: don't even send those to the worker.
+    if (testInfo.expectedStatus === 'skipped') {
       this._testInfo.status = 'skipped';
       this.emit('testEnd', buildTestEndPayload(testId, this._testInfo));
       return;
@@ -209,15 +247,19 @@ export class WorkerRunner extends EventEmitter {
     try {
       await this._runHooks(test.spec.parent, 'beforeEach', 'before');
     } catch (error) {
-      testInfo.status = 'failed';
-      testInfo.error = serializeError(error);
+      if (error instanceof SkipError) {
+        testInfo.status = 'skipped';
+      } else {
+        testInfo.status = 'failed';
+        testInfo.error = serializeError(error);
+      }
       // Continue running afterEach hooks even after the failure.
     }
 
     debugLog(`running test "${test.spec.fullTitle()}"`);
     try {
       // Do not run the test when beforeEach hook fails.
-      if (!this._isStopped && testInfo.status !== 'failed') {
+      if (!this._isStopped && testInfo.status !== 'failed' && testInfo.status !== 'skipped') {
         // Resolve artifacts and output paths.
         const testPathSegment = test.spec._options().testPathSegment || '';
         testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, testPathSegment);
@@ -227,8 +269,12 @@ export class WorkerRunner extends EventEmitter {
         testInfo.status = 'passed';
       }
     } catch (error) {
-      testInfo.status = 'failed';
-      testInfo.error = serializeError(error);
+      if (error instanceof SkipError) {
+        testInfo.status = 'skipped';
+      } else {
+        testInfo.status = 'failed';
+        testInfo.error = serializeError(error);
+      }
       // Continue running afterEach hooks and fixtures teardown even after the failure.
     }
     debugLog(`done running test "${test.spec.fullTitle()}"`);
@@ -236,7 +282,7 @@ export class WorkerRunner extends EventEmitter {
       await this._runHooks(test.spec.parent, 'afterEach', 'after');
     } catch (error) {
       // Do not overwrite test failure error.
-      if (testInfo.status === 'passed') {
+      if (!(error instanceof SkipError) && testInfo.status === 'passed') {
         testInfo.status = 'failed';
         testInfo.error = serializeError(error);
         // Continue running fixtures teardown even after the failure.
@@ -252,7 +298,7 @@ export class WorkerRunner extends EventEmitter {
       await fixtureLoader.fixturePool.teardownScope('test');
     } catch (error) {
       // Do not overwrite test failure or hook error.
-      if (testInfo.status === 'passed') {
+      if (!(error instanceof SkipError) && testInfo.status === 'passed') {
         testInfo.status = 'failed';
         testInfo.error = serializeError(error);
       }
@@ -303,8 +349,11 @@ export class WorkerRunner extends EventEmitter {
       const entry = this._entries.get(spec.tests[0]._id);
       if (!entry)
         return;
-      const { skipped } = entry;
-      return !skipped;
+      for (let parent = spec.parent; parent; parent = parent.parent) {
+        if (parent._annotations.some(a => a.type === 'skip' || a.type === 'fixme'))
+          return;
+      }
+      return true;
     });
   }
 }
@@ -320,9 +369,12 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
   return {
     testId,
     duration: testInfo.duration,
-    status: testInfo.status,
+    status: testInfo.status!,
     error: testInfo.error,
     data: testInfo.data,
+    expectedStatus: testInfo.expectedStatus,
+    annotations: testInfo.annotations,
+    timeout: testInfo.timeout,
   };
 }
 
@@ -347,4 +399,7 @@ function snapshotPath(testInfo: TestInfo): (...pathSegments: string[]) => string
   return (...pathSegments: string[]): string => {
     return path.join(basePath, ...pathSegments);
   };
+}
+
+class SkipError extends Error {
 }

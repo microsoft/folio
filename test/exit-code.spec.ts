@@ -103,7 +103,8 @@ it('should allow flaky', async ({ runInlineTest }) => {
 it('should fail on unexpected pass', async ({ runInlineTest }) => {
   const { exitCode, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
-      test('succeeds', test => test.fail(), () => {
+      test('succeeds', () => {
+        test.fail();
         expect(1 + 1).toBe(2);
       });
     `

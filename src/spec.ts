@@ -15,10 +15,9 @@
  */
 
 import { expect } from './expect';
-import { FixturePool } from './fixtures';
+import { currentTestInfo, FixturePool } from './fixtures';
 import { RootSuite, Spec, Suite } from './test';
-import { TestModifier } from './testModifier';
-import { callLocation, errorWithCallLocation } from './util';
+import { callLocation, errorWithCallLocation, interpretCondition } from './util';
 
 Error.stackTraceLimit = 15;
 
@@ -46,14 +45,10 @@ export function createTestImpl(options: folio.SuiteOptions) {
 
   const suites: Suite[] = [rootSuite];
 
-  function spec(type: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => void | Function, fn?: Function) {
+  function spec(type: 'default' | 'only', title: string, fn: Function) {
     if (!currentFile)
       throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
 
-    if (typeof fn !== 'function') {
-      fn = modifierFn;
-      modifierFn = null;
-    }
     const spec = new Spec(title, fn, suites[0]);
     const location = callLocation(currentFile.file);
     spec.file = location.file;
@@ -63,19 +58,12 @@ export function createTestImpl(options: folio.SuiteOptions) {
 
     if (type === 'only')
       spec._only = true;
-    if (type === 'skip')
-      spec._skip = true;
-    spec._modifierFn = modifierFn;
   }
 
-  function describe(type: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, parameters: any) => void | Function, fn?: Function) {
+  function describe(type: 'default' | 'only', title: string, fn: Function) {
     if (!currentFile)
       throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
 
-    if (typeof fn !== 'function') {
-      fn = modifierFn;
-      modifierFn = null;
-    }
     const child = new Suite(title, suites[0]);
     const location = callLocation(currentFile.file);
     child.file = location.file;
@@ -84,9 +72,6 @@ export function createTestImpl(options: folio.SuiteOptions) {
 
     if (type === 'only')
       child._only = true;
-    if (type === 'skip')
-      child._skip = true;
-    child._modifierFn = modifierFn;
 
     suites.unshift(child);
     fn();
@@ -101,16 +86,32 @@ export function createTestImpl(options: folio.SuiteOptions) {
     suites[0]._addHook(name, fn);
   }
 
+  const modifier = (type: 'skip' | 'fail' | 'fixme', arg?: boolean | string, description?: string) => {
+    if (currentFile) {
+      const processed = interpretCondition(arg, description);
+      if (processed.condition)
+        suites[0]._annotations.push({ type, description: processed.description });
+      return;
+    }
+
+    const testInfo = currentTestInfo();
+    if (!testInfo)
+      throw new Error(`test.${type} can only be called inside the test`);
+    const func = testInfo[type];
+    func.call(testInfo, arg, description);
+  };
+
   const test: any = spec.bind(null, 'default');
   test.expect = expect;
-  test.skip = spec.bind(null, 'skip');
   test.only = spec.bind(null, 'only');
   test.describe = describe.bind(null, 'default');
-  test.describe.skip = describe.bind(null, 'skip');
   test.describe.only = describe.bind(null, 'only');
   test.beforeEach = hook.bind(null, 'beforeEach');
   test.afterEach = hook.bind(null, 'afterEach');
   test.beforeAll = hook.bind(null, 'beforeAll');
   test.afterAll = hook.bind(null, 'afterAll');
+  test.skip = modifier.bind(null, 'skip');
+  test.fixme = modifier.bind(null, 'fixme');
+  test.fail = modifier.bind(null, 'fail');
   return test;
 }

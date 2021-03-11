@@ -19,6 +19,7 @@ import * as util from 'util';
 import { debugLog, setDebugWorkerIndex } from './debug';
 import { assignConfig, setCurrentWorkerIndex } from './fixtures';
 import { RunPayload, TestOutputPayload, WorkerInitParams } from './ipc';
+import { Config } from './types';
 import { serializeError } from './util';
 import { fixtureLoader, WorkerRunner } from './workerRunner';
 
@@ -75,8 +76,7 @@ process.on('message', async message => {
     initParams = message.params as WorkerInitParams;
     setDebugWorkerIndex(initParams.workerIndex);
     setCurrentWorkerIndex(initParams.workerIndex);
-    assignConfig(initParams.config);
-    // We will load fixtures upon the first "run".
+    // We will load fixtures and assing the config upon the first "run".
     fixturesFilesToLoad = initParams.fixtureFiles;
     debugLog(`init`, initParams);
     return;
@@ -95,6 +95,7 @@ process.on('message', async message => {
       testRunner.on(event, sendMessageToParent.bind(null, event));
     testRunner.loadFixtureFiles(fixturesFilesToLoad);
     fixturesFilesToLoad = [];
+    assignConfig(initParams.config);
     await testRunner.run();
     testRunner = null;
   }

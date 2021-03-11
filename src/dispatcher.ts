@@ -209,9 +209,6 @@ export class Dispatcher {
           remaining.unshift({
             retry: pair.result.retry,
             testId: pair.test._id,
-            expectedStatus: pair.test.expectedStatus,
-            timeout: pair.test.timeout,
-            skipped: pair.test.skipped,
           });
         }
       }
@@ -266,6 +263,11 @@ export class Dispatcher {
       result.data = params.data;
       result.duration = params.duration;
       result.error = params.error;
+      test.expectedStatus = params.expectedStatus;
+      test.annotations = params.annotations;
+      test.timeout = params.timeout;
+      if (params.expectedStatus === 'skipped')
+        test.skipped = true;
       this._reportTestEnd(test, result, params.status);
     });
     worker.on('stdOut', (params: TestOutputPayload) => {

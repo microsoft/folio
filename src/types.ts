@@ -35,14 +35,7 @@ export interface Config {
 
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
-export interface TestModifier {
-  setTimeout(timeout: number): void;
-
-  slow(): void;
-  slow(condition: boolean): void;
-  slow(description: string): void;
-  slow(condition: boolean, description: string): void;
-
+interface TestModifier {
   skip(): void;
   skip(condition: boolean): void;
   skip(description: string): void;
@@ -59,11 +52,7 @@ export interface TestModifier {
   fail(condition: boolean, description: string): void;
 }
 
-export interface TestModifierFunction {
-  (modifier: TestModifier, variation: folio.SuiteVariation): any;
-}
-
-export interface TestInfo {
+export interface TestInfo extends TestModifier {
   // Declaration
   title: string;
   file: string;
@@ -81,6 +70,7 @@ export interface TestInfo {
   // Modifiers
   expectedStatus: TestStatus;
   timeout: number;
+  annotations: any[];
 
   // Results
   duration: number;
@@ -98,11 +88,6 @@ export interface TestInfo {
 
 interface SuiteFunction {
   (name: string, inner: () => void): void;
-  (name: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => any, inner: () => void): void;
-}
-interface SuiteFunctionWithModifiers extends SuiteFunction {
-  only: SuiteFunction;
-  skip: SuiteFunction;
 }
 interface SuiteHookFunction {
   (inner: (fixtures: folio.WorkerFixtures) => Promise<void> | void): void;
@@ -110,20 +95,22 @@ interface SuiteHookFunction {
 
 interface TestFunction {
   (name: string, inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
-  (name: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => any, inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
 }
 interface TestHookFunction {
   (inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
 }
 
-export interface TestSuiteFunction extends TestFunction {
+export interface TestSuiteFunction extends TestFunction, TestModifier {
   only: TestFunction;
-  skip: TestFunction;
+  describe: SuiteFunction & {
+    only: SuiteFunction;
+  };
+
   beforeEach: TestHookFunction;
   afterEach: TestHookFunction;
-  describe: SuiteFunctionWithModifiers;
   beforeAll: SuiteHookFunction;
   afterAll: SuiteHookFunction;
+
   expect: Expect;
 }
 
@@ -167,7 +154,6 @@ export interface Test {
   variation: folio.SuiteVariation;
   results: TestResult[];
   skipped: boolean;
-  slow: boolean;
   expectedStatus: TestStatus;
   timeout: number;
   annotations: any[];

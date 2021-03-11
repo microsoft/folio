@@ -77,9 +77,8 @@ it('should report suite errors', async ({ runInlineTest }) => {
 it('should respect nested skip', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, skipped } = await runInlineTest({
     'nested-skip.spec.js': `
-      test.describe('skipped', suite => {
-        suite.skip(true);
-      }, () => {
+      test.describe('skipped', () => {
+        test.skip();
         test('succeeds',() => {
           expect(1 + 1).toBe(2);
         });
@@ -92,20 +91,6 @@ it('should respect nested skip', async ({ runInlineTest }) => {
   expect(skipped).toBe(1);
 });
 
-it('should respect slow test', async ({ runInlineTest }) => {
-  const { exitCode, output } = await runInlineTest({
-    'slow.spec.js': `
-      test('slow', test => {
-        test.slow();
-      }, async () => {
-        await new Promise(f => setTimeout(f, 10000));
-      });
-    `
-  }, { timeout: 1 });
-  expect(output).toContain('Timeout of 3ms exceeded');
-  expect(exitCode).toBe(1);
-});
-
 it('should respect excluded tests', async ({ runInlineTest }) => {
   const { exitCode, passed } = await runInlineTest({
     'excluded.spec.ts': `
@@ -113,11 +98,13 @@ it('should respect excluded tests', async ({ runInlineTest }) => {
         expect(1 + 1).toBe(2);
       });
 
-      test.skip('excluded test', () => {
+      test('excluded test', () => {
+        test.skip();
         expect(1 + 1).toBe(3);
       });
 
-      test.skip('excluded test', () => {
+      test('excluded test', () => {
+        test.skip();
         expect(1 + 1).toBe(3);
       });
 
@@ -127,7 +114,8 @@ it('should respect excluded tests', async ({ runInlineTest }) => {
         });
       });
 
-      test.describe.skip('excluded describe', () => {
+      test.describe('excluded describe', () => {
+        test.skip();
         test('excluded describe test', () => {
           expect(1 + 1).toBe(3);
         });
@@ -183,4 +171,33 @@ it('should respect focused tests', async ({ runInlineTest }) => {
   });
   expect(passed).toBe(5);
   expect(exitCode).toBe(0);
+});
+
+it('skip should take priority over fail', async ({ runInlineTest }) => {
+  const { passed, skipped, failed } = await runInlineTest({
+    'test.spec.ts': `
+      test.describe('failing suite', () => {
+        test.fail();
+
+        test('skipped', () => {
+          test.skip();
+          expect(1 + 1).toBe(3);
+        });
+
+        test('passing', () => {
+          expect(1 + 1).toBe(3);
+        });
+        test('passing2', () => {
+          expect(1 + 1).toBe(3);
+        });
+
+        test('failing', () => {
+          expect(1 + 1).toBe(2);
+        });
+      });
+    `
+  });
+  expect(passed).toBe(2);
+  expect(skipped).toBe(1);
+  expect(failed).toBe(1);
 });
