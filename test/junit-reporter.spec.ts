@@ -112,7 +112,8 @@ it('render skipped', async ({ runInlineTest }) => {
       test('one', async () => {
         console.log('Hello world');
       });
-      test('two', test => test.skip(), async () => {
+      test('two', async () => {
+        test.skip();
         console.log('Hello world');
       });
     `,

@@ -308,3 +308,25 @@ it('should teardown fixtures after timeout', async ({ runInlineTest, testInfo })
   expect(content).toContain('worker fixture teardown');
   expect(content).toContain('test fixture teardown');
 });
+
+it('should fail() from fixture', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'fixtures.ts': `
+      async function t({ testInfo }, runTest) {
+        testInfo.fail();
+        await runTest();
+      }
+      export const toBeRenamed = {
+        autoTestFixtures: { t },
+      };
+    `,
+    'a.spec.ts': `
+      test('expected to fail', async () => {
+        expect(true).toBe(false);
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.skipped).toBe(0);
+  expect(result.passed).toBe(1);
+});

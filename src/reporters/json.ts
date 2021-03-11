@@ -96,7 +96,6 @@ class JSONReporter extends EmptyReporter {
 
   private _serializeTest(test: Test) {
     return {
-      slow: test.slow,
       timeout: test.timeout,
       annotations: test.annotations,
       expectedStatus: test.expectedStatus,

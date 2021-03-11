@@ -24,7 +24,6 @@ class Base {
   parent?: Suite;
 
   _only = false;
-  _skip = false;
   _ordinal: number;
 
   constructor(title: string, parent?: Suite) {
@@ -56,7 +55,6 @@ class Base {
 export class Spec extends Base implements types.Spec {
   fn: Function;
   tests: Test[] = [];
-  _modifierFn: types.TestModifierFunction | null;
 
   constructor(title: string, fn: Function, suite: Suite) {
     super(title, suite);
@@ -85,8 +83,8 @@ export class Suite extends Base implements types.Suite {
   suites: Suite[] = [];
   specs: Spec[] = [];
   _entries: (Suite | Spec)[] = [];
-  _modifierFn: types.TestModifierFunction | null;
   _hooks: { type: string, fn: Function } [] = [];
+  _annotations: { type: 'skip' | 'fixme' | 'fail', description?: string }[] = [];
 
   constructor(title: string, parent?: Suite) {
     super(title, parent);
@@ -185,7 +183,6 @@ export class Test implements types.Test {
   results: types.TestResult[] = [];
 
   skipped = false;
-  slow = false;
   expectedStatus: types.TestStatus = 'passed';
   timeout = 0;
   annotations: any[] = [];

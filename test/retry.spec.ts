@@ -54,7 +54,8 @@ it('should retry timeout', async ({ runInlineTest }) => {
 it('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
   const { exitCode, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
-      test('succeeds', test => test.fail(), () => {
+      test('succeeds', () => {
+        test.fail();
         expect(1 + 1).toBe(2);
       });
     `
@@ -67,7 +68,8 @@ it('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
 it('should not retry unexpected pass', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
-      test('succeeds', test => test.fail(), () => {
+      test('succeeds', () => {
+        test.fail();
         expect(1 + 1).toBe(2);
       });
     `
@@ -81,7 +83,8 @@ it('should not retry unexpected pass', async ({ runInlineTest }) => {
 it('should not retry expected failure', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'expected-failure.spec.js': `
-      test('fails', test => test.fail(), () => {
+      test('fails', () => {
+        test.fail();
         expect(1 + 1).toBe(3);
       });
 

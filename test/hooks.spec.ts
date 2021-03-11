@@ -179,3 +179,17 @@ it('should throw when afterAll hook depends on test fixture', async ({ runInline
   expect(firstStackFrame(stripAscii(result.output))).toContain('a.spec.ts:6');
   expect(result.exitCode).toBe(1);
 });
+
+it('should skip from beforeEach', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+      test.beforeEach(async ({ testInfo }) => {
+        testInfo.skip();
+      });
+      test('skipped', async () => {});
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.skipped).toBe(1);
+  expect(result.passed).toBe(0);
+});
