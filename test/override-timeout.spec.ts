@@ -19,9 +19,8 @@ const { it, expect } = folio;
 
 it('should consider dynamically set value', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixtures.js': `
-      config.timeout = 100;
-      exports.toBeRenamed = {};
+    'folio.config.js': `
+      exports.config = { timeout: 100 };
     `,
     'a.test.js': `
       test('pass', ({ testInfo }) => {
@@ -35,9 +34,8 @@ it('should consider dynamically set value', async ({ runInlineTest }) => {
 
 it('should prioritize value set via command line', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixtures.js': `
-      config.timeout = 100;
-      exports.toBeRenamed = {};
+    'folio.config.js': `
+      exports.config = { timeout: 100 };
     `,
     'a.test.js': `
       test('pass', ({ testInfo }) => {

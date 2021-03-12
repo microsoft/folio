@@ -14,22 +14,5 @@
  * limitations under the License.
  */
 
-import path from 'path';
 import { Config } from './types';
 
-export const defaultConfig: Config = {
-  forbidOnly: false,
-  globalTimeout: 0,
-  grep: '.*',
-  maxFailures: 0,
-  outputDir: path.join(process.cwd(), 'test-results'),
-  quiet: false,
-  repeatEach: 1,
-  retries: 0,
-  shard: undefined,
-  snapshotDir: '__snapshots__',
-  testDir: '',
-  timeout: 10000,
-  updateSnapshots: false,
-  workers: Math.ceil(require('os').cpus().length / 2),
-};

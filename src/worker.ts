@@ -17,11 +17,11 @@
 import { Console } from 'console';
 import * as util from 'util';
 import { debugLog, setDebugWorkerIndex } from './debug';
-import { assignConfig, setCurrentWorkerIndex } from './fixtures';
+import { setCurrentWorkerIndex } from './fixtures';
 import { RunPayload, TestOutputPayload, WorkerInitParams } from './ipc';
-import { Config } from './types';
+import { Loader } from './loader';
 import { serializeError } from './util';
-import { fixtureLoader, WorkerRunner } from './workerRunner';
+import { WorkerRunner } from './workerRunner';
 
 let closed = false;
 
@@ -58,8 +58,9 @@ process.on('SIGINT',() => {});
 process.on('SIGTERM',() => {});
 
 let testRunner: WorkerRunner;
-let fixturesFilesToLoad: string[] = [];
 let initParams: WorkerInitParams;
+let loader: Loader;
+let loaderInitialized = false;
 
 process.on('unhandledRejection', (reason, promise) => {
   if (testRunner)
@@ -76,8 +77,7 @@ process.on('message', async message => {
     initParams = message.params as WorkerInitParams;
     setDebugWorkerIndex(initParams.workerIndex);
     setCurrentWorkerIndex(initParams.workerIndex);
-    // We will load fixtures and assing the config upon the first "run".
-    fixturesFilesToLoad = initParams.fixtureFiles;
+    loader = new Loader({} as any);
     debugLog(`init`, initParams);
     return;
   }
@@ -90,12 +90,14 @@ process.on('message', async message => {
   if (message.method === 'run') {
     const runPayload = message.params as RunPayload;
     debugLog(`run`, runPayload);
-    testRunner = new WorkerRunner(initParams.variation, initParams.repeatEachIndex, runPayload);
+    testRunner = new WorkerRunner(loader, initParams.variation, initParams.repeatEachIndex, runPayload);
     for (const event of ['testBegin', 'testEnd', 'done'])
       testRunner.on(event, sendMessageToParent.bind(null, event));
-    testRunner.loadFixtureFiles(fixturesFilesToLoad);
-    fixturesFilesToLoad = [];
-    assignConfig(initParams.config);
+    if (!loaderInitialized) {
+      // Initialize after creating WorkerRunner, just in case we encounter errors while loading.
+      loaderInitialized = true;
+      loader.deserialize(initParams.loader);
+    }
     await testRunner.run();
     testRunner = null;
   }
@@ -111,8 +113,10 @@ async function gracefullyCloseAndExit() {
   if (testRunner)
     testRunner.stop();
   try {
-    await fixtureLoader.fixturePool.teardownScope('test');
-    await fixtureLoader.fixturePool.teardownScope('worker');
+    if (loader) {
+      await loader.fixturePool.teardownScope('test');
+      await loader.fixturePool.teardownScope('worker');
+    }
   } catch (e) {
     process.send({ method: 'teardownError', params: { error: serializeError(e) } });
   }

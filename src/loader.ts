@@ -14,20 +14,47 @@
  * limitations under the License.
  */
 
-import { FixturePool } from './fixtures';
+import { assignConfig, FixturePool } from './fixtures';
 import { installTransform } from './transform';
 import { builtinFixtures } from './builtinFixtures';
 import { RootSuite } from './test';
+import { Config } from './types';
+import { prependErrorMessage } from './util';
+import { clearCurrentFile, setCurrentFile } from './spec';
 
 const kExportsName = 'toBeRenamed';
 
-export class FixtureLoader {
+type SerializedLoaderData = {
+  configs: (string | Partial<Config>)[];
+  fixtureFiles: string[];
+};
+
+export class Loader {
   readonly fixtureFiles: string[] = [];
   readonly fixturePool: FixturePool = new FixturePool(undefined);
   readonly configureFunctions: ((suite: RootSuite) => void)[] = [];
+  readonly suites: RootSuite[] = [];
 
-  constructor() {
+  private _mergedConfig: Config;
+  private _layeredConfigs: { config: Partial<Config>, source?: string }[] = [];
+
+  constructor(defaultConfig: Config) {
+    this._layeredConfigs = [{ config: defaultConfig }];
     this._loadFolioObject(builtinFixtures);
+    this._mergedConfig = { ...defaultConfig };
+  }
+
+  deserialize(data: SerializedLoaderData) {
+    for (const config of data.configs) {
+      if (typeof config === 'string')
+        this.loadConfigFile(config);
+      else
+        this.addConfig(config);
+    }
+    this.assignConfig();
+    for (const fixtureFile of data.fixtureFiles)
+      this.loadFixtureFile(fixtureFile);
+    this.validateFixtures();
   }
 
   private _loadFolioObject(folioObject: any) {
@@ -66,13 +93,66 @@ export class FixtureLoader {
       this._loadFolioObject(fileExports[kExportsName]);
     } catch (e) {
       // Drop the stack.
+      const error = new Error(e.message);
+      prependErrorMessage(error, `Error while reading ${file}:\n`);
+      throw error;
+    } finally {
+      revertBabelRequire();
+    }
+  }
+
+  loadConfigFile(file: string) {
+    const revertBabelRequire = installTransform();
+    try {
+      const fileExports = require(file);
+      if (!fileExports || typeof fileExports !== 'object' || !fileExports.config || typeof fileExports.config !== 'object')
+        throw new Error(`Folio config file did not export "config" object`);
+      // TODO: add config validation.
+      this._layeredConfigs.push({ config: fileExports.config, source: file });
+      this._mergedConfig = { ...this._mergedConfig, ...fileExports.config };
+    } catch (e) {
+      // Drop the stack.
       throw new Error(e.message);
     } finally {
       revertBabelRequire();
     }
   }
 
-  finish() {
+  addConfig(config: Partial<Config>) {
+    this._layeredConfigs.push({ config });
+    this._mergedConfig = { ...this._mergedConfig, ...config };
+  }
+
+  assignConfig() {
+    assignConfig(this.config());
+  }
+
+  loadTestFile(file: string) {
+    const revertBabelRequire = installTransform();
+    setCurrentFile(file, this.suites, this.fixturePool);
+    try {
+      require(file);
+    } catch (e) {
+      prependErrorMessage(e, `Error while reading ${file}:\n`);
+      throw e;
+    } finally {
+      clearCurrentFile();
+      revertBabelRequire();
+    }
+  }
+
+  validateFixtures() {
     this.fixturePool.validate();
+  }
+
+  config() {
+    return this._mergedConfig;
+  }
+
+  serialize(): SerializedLoaderData {
+    return {
+      configs: this._layeredConfigs.map(c => c.source || c.config),
+      fixtureFiles: this.fixtureFiles
+    };
   }
 }
