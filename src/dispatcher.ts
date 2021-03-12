@@ -95,49 +95,40 @@ export class Dispatcher {
   }
 
   _filesSortedByWorkerHash(): DispatcherEntry[] {
-    const result: DispatcherEntry[] = [];
+    const entriesByWorkerHashAndFile = new Map<string, Map<string, DispatcherEntry>>();
     for (const suite of this._suite.suites) {
-      const testsByWorkerHash = new Map<string, {
-        tests: Test[],
-        variation: folio.SuiteVariation,
-        repeatEachIndex: number,
-      }>();
       for (const spec of suite._allSpecs()) {
         for (const test of spec.tests) {
-          let entry = testsByWorkerHash.get(test._workerHash);
+          let entriesByFile = entriesByWorkerHashAndFile.get(test._workerHash);
+          if (!entriesByFile) {
+            entriesByFile = new Map();
+            entriesByWorkerHashAndFile.set(test._workerHash, entriesByFile);
+          }
+          let entry = entriesByFile.get(spec.file);
           if (!entry) {
             entry = {
-              tests: [],
+              runPayload: {
+                entries: [],
+                file: spec.file,
+              },
               variation: test.variation,
               repeatEachIndex: test._repeatEachIndex,
+              hash: test._workerHash,
             };
-            testsByWorkerHash.set(test._workerHash, entry);
+            entriesByFile.set(spec.file, entry);
           }
-          entry.tests.push(test);
-        }
-      }
-      if (!testsByWorkerHash.size)
-        continue;
-      for (const [hash, entry] of testsByWorkerHash) {
-        const entries = entry.tests.map(test => {
-          return {
+          entry.runPayload.entries.push({
             retry: this._testById.get(test._id).result.retry,
             testId: test._id,
-            expectedStatus: test.expectedStatus,
-            timeout: test.timeout,
-            skipped: test.skipped
-          };
-        });
-        result.push({
-          variation: entry.variation,
-          runPayload: {
-            entries,
-            file: suite.file,
-          },
-          repeatEachIndex: entry.repeatEachIndex,
-          hash,
-        });
+          });
+        }
       }
+    }
+
+    const result: DispatcherEntry[] = [];
+    for (const entriesByFile of entriesByWorkerHashAndFile.values()) {
+      for (const entry of entriesByFile.values())
+        result.push(entry);
     }
     result.sort((a, b) => a.hash < b.hash ? -1 : (a.hash === b.hash ? 0 : 1));
     return result;

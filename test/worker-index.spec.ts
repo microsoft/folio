@@ -68,8 +68,13 @@ it('should reuse worker for the same parameters', async ({ runInlineTest }) => {
       test('succeeds', async ({ worker2, testWorkerIndex }) => {
         expect(testWorkerIndex).toBe(0);
       });
+
+      const test2 = createTest();
+      test2('succeeds', async ({ worker2, testWorkerIndex }) => {
+        expect(testWorkerIndex).toBe(0);
+      });
     `,
   });
-  expect(result.passed).toBe(2);
+  expect(result.passed).toBe(3);
   expect(result.exitCode).toBe(0);
 });
