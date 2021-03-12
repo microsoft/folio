@@ -17,26 +17,25 @@
 import { assignConfig, FixturePool } from './fixtures';
 import { installTransform } from './transform';
 import { builtinFixtures } from './builtinFixtures';
-import { RootSuite } from './test';
-import { Config } from './types';
-import { prependErrorMessage } from './util';
-import { clearCurrentFile, setCurrentFile } from './spec';
+import { Config, PartialConfig } from './types';
+import { mergeFixtureOptions, prependErrorMessage } from './util';
+import { clearCurrentFile, setCurrentFile, SuitesWithOptions } from './spec';
 
 const kExportsName = 'toBeRenamed';
 
 type SerializedLoaderData = {
-  configs: (string | Partial<Config>)[];
+  configs: (string | PartialConfig)[];
   fixtureFiles: string[];
 };
 
 export class Loader {
   readonly fixtureFiles: string[] = [];
   readonly fixturePool: FixturePool = new FixturePool(undefined);
-  readonly configureFunctions: ((suite: RootSuite) => void)[] = [];
-  readonly suites: RootSuite[] = [];
+  readonly suitesWithOptions: SuitesWithOptions = [];
+  testPathSegment: string = '';
 
   private _mergedConfig: Config;
-  private _layeredConfigs: { config: Partial<Config>, source?: string }[] = [];
+  private _layeredConfigs: { config: PartialConfig, source?: string }[] = [];
 
   constructor(defaultConfig: Config) {
     this._layeredConfigs = [{ config: defaultConfig }];
@@ -66,10 +65,10 @@ export class Loader {
       this._loadFixtureSet('testFixtures', folioObject.testFixtures, 'test', false);
     if ('autoTestFixtures' in folioObject)
       this._loadFixtureSet('autoTestFixtures', folioObject.autoTestFixtures, 'test', true);
-    if ('configureSuite' in folioObject) {
-      if (typeof folioObject.configureSuite !== 'function')
-        throw new Error(`"${kExportsName}.configureSuite" must be a function`);
-      this.configureFunctions.push(folioObject.configureSuite);
+    if ('testPathSegment' in folioObject) {
+      if (typeof folioObject.testPathSegment !== 'string')
+        throw new Error(`"${kExportsName}.testPathSegment" must be a string`);
+      this.testPathSegment = folioObject.testPathSegment;
     }
   }
 
@@ -118,9 +117,10 @@ export class Loader {
     }
   }
 
-  addConfig(config: Partial<Config>) {
+  addConfig(config: PartialConfig) {
     this._layeredConfigs.push({ config });
-    this._mergedConfig = { ...this._mergedConfig, ...config };
+    const mergedFixtureOptions = mergeFixtureOptions(this._mergedConfig.fixtureOptions, config.fixtureOptions || {});
+    this._mergedConfig = { ...this._mergedConfig, ...config, fixtureOptions: mergedFixtureOptions };
   }
 
   assignConfig() {
@@ -129,7 +129,7 @@ export class Loader {
 
   loadTestFile(file: string) {
     const revertBabelRequire = installTransform();
-    setCurrentFile(file, this.suites, this.fixturePool);
+    setCurrentFile(file, this.suitesWithOptions, this.fixturePool);
     try {
       require(file);
     } catch (e) {

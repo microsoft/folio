@@ -16,28 +16,28 @@
 
 import { expect } from './expect';
 import { currentTestInfo, FixturePool } from './fixtures';
-import { RootSuite, Spec, Suite } from './test';
+import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
 
 Error.stackTraceLimit = 15;
 
-let currentFile: { file: string, rootSuites: RootSuite[], fixturePool: FixturePool, ordinal: number } | undefined;
+export type SuitesWithOptions = { suite: Suite, fixtureOptions: folio.FixtureOptions }[];
+let currentFile: { file: string, suitesWithOptions: SuitesWithOptions, fixturePool: FixturePool, ordinal: number } | undefined;
 
-export function setCurrentFile(file: string, rootSuites: RootSuite[], fixturePool: FixturePool) {
-  currentFile = { file, rootSuites, ordinal: 0, fixturePool };
+export function setCurrentFile(file: string, suitesWithOptions: SuitesWithOptions, fixturePool: FixturePool) {
+  currentFile = { file, suitesWithOptions, ordinal: 0, fixturePool };
 }
 export function clearCurrentFile() {
   currentFile = undefined;
 }
 
-export function createTestImpl(options: folio.SuiteOptions) {
+export function createTestImpl(fixtureOptions: folio.FixtureOptions) {
   if (!currentFile)
     throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
 
-  const rootSuite = new RootSuite('');
-  rootSuite.options = options;
+  const rootSuite = new Suite('');
   rootSuite._ordinal = currentFile.ordinal++;
-  currentFile.rootSuites.push(rootSuite);
+  currentFile.suitesWithOptions.push({ suite: rootSuite, fixtureOptions });
   const location = callLocation(currentFile.file);
   rootSuite.file = location.file;
   rootSuite.line = location.line;
@@ -87,18 +87,27 @@ export function createTestImpl(options: folio.SuiteOptions) {
   }
 
   const modifier = (type: 'skip' | 'fail' | 'fixme', arg?: boolean | string, description?: string) => {
+    const processed = interpretCondition(arg, description);
+    if (!processed.condition)
+      return;
+
     if (currentFile) {
-      const processed = interpretCondition(arg, description);
-      if (processed.condition)
-        suites[0]._annotations.push({ type, description: processed.description });
+      suites[0]._annotations.push({ type, description: processed.description });
       return;
     }
 
     const testInfo = currentTestInfo();
     if (!testInfo)
       throw new Error(`test.${type} can only be called inside the test`);
-    const func = testInfo[type];
-    func.call(testInfo, arg, description);
+
+    testInfo.annotations.push({ type, description: processed.description });
+    if (type === 'skip' || type === 'fixme') {
+      testInfo.expectedStatus = 'skipped';
+      throw new SkipError(processed.description);
+    } else if (type === 'fail') {
+      if (testInfo.expectedStatus !== 'skipped')
+        testInfo.expectedStatus = 'failed';
+    }
   };
 
   const test: any = spec.bind(null, 'default');
@@ -114,4 +123,7 @@ export function createTestImpl(options: folio.SuiteOptions) {
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
   return test;
+}
+
+export class SkipError extends Error {
 }

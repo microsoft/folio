@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import type { Config, TestStatus, TestError } from './types';
+import type { PartialConfig, TestStatus, TestError } from './types';
 export type { TestStatus } from './types';
 
 export type WorkerInitParams = {
   workerIndex: number;
-  variation: folio.SuiteVariation;
   repeatEachIndex: number;
   loader: {
-    configs: (string | Partial<Config>)[];
+    configs: (string | PartialConfig)[];
     fixtureFiles: string[];
   };
 };

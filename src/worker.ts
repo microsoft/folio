@@ -90,7 +90,7 @@ process.on('message', async message => {
   if (message.method === 'run') {
     const runPayload = message.params as RunPayload;
     debugLog(`run`, runPayload);
-    testRunner = new WorkerRunner(loader, initParams.variation, initParams.repeatEachIndex, runPayload);
+    testRunner = new WorkerRunner(loader, initParams.repeatEachIndex, runPayload);
     for (const event of ['testBegin', 'testEnd', 'done'])
       testRunner.on(event, sendMessageToParent.bind(null, event));
     if (!loaderInitialized) {

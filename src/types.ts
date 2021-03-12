@@ -19,6 +19,7 @@ import type { Expect } from './expectType';
 export interface Config {
   fixtureIgnore: string;
   fixtureMatch: string;
+  fixtureOptions: folio.FixtureOptions;
   forbidOnly?: boolean;
   globalTimeout: number;
   grep?: string;
@@ -36,6 +37,7 @@ export interface Config {
   updateSnapshots: boolean;
   workers: number;
 }
+export type PartialConfig = Partial<Config>;
 
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
@@ -56,7 +58,7 @@ interface TestModifier {
   fail(condition: boolean, description: string): void;
 }
 
-export interface TestInfo extends TestModifier {
+export interface TestInfo {
   // Declaration
   title: string;
   file: string;
@@ -65,8 +67,6 @@ export interface TestInfo extends TestModifier {
   fn: Function;
 
   // Parameters
-  options: folio.SuiteOptions;
-  variation: folio.SuiteVariation;
   workerIndex: number;
   repeatEachIndex: number;
   retry: number;
@@ -118,20 +118,23 @@ export interface TestSuiteFunction extends TestFunction, TestModifier {
   expect: Expect;
 }
 
-export interface WorkerFixture<R = any> {
-  (fixtures: folio.WorkerFixtures, run: (value: R) => Promise<void>): Promise<any>;
+type OptionsForFixture<K extends string> = K extends keyof folio.FixtureOptions ? folio.FixtureOptions[K] : void;
+interface RunFixtureFunction<R> extends TestModifier {
+  (value: R): Promise<void>;
 }
-export interface TestFixture<R = any> {
-  (fixtures: folio.WorkerFixtures & folio.TestFixtures, run: (value: R) => Promise<void>): Promise<any>;
+export interface WorkerFixture<K extends keyof folio.WorkerFixtures> {
+  (fixtures: folio.WorkerFixtures, run: RunFixtureFunction<folio.WorkerFixtures[K]>, options?: OptionsForFixture<K>): Promise<any>;
+}
+export interface TestFixture<K extends keyof folio.TestFixtures> {
+  (fixtures: folio.WorkerFixtures & folio.TestFixtures, run: RunFixtureFunction<folio.TestFixtures[K]>, options?: OptionsForFixture<K>): Promise<any>;
 }
 export interface ToBeRenamedInterface {
-  testFixtures?: { [key: string]: TestFixture };
-  autoTestFixtures?: { [key: string]: TestFixture };
-  workerFixtures?: { [key: string]: WorkerFixture };
-  autoWorkerFixtures?: { [key: string]: WorkerFixture };
-  configureSuite?: (suite: RootSuite) => any;
+  testFixtures?: { [K in keyof folio.TestFixtures]?: TestFixture<K> };
+  autoTestFixtures?: { [K in keyof folio.TestFixtures]?: TestFixture<K> };
+  workerFixtures?: { [K in keyof folio.WorkerFixtures]?: WorkerFixture<K> };
+  autoWorkerFixtures?: { [K in keyof folio.WorkerFixtures]?: WorkerFixture<K> };
+  testPathSegment?: string;
 }
-
 
 export interface Suite {
   title: string;
@@ -155,7 +158,6 @@ export interface Spec {
 }
 export interface Test {
   spec: Spec;
-  variation: folio.SuiteVariation;
   results: TestResult[];
   skipped: boolean;
   expectedStatus: TestStatus;
@@ -179,11 +181,6 @@ export interface TestError {
   stack?: string;
   value?: string;
 }
-export interface RootSuite extends Suite {
-  options: folio.SuiteOptions;
-  variations: folio.SuiteVariation[];
-  vary<K extends keyof folio.SuiteVariation>(key: K, values: folio.SuiteVariation[K][]): void;
-}
 
 declare global {
   namespace folio {
@@ -200,13 +197,9 @@ declare global {
     }
 
     // Options that can be passed to createTest().
-    interface SuiteOptions {
+    interface FixtureOptions {
       // Relative path, empty by default, built-in Folio option.
       testPathSegment?: string;
-    }
-
-    // A bag of key/value properties. Tests may be run multiple times, with some combinations of these properties.
-    interface SuiteVariation {
     }
   }
 }

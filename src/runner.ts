@@ -19,9 +19,8 @@ import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
 import { Reporter } from './reporter';
-import { generateTests } from './testGenerator';
-import { monotonicTime, raceAgainstDeadline } from './util';
-import { RootSuite, Suite } from './test';
+import { mergeFixtureOptions, monotonicTime, raceAgainstDeadline } from './util';
+import { Suite } from './test';
 import { Loader } from './loader';
 export { Reporter } from './reporter';
 export { Test, TestResult, Suite, TestStatus, TestError } from './types';
@@ -38,7 +37,38 @@ export class Runner {
   constructor(loader: Loader, reporter: Reporter) {
     this._reporter = reporter;
     this._loader = loader;
-    this._rootSuite = generateTests(excludeNonOnlyFiles(loader.suites), this._loader);
+
+    // This makes sure we don't generate 1000000 tests if only one spec is focused.
+    const filtered = loader.suitesWithOptions.filter(s => s.suite._hasOnly());
+    const suitesWithOptions = filtered.length === 0 ? loader.suitesWithOptions : filtered;
+
+    this._rootSuite = new Suite('');
+    let grep: RegExp = null;
+    if (loader.config().grep) {
+      // TODO: change config.grep to be a RegExp instance.
+      const match = loader.config().grep.match(/^\/(.*)\/(g|i|)$|.*/);
+      grep = new RegExp(match[1] || match[0], match[2]);
+    }
+
+    const workerHashKeys = loader.fixturePool.workerFixtureNames();
+    for (const { suite, fixtureOptions } of suitesWithOptions) {
+      const specs = suite._allSpecs().filter(spec => {
+        if (grep && !grep.test(spec.fullTitle()))
+          return false;
+        return true;
+      });
+      if (!specs.length)
+        continue;
+      suite._renumber();
+      const mergedFixtureOptions = mergeFixtureOptions(loader.config().fixtureOptions, fixtureOptions);
+      for (const spec of specs) {
+        for (let i = 0; i < loader.config().repeatEach; ++i)
+          spec._appendTest(suite._ordinal, mergedFixtureOptions, i, workerHashKeys);
+      }
+      this._rootSuite._addSuite(suite);
+    }
+
+    filterOnly(this._rootSuite);
   }
 
   list() {
@@ -89,8 +119,13 @@ export class Runner {
   }
 }
 
-function excludeNonOnlyFiles(suites: RootSuite[]): RootSuite[] {
-  // This makes sure we don't generate 1000000 tests if only one spec is focused.
-  const filtered = suites.filter(suite => suite._hasOnly());
-  return filtered.length === 0 ? suites : filtered;
+function filterOnly(suite: Suite) {
+  const onlySuites = suite.suites.filter(child => filterOnly(child) || child._only);
+  const onlyTests = suite.specs.filter(spec => spec._only);
+  if (onlySuites.length || onlyTests.length) {
+    suite.suites = onlySuites;
+    suite.specs = onlyTests;
+    return true;
+  }
+  return false;
 }

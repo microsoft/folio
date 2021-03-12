@@ -25,7 +25,6 @@ import { Loader } from './loader';
 
 type DispatcherEntry = {
   runPayload: RunPayload;
-  variation: folio.SuiteVariation;
   hash: string;
   repeatEachIndex: number;
 };
@@ -111,7 +110,6 @@ export class Dispatcher {
                 entries: [],
                 file: spec.file,
               },
-              variation: test.variation,
               repeatEachIndex: test._repeatEachIndex,
               hash: test._workerHash,
             };
@@ -355,7 +353,6 @@ class Worker extends EventEmitter {
     this.hash = entry.hash;
     const params: WorkerInitParams = {
       workerIndex: this.index,
-      variation: entry.variation,
       repeatEachIndex: entry.repeatEachIndex,
       loader: this.runner._loader.serialize(),
     };

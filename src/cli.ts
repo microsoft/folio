@@ -27,7 +27,7 @@ import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
 import { Multiplexer } from './reporters/multiplexer';
 import { Runner } from './runner';
-import { Config } from './types';
+import { Config, PartialConfig } from './types';
 import { Loader } from './loader';
 
 export const reporters = {
@@ -44,6 +44,7 @@ const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
 const defaultConfig: Config = {
   fixtureIgnore: 'node_modules/**',
   fixtureMatch: '**/?(*.)fixtures.[jt]s',
+  fixtureOptions: {} as any,
   forbidOnly: false,
   globalTimeout: 0,
   grep: '.*',
@@ -64,7 +65,6 @@ const defaultConfig: Config = {
 
 const loadProgram = new commander.Command();
 addRunnerOptions(loadProgram);
-loadProgram.helpOption(false);
 loadProgram.action(async command => {
   try {
     await runTests(command);
@@ -75,7 +75,7 @@ loadProgram.action(async command => {
 });
 loadProgram.parse(process.argv);
 
-async function runTests(command) {
+async function runTests(command: any) {
   const reporterList = command.reporter.split(',');
   const reporterObjects: Reporter[] = reporterList.map(c => {
     if (reporters[c])
@@ -214,8 +214,8 @@ function addRunnerOptions(program: commander.Command) {
       .option('-x', `Stop after the first failure`);
 }
 
-function configFromCommand(command: any): Partial<Config> {
-  const config: Partial<Config> = {};
+function configFromCommand(command: any): PartialConfig {
+  const config: PartialConfig = {};
   if (command.forbidOnly)
     config.forbidOnly = true;
   if (command.globalTimeout)

@@ -99,7 +99,6 @@ class JSONReporter extends EmptyReporter {
       timeout: test.timeout,
       annotations: test.annotations,
       expectedStatus: test.expectedStatus,
-      variation: test.variation,
       // TODO: rename to results.
       runs: test.results.map(r => this._serializeTestResult(r))
     };

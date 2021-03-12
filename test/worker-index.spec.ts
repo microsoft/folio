@@ -78,3 +78,30 @@ it('should reuse worker for the same parameters', async ({ runInlineTest }) => {
   expect(result.passed).toBe(3);
   expect(result.exitCode).toBe(0);
 });
+
+it('should not reuse worker for different worker fixture options', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'one.fixtures.js': `
+      async function worker({}, run, options) {
+        await run(options || 'worker');
+      }
+      exports.toBeRenamed = { workerFixtures: { worker } };
+    `,
+    'a.test.js': `
+      test('succeeds', async ({ worker, testWorkerIndex }) => {
+        expect(worker).toBe('worker');
+      });
+      const test1 = createTest({ worker: 'foo' });
+      test1('succeeds', async ({ worker, testWorkerIndex }) => {
+        expect(worker).toBe('foo');
+      });
+      const test2 = createTest({ worker: 'bar' });
+      test2('succeeds', async ({ worker, testWorkerIndex }) => {
+        expect(worker).toBe('bar');
+      });
+    `,
+  });
+  expect(result.passed).toBe(3);
+  expect(result.exitCode).toBe(0);
+  expect(result.results.map(r => r.workerIndex).sort()).toEqual([0, 1, 2]);
+});
