@@ -45,26 +45,19 @@ it('should include retry token', async ({runInlineTest}) => {
   expect(result.flaky).toBe(1);
 });
 
-it('should respect testPathSegment from config and options', async ({runInlineTest}) => {
+it('should respect testPathSegment from fixture file', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'fixtures.ts': `
       export const toBeRenamed = {
-        configureSuite: suite => {
-          if (!suite.options.testPathSegment)
-            suite.options.testPathSegment = 'hello';
-        },
+        testPathSegment: 'hello',
       };
     `,
     'a.spec.js': `
       test('test', ({testInfo}) => {
         expect(testInfo.outputPath('')).toContain('hello');
       });
-      const test1 = createTest({ testPathSegment: 'foo-bar' });
-      test1('test', ({testInfo}) => {
-        expect(testInfo.outputPath('')).toContain('foo-bar');
-      });
     `
   });
   expect(result.exitCode).toBe(0);
-  expect(result.passed).toBe(2);
+  expect(result.passed).toBe(1);
 });

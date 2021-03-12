@@ -17,13 +17,14 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { interpretCondition, monotonicTime, raceAgainstDeadline, serializeError } from './util';
+import { interpretCondition, mergeFixtureOptions, monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { debugLog } from './debug';
 import { setCurrentTestInfo, currentWorkerIndex } from './fixtures';
 import { Loader } from './loader';
 import { Spec, Suite, Test } from './test';
 import { Config, TestInfo } from './types';
+import { SuitesWithOptions, SkipError } from './spec';
 
 export class WorkerRunner extends EventEmitter {
   private _failedTestId: string | undefined;
@@ -31,23 +32,20 @@ export class WorkerRunner extends EventEmitter {
   private _entries: Map<string, TestEntry>;
   private _remaining: Map<string, TestEntry>;
   private _isStopped: any;
-  private _variation: folio.SuiteVariation;
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
-  private _rootSuite: Suite;
+  private _file: string;
   private _loaded = false;
   private _repeatEachIndex: number;
   private _loader: Loader;
 
-  constructor(loader: Loader, variation: folio.SuiteVariation, repeatEachIndex: number, runPayload: RunPayload) {
+  constructor(loader: Loader, repeatEachIndex: number, runPayload: RunPayload) {
     super();
     this._loader = loader;
-    this._rootSuite = new Suite('');
-    this._rootSuite.file = runPayload.file;
+    this._file = runPayload.file;
     this._repeatEachIndex = repeatEachIndex;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
-    this._variation = variation;
   }
 
   stop() {
@@ -72,20 +70,26 @@ export class WorkerRunner extends EventEmitter {
   }
 
   async run() {
-    this._loader.suites.splice(0, this._loader.suites.length);
-    this._loader.loadTestFile(this._rootSuite.file);
-    for (const suite of this._loader.suites) {
-      for (const fn of this._loader.configureFunctions)
-        fn(suite);
+    // Clear previous suites.
+    this._loader.suitesWithOptions.splice(0, this._loader.suitesWithOptions.length);
+    this._loader.loadTestFile(this._file);
+
+    const workerHashKeys = this._loader.fixturePool.workerFixtureNames();
+    const suitesWithOptions: SuitesWithOptions = [];
+    for (const { suite, fixtureOptions } of this._loader.suitesWithOptions) {
       suite._renumber();
+      const mergedFixtureOptions = mergeFixtureOptions(this._loader.config().fixtureOptions, fixtureOptions);
       suite.findSpec(spec => {
-        spec._appendTest(this._variation, this._repeatEachIndex);
+        spec._appendTest(suite._ordinal, mergedFixtureOptions, this._repeatEachIndex, workerHashKeys);
       });
-      this._rootSuite._addSuite(suite);
+      suitesWithOptions.push({ suite, fixtureOptions: mergedFixtureOptions });
     }
     this._loaded = true;
 
-    await this._runSuite(this._rootSuite);
+    for (const { suite, fixtureOptions } of suitesWithOptions) {
+      this._loader.fixturePool.fixtureOptions = fixtureOptions;
+      await this._runSuite(suite);
+    }
     this._reportDoneAndStop();
   }
 
@@ -133,8 +137,6 @@ export class WorkerRunner extends EventEmitter {
       line: spec.line,
       column: spec.column,
       fn: spec.fn,
-      options: spec._options(),
-      variation: this._variation,
       repeatEachIndex: this._repeatEachIndex,
       workerIndex: currentWorkerIndex(),
       retry,
@@ -149,33 +151,6 @@ export class WorkerRunner extends EventEmitter {
       relativeArtifactsPath: '',
       outputPath: () => '',
       snapshotPath: () => '',
-
-      skip: (arg?: boolean | string, description?: string) => {
-        const processed = interpretCondition(arg, description);
-        if (processed.condition) {
-          testInfo.annotations.push({ type: 'skip', description: processed.description });
-          testInfo.expectedStatus = 'skipped';
-          throw new SkipError(processed.description);
-        }
-      },
-
-      fail: (arg?: boolean | string, description?: string) => {
-        const processed = interpretCondition(arg, description);
-        if (processed.condition) {
-          testInfo.annotations.push({ type: 'fail', description: processed.description });
-          if (testInfo.expectedStatus !== 'skipped')
-            testInfo.expectedStatus = 'failed';
-        }
-      },
-
-      fixme: (arg?: boolean | string, description?: string) => {
-        const processed = interpretCondition(arg, description);
-        if (processed.condition) {
-          testInfo.annotations.push({ type: 'fixme', description: processed.description });
-          testInfo.expectedStatus = 'skipped';
-          throw new SkipError(processed.description);
-        }
-      },
     };
     this._setCurrentTestInfo(testInfo);
 
@@ -250,8 +225,7 @@ export class WorkerRunner extends EventEmitter {
       // Do not run the test when beforeEach hook fails.
       if (!this._isStopped && testInfo.status !== 'failed' && testInfo.status !== 'skipped') {
         // Resolve artifacts and output paths.
-        const testPathSegment = test.spec._options().testPathSegment || '';
-        testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, testPathSegment);
+        testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, this._loader.testPathSegment);
         testInfo.outputPath = outputPath(this._loader.config(), testInfo);
         testInfo.snapshotPath = snapshotPath(this._loader.config(), testInfo);
         await this._loader.fixturePool.resolveParametersAndRunHookOrTest(test.spec.fn);
@@ -388,7 +362,4 @@ function snapshotPath(config: Config, testInfo: TestInfo): (...pathSegments: str
   return (...pathSegments: string[]): string => {
     return path.join(basePath, ...pathSegments);
   };
-}
-
-class SkipError extends Error {
 }

@@ -16,7 +16,7 @@
 
 import colors from 'colors/safe';
 import * as path from 'path';
-import { BaseReporter, formatFailure, serializeVariation } from './base';
+import { BaseReporter, formatFailure } from './base';
 import { Config, Test, Suite, TestResult } from '../types';
 
 class LineReporter extends BaseReporter {
@@ -24,8 +24,6 @@ class LineReporter extends BaseReporter {
   private _current = 0;
   private _failures = 0;
   private _lastTest: Test;
-  private _variationSnapshot: folio.SuiteVariation;
-  private _variationKeysToPreview = new Set<string>();
 
   onBegin(config: Config, suite: Suite) {
     super.onBegin(config, suite);
@@ -61,8 +59,7 @@ class LineReporter extends BaseReporter {
     const baseName = path.basename(spec.file);
     const width = process.stdout.columns - 1;
     const title = `[${++this._current}/${this._total}] ${baseName} - ${spec.fullTitle()}`.substring(0, width);
-    const params = title.length < width ? this._variationString(test).substring(0, width - title.length) : '';
-    process.stdout.write(`\u001B[1A\u001B[2K${title}${colors.gray(params)}\n`);
+    process.stdout.write(`\u001B[1A\u001B[2K${title}\n`);
     if (!this.willRetry(test, result) && !test.ok()) {
       process.stdout.write(`\u001B[1A\u001B[2K`);
       console.log(formatFailure(this.config, test, ++this._failures));
@@ -74,27 +71,6 @@ class LineReporter extends BaseReporter {
     process.stdout.write(`\u001B[1A\u001B[2K`);
     super.onEnd();
     this.epilogue(false);
-  }
-
-  private _variationString(test: Test): string {
-    if (!this._variationSnapshot) {
-      this._variationSnapshot = { ...test.variation };
-      return '';
-    }
-
-    // Collect names of variation keys that have different values.
-    for (const key of Object.keys(test.variation)) {
-      if (this._variationSnapshot[key] !== test.variation[key])
-        this._variationKeysToPreview.add(key);
-    }
-
-    const preview = {};
-    for (const key of this._variationKeysToPreview)
-      preview[key] = test.variation[key];
-    if (Object.keys(preview).length)
-      return ' [' + serializeVariation(preview) + ']';
-    else
-      return '';
   }
 }
 

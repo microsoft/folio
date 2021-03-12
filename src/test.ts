@@ -42,14 +42,6 @@ class Base {
   fullTitle(): string {
     return this.titlePath().join(' ');
   }
-
-  _options(): folio.SuiteOptions {
-    return this.parent ? this.parent._options() : {} as any;
-  }
-
-  _rootSuite(): RootSuite | null {
-    return this.parent ? this.parent._rootSuite() : null;
-  }
 }
 
 export class Spec extends Base implements types.Spec {
@@ -66,14 +58,11 @@ export class Spec extends Base implements types.Spec {
     return !this.tests.find(r => !r.ok());
   }
 
-  _appendTest(variation: folio.SuiteVariation, repeatEachIndex: number) {
-    const rootSuite = this._rootSuite()!;
+  _appendTest(suiteOrdinal: number, fixtureOptions: folio.FixtureOptions, repeatEachIndex: number, workerHashKeys: string[]) {
     const test = new Test(this);
-    const variationString = serializeVariation(variation) + `#repeat-${repeatEachIndex}#`;
-    test._id = `${rootSuite._ordinal}/${this._ordinal}@${this.file}::[${variationString}]`;
-    test.variation = variation;
+    test._workerHash = `[${optionsToWorkerHash(fixtureOptions, workerHashKeys)}]#repeat-${repeatEachIndex}`;
     test._repeatEachIndex = repeatEachIndex;
-    test._workerHash = variationString;
+    test._id = `${suiteOrdinal}/${this._ordinal}@${this.file}::[${test._workerHash}]`;
     this.tests.push(test);
     return test;
   }
@@ -179,7 +168,6 @@ export class Suite extends Base implements types.Suite {
 
 export class Test implements types.Test {
   spec: Spec;
-  variation: folio.SuiteVariation;
   results: types.TestResult[] = [];
 
   skipped = false;
@@ -235,35 +223,9 @@ export class Test implements types.Test {
   }
 }
 
-export class RootSuite extends Suite implements types.RootSuite {
-  options: folio.SuiteOptions = {} as any;
-  variations: folio.SuiteVariation[] = [{}];
-
-  vary<K extends keyof folio.SuiteVariation>(key: K, values: folio.SuiteVariation[K][]): void {
-    const newVariations: folio.SuiteVariation[] = [];
-    for (const v of this.variations) {
-      if (key in v)
-        throw new Error(`Duplicate variation key "${key}"`);
-      for (const value of values)
-        newVariations.push({ ...v, [key]: value });
-    }
-    this.variations = newVariations;
-  }
-
-  _options(): folio.SuiteOptions {
-    return this.options;
-  }
-
-  _rootSuite(): RootSuite {
-    return this;
-  }
-}
-
-function serializeVariation(variation: folio.SuiteVariation): string {
+function optionsToWorkerHash(options: folio.FixtureOptions, keys: string[]): string {
   const tokens = [];
-  const entries = Object.entries(variation);
-  entries.sort((a, b) => a[0].localeCompare(b[0]));
-  for (const [name, value] of entries)
-    tokens.push(`${name}=${value}`);
+  for (const key of keys)
+    tokens.push(`${key}=${JSON.stringify(options[key])}`);
   return tokens.join(', ');
 }

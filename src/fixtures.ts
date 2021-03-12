@@ -90,7 +90,7 @@ class Fixture {
       this.value = value;
       setupFenceFulfill();
       return await teardownFence;
-    }).catch((e: any) => {
+    }, this.pool.fixtureOptions[this.registration.name]).catch((e: any) => {
       if (!this._setup)
         setupFenceReject(e);
       else
@@ -125,6 +125,7 @@ export class FixturePool {
   parentPool: FixturePool | undefined;
   instances = new Map<FixtureRegistration, Fixture>();
   registrations: Map<string, FixtureRegistration>;
+  fixtureOptions: folio.FixtureOptions = {} as any;
 
   constructor(parentPool: FixturePool | undefined) {
     this.parentPool = parentPool;
@@ -236,6 +237,10 @@ export class FixturePool {
       params[name] = fixture.value;
     }
     return fn(params);
+  }
+
+  workerFixtureNames(): string[] {
+    return Array.from(this.registrations.values()).filter(r => r.scope === 'worker').map(r => r.name).sort();
   }
 
   _resolveDependency(registration: FixtureRegistration, name: string): FixtureRegistration | undefined {

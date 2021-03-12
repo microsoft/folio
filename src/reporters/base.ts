@@ -171,10 +171,6 @@ function formatTestHeader(config: Config, test: Test, indent: string, index?: nu
   const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
   const header = `${indent}${index ? index + ') ' : ''}${relativePath} › ${spec.fullTitle()}${passedUnexpectedlySuffix}`;
   tokens.push(colors.red(pad(header, '=')));
-
-  // Print variation.
-  if (Object.keys(test.variation).length)
-    tokens.push(indent + (index ? ' '.repeat(String(index).length + 2) : '') + colors.gray(serializeVariation(test.variation)));
   return tokens.join('\n');
 }
 
@@ -237,13 +233,6 @@ function positionInFile(stack: string, file: string): { column: number; line: nu
       return {column: parsed.column, line: parsed.line};
   }
   return null;
-}
-
-export function serializeVariation(variation: folio.SuiteVariation): string {
-  const tokens = [];
-  for (const name of Object.keys(variation))
-    tokens.push(`${name}=${variation[name]}`);
-  return tokens.join(', ');
 }
 
 function monotonicTime(): number {

@@ -20,23 +20,25 @@ const { it, expect } = folio;
 it('should create two suites with different options', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'fixtures.ts': `
-      async function getFoo({ testInfo }, run) {
-        await run(testInfo.options.foo);
+      async function foo({ testInfo }, run, options) {
+        await run(options || 'foo');
       }
-      export const toBeRenamed = { testFixtures: { getFoo } };
+      export const toBeRenamed = { testFixtures: { foo } };
     `,
     'a.test.ts': `
+      test('test', ({ testInfo, foo }) => {
+        expect(foo).toBe('foo');
+      });
       const test1 = createTest({ foo: 'bar' });
-      test1('test1', ({ testInfo, getFoo }) => {
-        expect(testInfo.options.foo).toBe('bar');
-        expect(getFoo).toBe('bar');
+      test1('test1', ({ testInfo, foo }) => {
+        expect(foo).toBe('bar');
       });
       const test2 = createTest({ foo: 'baz' });
-      test2('test2', ({ testInfo, getFoo }) => {
-        expect(getFoo).toBe('baz');
+      test2('test2', ({ testInfo, foo }) => {
+        expect(foo).toBe('baz');
       });
     `
   });
   expect(result.exitCode).toBe(0);
-  expect(result.passed).toBe(2);
+  expect(result.passed).toBe(3);
 });

@@ -22,6 +22,6 @@ export * from './types';
 export { config } from './fixtures';
 export { expect } from './expect';
 
-export function createTest(options: folio.SuiteOptions = {} as any): TestSuiteFunction {
-  return createTestImpl(options);
+export function createTest(fixtureOptions: folio.FixtureOptions = {} as any): TestSuiteFunction {
+  return createTestImpl(fixtureOptions);
 }
