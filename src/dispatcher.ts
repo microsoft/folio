@@ -18,9 +18,10 @@ import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
 import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, TestStatus, WorkerInitParams } from './ipc';
-import { Config, TestResult } from './types';
+import { TestResult } from './types';
 import { Reporter } from './reporter';
 import { Suite, Test } from './test';
+import { Loader } from './loader';
 
 type DispatcherEntry = {
   runPayload: RunPayload;
@@ -37,17 +38,15 @@ export class Dispatcher {
   private _testById = new Map<string, { test: Test, result: TestResult }>();
   private _queue: DispatcherEntry[] = [];
   private _stopCallback: () => void;
-  readonly _config: Config;
-  readonly _fixtureFiles: string[];
+  readonly _loader: Loader;
   private _suite: Suite;
   private _reporter: Reporter;
   private _hasWorkerErrors = false;
   private _isStopped = false;
   private _failureCount = 0;
 
-  constructor(suite: Suite, config: Config, fixtureFiles: string[], reporter: Reporter) {
-    this._config = config;
-    this._fixtureFiles = fixtureFiles;
+  constructor(loader: Loader, suite: Suite, reporter: Reporter) {
+    this._loader = loader;
     this._reporter = reporter;
 
     this._suite = suite;
@@ -63,12 +62,14 @@ export class Dispatcher {
     // Shard tests.
     let total = this._suite.totalTestCount();
     let shardDetails = '';
-    if (this._config.shard) {
+
+    const shard = this._loader.config().shard;
+    if (shard) {
       total = 0;
-      const shardSize = Math.ceil(total / this._config.shard.total);
-      const from = shardSize * this._config.shard.current;
-      const to = shardSize * (this._config.shard.current + 1);
-      shardDetails = `, shard ${this._config.shard.current + 1} of ${this._config.shard.total}`;
+      const shardSize = Math.ceil(total / shard.total);
+      const from = shardSize * shard.current;
+      const to = shardSize * (shard.current + 1);
+      shardDetails = `, shard ${shard.current + 1} of ${shard.total}`;
       let current = 0;
       const filteredQueue: DispatcherEntry[] = [];
       for (const entry of this._queue) {
@@ -88,7 +89,7 @@ export class Dispatcher {
           workers.add(test.file + variant._workerHash);
       });
       console.log();
-      const jobs = Math.min(config.workers, workers.size);
+      const jobs = Math.min(this._loader.config().workers, workers.size);
       console.log(`Running ${total} test${total > 1 ? 's' : ''} using ${jobs} worker${jobs > 1 ? 's' : ''}${shardDetails}`);
     }
   }
@@ -202,9 +203,9 @@ export class Dispatcher {
       const remaining = params.remaining;
 
       // Only retry expected failures, not passes and only if the test failed.
-      if (this._config.retries && params.failedTestId) {
+      if (this._loader.config().retries && params.failedTestId) {
         const pair = this._testById.get(params.failedTestId);
-        if (pair.test.expectedStatus === 'passed' && pair.test.results.length < this._config.retries + 1) {
+        if (pair.test.expectedStatus === 'passed' && pair.test.results.length < this._loader.config().retries + 1) {
           pair.result = pair.test._appendTestResult();
           remaining.unshift({
             retry: pair.result.retry,
@@ -228,7 +229,7 @@ export class Dispatcher {
       if (this._freeWorkers.length)
         return Promise.resolve(this._freeWorkers.pop());
       // Create a new worker.
-      if (this._workers.size < this._config.workers)
+      if (this._workers.size < this._loader.config().workers)
         return this._createWorker(entry);
       return null;
     };
@@ -314,9 +315,10 @@ export class Dispatcher {
     result.status = status;
     if (result.status !== 'skipped' && result.status !== test.expectedStatus)
       ++this._failureCount;
-    if (!this._config.maxFailures || this._failureCount <= this._config.maxFailures)
+    const maxFailures = this._loader.config().maxFailures;
+    if (!maxFailures || this._failureCount <= maxFailures)
       this._reporter.onTestEnd(test, result);
-    if (this._config.maxFailures && this._failureCount === this._config.maxFailures)
+    if (maxFailures && this._failureCount === maxFailures)
       this._isStopped = true;
   }
 
@@ -362,10 +364,9 @@ class Worker extends EventEmitter {
     this.hash = entry.hash;
     const params: WorkerInitParams = {
       workerIndex: this.index,
-      fixtureFiles: this.runner._fixtureFiles,
       variation: entry.variation,
       repeatEachIndex: entry.repeatEachIndex,
-      config: this.runner._config,
+      loader: this.runner._loader.serialize(),
     };
     this.process.send({ method: 'init', params });
     await new Promise(f => this.process.once('message', f));  // Ready ack

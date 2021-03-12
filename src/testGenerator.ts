@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import { Config } from './types';
-import { FixtureLoader } from './fixtureLoader';
+import { Loader } from './loader';
 import { RootSuite, Suite } from './test';
 
-export function generateTests(suites: RootSuite[], config: Config, fixtureLoader: FixtureLoader): Suite {
+export function generateTests(suites: RootSuite[], loader: Loader): Suite {
   const rootSuite = new Suite('');
   let grep: RegExp = null;
-  if (config.grep) {
-    const match = config.grep.match(/^\/(.*)\/(g|i|)$|.*/);
+  if (loader.config().grep) {
+    const match = loader.config().grep.match(/^\/(.*)\/(g|i|)$|.*/);
     grep = new RegExp(match[1] || match[0], match[2]);
   }
 
@@ -35,14 +34,14 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
     if (!specs.length)
       continue;
 
-    for (const fn of fixtureLoader.configureFunctions)
+    for (const fn of loader.configureFunctions)
       fn(suite);
 
     suite._renumber();
 
     for (const variation of suite.variations) {
       for (const spec of specs) {
-        for (let i = 0; i < config.repeatEach; ++i)
+        for (let i = 0; i < loader.config().repeatEach; ++i)
           spec._appendTest(variation, i);
       }
     }

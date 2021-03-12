@@ -19,10 +19,12 @@ export type { TestStatus } from './types';
 
 export type WorkerInitParams = {
   workerIndex: number;
-  fixtureFiles: string[];
   variation: folio.SuiteVariation;
   repeatEachIndex: number;
-  config: Config;
+  loader: {
+    configs: (string | Partial<Config>)[];
+    fixtureFiles: string[];
+  };
 };
 
 export type TestBeginPayload = {

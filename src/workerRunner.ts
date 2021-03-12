@@ -20,14 +20,10 @@ import { EventEmitter } from 'events';
 import { interpretCondition, monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { debugLog } from './debug';
-import { config, setCurrentTestInfo, currentWorkerIndex } from './fixtures';
-import { FixtureLoader } from './fixtureLoader';
-import { RootSuite, Spec, Suite, Test } from './test';
-import { installTransform } from './transform';
-import { clearCurrentFile, setCurrentFile } from './spec';
-import { TestInfo } from './types';
-
-export const fixtureLoader = new FixtureLoader();
+import { setCurrentTestInfo, currentWorkerIndex } from './fixtures';
+import { Loader } from './loader';
+import { Spec, Suite, Test } from './test';
+import { Config, TestInfo } from './types';
 
 export class WorkerRunner extends EventEmitter {
   private _failedTestId: string | undefined;
@@ -41,20 +37,17 @@ export class WorkerRunner extends EventEmitter {
   private _rootSuite: Suite;
   private _loaded = false;
   private _repeatEachIndex: number;
+  private _loader: Loader;
 
-  constructor(variation: folio.SuiteVariation, repeatEachIndex: number, runPayload: RunPayload) {
+  constructor(loader: Loader, variation: folio.SuiteVariation, repeatEachIndex: number, runPayload: RunPayload) {
     super();
+    this._loader = loader;
     this._rootSuite = new Suite('');
     this._rootSuite.file = runPayload.file;
     this._repeatEachIndex = repeatEachIndex;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._variation = variation;
-  }
-
-  loadFixtureFiles(files: string[]) {
-    for (const file of files)
-      fixtureLoader.loadFixtureFile(file);
   }
 
   stop() {
@@ -79,14 +72,10 @@ export class WorkerRunner extends EventEmitter {
   }
 
   async run() {
-    const suites: RootSuite[] = [];
-    const revertBabelRequire = installTransform();
-    setCurrentFile(this._rootSuite.file, suites, fixtureLoader.fixturePool);
-    require(this._rootSuite.file);
-    clearCurrentFile();
-    revertBabelRequire();
-    for (const suite of suites) {
-      for (const fn of fixtureLoader.configureFunctions)
+    this._loader.suites.splice(0, this._loader.suites.length);
+    this._loader.loadTestFile(this._rootSuite.file);
+    for (const suite of this._loader.suites) {
+      for (const fn of this._loader.configureFunctions)
         fn(suite);
       suite._renumber();
       suite.findSpec(spec => {
@@ -131,7 +120,7 @@ export class WorkerRunner extends EventEmitter {
       return;
     const { retry } = this._entries.get(test._id);
     // TODO: support some of test.slow(), test.setTimeout(), describe.slow() and describe.setTimeout()
-    const timeout = config.timeout;
+    const timeout = this._loader.config().timeout;
     const deadline = timeout ? monotonicTime() + timeout : 0;
     this._remaining.delete(test._id);
 
@@ -262,10 +251,10 @@ export class WorkerRunner extends EventEmitter {
       if (!this._isStopped && testInfo.status !== 'failed' && testInfo.status !== 'skipped') {
         // Resolve artifacts and output paths.
         const testPathSegment = test.spec._options().testPathSegment || '';
-        testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, testPathSegment);
-        testInfo.outputPath = outputPath(testInfo);
-        testInfo.snapshotPath = snapshotPath(testInfo);
-        await fixtureLoader.fixturePool.resolveParametersAndRunHookOrTest(test.spec.fn);
+        testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, testPathSegment);
+        testInfo.outputPath = outputPath(this._loader.config(), testInfo);
+        testInfo.snapshotPath = snapshotPath(this._loader.config(), testInfo);
+        await this._loader.fixturePool.resolveParametersAndRunHookOrTest(test.spec.fn);
         testInfo.status = 'passed';
       }
     } catch (error) {
@@ -295,7 +284,7 @@ export class WorkerRunner extends EventEmitter {
     if (this._isStopped)
       return;
     try {
-      await fixtureLoader.fixturePool.teardownScope('test');
+      await this._loader.fixturePool.teardownScope('test');
     } catch (error) {
       // Do not overwrite test failure or hook error.
       if (!(error instanceof SkipError) && testInfo.status === 'passed') {
@@ -321,7 +310,7 @@ export class WorkerRunner extends EventEmitter {
     let error: Error | undefined;
     for (const hook of all) {
       try {
-        await fixtureLoader.fixturePool.resolveParametersAndRunHookOrTest(hook);
+        await this._loader.fixturePool.resolveParametersAndRunHookOrTest(hook);
       } catch (e) {
         // Always run all the hooks, and capture the first error.
         error = error || e;
@@ -378,13 +367,13 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
   };
 }
 
-function relativeArtifactsPath(testInfo: TestInfo, parametersPathSegment: string) {
+function relativeArtifactsPath(config: Config, testInfo: TestInfo, parametersPathSegment: string) {
   const relativePath = path.relative(config.testDir, testInfo.file.replace(/\.(spec|test)\.(js|ts)/, ''));
   const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-');
   return path.join(relativePath, sanitizedTitle, parametersPathSegment);
 }
 
-function outputPath(testInfo: TestInfo): (...pathSegments: string[]) => string {
+function outputPath(config: Config, testInfo: TestInfo): (...pathSegments: string[]) => string {
   const retrySuffix = testInfo.retry ? '-retry' + testInfo.retry : '';
   const repeatEachSuffix = testInfo.repeatEachIndex ? '-repeat' + testInfo.repeatEachIndex : '';
   const basePath = path.join(config.outputDir, testInfo.relativeArtifactsPath) + retrySuffix + repeatEachSuffix;
@@ -394,7 +383,7 @@ function outputPath(testInfo: TestInfo): (...pathSegments: string[]) => string {
   };
 }
 
-function snapshotPath(testInfo: TestInfo): (...pathSegments: string[]) => string {
+function snapshotPath(config: Config, testInfo: TestInfo): (...pathSegments: string[]) => string {
   const basePath = path.join(config.testDir, config.snapshotDir, testInfo.relativeArtifactsPath);
   return (...pathSegments: string[]): string => {
     return path.join(basePath, ...pathSegments);

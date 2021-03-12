@@ -47,6 +47,8 @@ async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string |
         const test = createTest({});
       `;
       await fs.promises.writeFile(fullName, header + files[name]);
+    } else if (/config\.(js|ts)$/.test(name)) {
+      await fs.promises.writeFile(fullName, files[name]);
     } else if (/\.(js|ts)$/.test(name)) {
       const header = `
         const { createTest, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
@@ -71,14 +73,16 @@ async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string |
   }
   const outputDir = path.join(baseDir, 'test-results');
   const reportFile = path.join(outputDir, 'report.json');
-  const testProcess = spawn('node', [
-    path.join(__dirname, '..', 'cli.js'),
-    testDir,
-    '--output=' + outputDir,
-    '--reporter=dot,json',
-    '--workers=2',
-    ...paramList
-  ], {
+  const args = [path.join(__dirname, '..', 'cli.js')];
+  if (testDir)
+    args.push(testDir);
+  args.push(
+      '--output=' + outputDir,
+      '--reporter=dot,json',
+      '--workers=2',
+      ...paramList
+  );
+  const testProcess = spawn('node', args, {
     env: {
       ...process.env,
       ...env,

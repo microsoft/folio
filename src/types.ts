@@ -17,6 +17,8 @@
 import type { Expect } from './expectType';
 
 export interface Config {
+  fixtureIgnore: string;
+  fixtureMatch: string;
   forbidOnly?: boolean;
   globalTimeout: number;
   grep?: string;
@@ -28,6 +30,8 @@ export interface Config {
   shard?: { total: number, current: number };
   snapshotDir: string;
   testDir: string;
+  testIgnore: string;
+  testMatch: string;
   timeout: number;
   updateSnapshots: boolean;
   workers: number;
