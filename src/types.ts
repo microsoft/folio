@@ -133,7 +133,6 @@ export interface ToBeRenamedInterface {
   autoTestFixtures?: { [K in keyof folio.TestFixtures]?: TestFixture<K> };
   workerFixtures?: { [K in keyof folio.WorkerFixtures]?: WorkerFixture<K> };
   autoWorkerFixtures?: { [K in keyof folio.WorkerFixtures]?: WorkerFixture<K> };
-  testPathSegment?: string;
 }
 
 export interface Suite {

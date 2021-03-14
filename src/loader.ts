@@ -26,6 +26,7 @@ const kExportsName = 'toBeRenamed';
 type SerializedLoaderData = {
   configs: (string | PartialConfig)[];
   fixtureFiles: string[];
+  testPathSegment: string;
 };
 
 export class Loader {
@@ -44,6 +45,7 @@ export class Loader {
   }
 
   deserialize(data: SerializedLoaderData) {
+    this.testPathSegment = data.testPathSegment;
     for (const config of data.configs) {
       if (typeof config === 'string')
         this.loadConfigFile(config);
@@ -65,11 +67,6 @@ export class Loader {
       this._loadFixtureSet('testFixtures', folioObject.testFixtures, 'test', false);
     if ('autoTestFixtures' in folioObject)
       this._loadFixtureSet('autoTestFixtures', folioObject.autoTestFixtures, 'test', true);
-    if ('testPathSegment' in folioObject) {
-      if (typeof folioObject.testPathSegment !== 'string')
-        throw new Error(`"${kExportsName}.testPathSegment" must be a string`);
-      this.testPathSegment = folioObject.testPathSegment;
-    }
   }
 
   private _loadFixtureSet(objectName: string, fixtureSet: any, scope: 'test' | 'worker', auto: boolean) {
@@ -107,8 +104,8 @@ export class Loader {
       if (!fileExports || typeof fileExports !== 'object' || !fileExports.config || typeof fileExports.config !== 'object')
         throw new Error(`Folio config file did not export "config" object`);
       // TODO: add config validation.
-      this._layeredConfigs.push({ config: fileExports.config, source: file });
-      this._mergedConfig = { ...this._mergedConfig, ...fileExports.config };
+      this.addConfig(fileExports.config);
+      this._layeredConfigs[this._layeredConfigs.length - 1].source = file;
     } catch (e) {
       // Drop the stack.
       throw new Error(e.message);
@@ -152,7 +149,8 @@ export class Loader {
   serialize(): SerializedLoaderData {
     return {
       configs: this._layeredConfigs.map(c => c.source || c.config),
-      fixtureFiles: this.fixtureFiles
+      fixtureFiles: this.fixtureFiles,
+      testPathSegment: this.testPathSegment,
     };
   }
 }

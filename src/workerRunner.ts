@@ -152,6 +152,10 @@ export class WorkerRunner extends EventEmitter {
       outputPath: () => '',
       snapshotPath: () => '',
     };
+    // Resolve artifacts and output paths.
+    testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, this._loader.testPathSegment);
+    testInfo.outputPath = outputPath(this._loader.config(), testInfo);
+    testInfo.snapshotPath = snapshotPath(this._loader.config(), testInfo);
     this._setCurrentTestInfo(testInfo);
 
     // Preprocess suite annotations.
@@ -224,10 +228,6 @@ export class WorkerRunner extends EventEmitter {
     try {
       // Do not run the test when beforeEach hook fails.
       if (!this._isStopped && testInfo.status !== 'failed' && testInfo.status !== 'skipped') {
-        // Resolve artifacts and output paths.
-        testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, this._loader.testPathSegment);
-        testInfo.outputPath = outputPath(this._loader.config(), testInfo);
-        testInfo.snapshotPath = snapshotPath(this._loader.config(), testInfo);
         await this._loader.fixturePool.resolveParametersAndRunHookOrTest(test.spec.fn);
         testInfo.status = 'passed';
       }
