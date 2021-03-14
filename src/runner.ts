@@ -34,7 +34,7 @@ export class Runner {
   private _loader: Loader;
   private _rootSuite: Suite;
 
-  constructor(loader: Loader, reporter: Reporter) {
+  constructor(loader: Loader, reporter: Reporter, shouldSkipSuite?: (suite: Suite, fixtureOptions: folio.FixtureOptions) => boolean) {
     this._reporter = reporter;
     this._loader = loader;
 
@@ -52,6 +52,8 @@ export class Runner {
 
     const workerHashKeys = loader.fixturePool.workerFixtureNames();
     for (const { suite, fixtureOptions } of suitesWithOptions) {
+      if (shouldSkipSuite && shouldSkipSuite(suite, fixtureOptions))
+        continue;
       const specs = suite._allSpecs().filter(spec => {
         if (grep && !grep.test(spec.fullTitle()))
           return false;

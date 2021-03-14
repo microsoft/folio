@@ -23,6 +23,7 @@ export type WorkerInitParams = {
   loader: {
     configs: (string | PartialConfig)[];
     fixtureFiles: string[];
+    testPathSegment: string;
   };
 };
 
