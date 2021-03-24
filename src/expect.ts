@@ -16,7 +16,7 @@
 
 import type { Expect } from './expectType';
 import expectLibrary from 'expect';
-import { config, currentTestInfo } from './fixtures';
+import { currentTestInfo } from './fixtures';
 import { compare } from './golden';
 
 export const expect: Expect = expectLibrary;
@@ -46,7 +46,7 @@ function toMatchSnapshot(received: Buffer | string, nameOrOptions?: string | { n
       extension = '.dat';
     name = 'snapshot' + (ordinal ? '_' + ordinal : '') + extension;
   }
-  const { pass, message } = compare(received, name, testInfo.snapshotPath, testInfo.outputPath, config.updateSnapshots, options);
+  const { pass, message } = compare(received, name, testInfo.snapshotPath, testInfo.outputPath, testInfo.config.updateSnapshots, options);
   return { pass, message: () => message };
 }
 

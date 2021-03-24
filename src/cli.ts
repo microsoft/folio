@@ -117,7 +117,6 @@ async function runTests(command: any) {
   }
 
   loader.addConfig(configFromCommand(command));
-  loader.assignConfig();
 
   const allFiles = await collectFiles(testDir);
   const testFiles = filterFiles(testDir, allFiles, command.args.slice(1), loader.config().testMatch, loader.config().testIgnore);

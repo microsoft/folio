@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { assignConfig, FixturePool } from './fixtures';
+import { FixturePool } from './fixtures';
 import { installTransform } from './transform';
 import { builtinFixtures } from './builtinFixtures';
 import { Config, PartialConfig } from './types';
@@ -52,7 +52,6 @@ export class Loader {
       else
         this.addConfig(config);
     }
-    this.assignConfig();
     for (const fixtureFile of data.fixtureFiles)
       this.loadFixtureFile(fixtureFile);
     this.validateFixtures();
@@ -118,10 +117,6 @@ export class Loader {
     this._layeredConfigs.push({ config });
     const mergedFixtureOptions = mergeFixtureOptions(this._mergedConfig.fixtureOptions, config.fixtureOptions || {});
     this._mergedConfig = { ...this._mergedConfig, ...config, fixtureOptions: mergedFixtureOptions };
-  }
-
-  assignConfig() {
-    assignConfig(this.config());
   }
 
   loadTestFile(file: string) {

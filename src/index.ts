@@ -19,7 +19,6 @@ import type { TestSuiteFunction } from './types';
 import { createTestImpl } from './spec';
 
 export * from './types';
-export { config } from './fixtures';
 export { expect } from './expect';
 
 export function createTest(fixtureOptions: folio.FixtureOptions = {} as any): TestSuiteFunction {

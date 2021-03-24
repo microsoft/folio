@@ -70,6 +70,7 @@ export interface TestInfo {
   workerIndex: number;
   repeatEachIndex: number;
   retry: number;
+  config: Config;
 
   // Modifiers
   expectedStatus: TestStatus;
