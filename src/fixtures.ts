@@ -44,11 +44,6 @@ export function currentWorkerIndex() {
   return workerIndex;
 }
 
-export let config: Config = {} as any;
-export function assignConfig(c: Config) {
-  config = Object.assign(config, c);
-}
-
 class Fixture {
   pool: FixturePool;
   registration: FixtureRegistration;

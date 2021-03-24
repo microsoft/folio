@@ -52,7 +52,7 @@ it('should access data in fixture', async ({ runInlineTest }) => {
       test('ensure fixture handles test error', async ({ testInfoForward }) => {
         console.log('console.log');
         console.error('console.error');
-        expect(config.testDir).toBeTruthy();
+        expect(testInfoForward.config.testDir).toBeTruthy();
         expect(testInfoForward.file).toContain('test-data-visible-in-fixture');
       });
     `

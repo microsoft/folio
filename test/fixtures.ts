@@ -43,7 +43,7 @@ async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string |
     await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
     if (/(spec|test)\.(js|ts)$/.test(name)) {
       const header = `
-        const { createTest, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
+        const { createTest, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
         const test = createTest({});
       `;
       await fs.promises.writeFile(fullName, header + files[name]);

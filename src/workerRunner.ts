@@ -17,7 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { interpretCondition, mergeFixtureOptions, monotonicTime, raceAgainstDeadline, serializeError } from './util';
+import { mergeFixtureOptions, monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
 import { debugLog } from './debug';
 import { setCurrentTestInfo, currentWorkerIndex } from './fixtures';
@@ -140,6 +140,7 @@ export class WorkerRunner extends EventEmitter {
       repeatEachIndex: this._repeatEachIndex,
       workerIndex: currentWorkerIndex(),
       retry,
+      config: this._loader.config(),
       expectedStatus: 'passed',
       annotations: [],
       duration: 0,
