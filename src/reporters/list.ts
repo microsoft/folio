@@ -31,7 +31,8 @@ class ListReporter extends BaseReporter {
 
   onTestBegin(test: Test) {
     super.onTestBegin(test);
-    process.stdout.write('    ' + colors.gray(test.spec.fullTitle() + ': ') + '\n');
+    if (process.stdout.isTTY)
+      process.stdout.write('    ' + colors.gray(test.spec.fullTitle() + ': ') + '\n');
     this._testRows.set(test, this._lastRow++);
   }
 
@@ -48,19 +49,24 @@ class ListReporter extends BaseReporter {
       if (result.status === test.expectedStatus)
         text = '\u001b[2K\u001b[0G' + colors.green(statusMark) + colors.gray(spec.fullTitle()) + duration;
       else
-        text = '\u001b[2K\u001b[0G' + colors.red(`  ${++this._failure}) ` + spec.fullTitle()) + duration;
+        text = '\u001b[2K\u001b[0G' + colors.red(`${statusMark}${++this._failure}) ` + spec.fullTitle()) + duration;
     }
 
     const testRow = this._testRows.get(test);
     // Go up if needed
-    if (testRow !== this._lastRow)
+    if (process.stdout.isTTY && testRow !== this._lastRow)
       process.stdout.write(`\u001B[${this._lastRow - testRow}A`);
     // Erase line
-    process.stdout.write('\u001B[2K');
+    if (process.stdout.isTTY)
+      process.stdout.write('\u001B[2K');
     process.stdout.write(text);
     // Go down if needed.
-    if (testRow !== this._lastRow)
-      process.stdout.write(`\u001B[${this._lastRow - testRow}E`);
+    if (testRow !== this._lastRow) {
+      if (process.stdout.isTTY)
+        process.stdout.write(`\u001B[${this._lastRow - testRow}E`);
+      else
+        process.stdout.write('\n');
+    }
   }
 
   onEnd() {
