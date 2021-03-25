@@ -14,85 +14,31 @@
  * limitations under the License.
  */
 
-import { FixturePool } from './fixtures';
 import { installTransform } from './transform';
-import { builtinFixtures } from './builtinFixtures';
 import { Config, PartialConfig } from './types';
-import { mergeFixtureOptions, prependErrorMessage } from './util';
-import { clearCurrentFile, setCurrentFile, SuitesWithOptions } from './spec';
-
-const kExportsName = 'toBeRenamed';
+import { prependErrorMessage } from './util';
+import { clearCurrentFile, isSuiteDescription, setCurrentFile, SuiteDescription } from './spec';
 
 type SerializedLoaderData = {
   configs: (string | PartialConfig)[];
-  fixtureFiles: string[];
-  testPathSegment: string;
 };
 
 export class Loader {
-  readonly fixtureFiles: string[] = [];
-  readonly fixturePool: FixturePool = new FixturePool(undefined);
-  readonly suitesWithOptions: SuitesWithOptions = [];
-  testPathSegment: string = '';
+  suites = new Map<string, SuiteDescription>();
 
   private _mergedConfig: Config;
   private _layeredConfigs: { config: PartialConfig, source?: string }[] = [];
 
-  constructor(defaultConfig: Config) {
-    this._layeredConfigs = [{ config: defaultConfig }];
-    this._loadFolioObject(builtinFixtures);
-    this._mergedConfig = { ...defaultConfig };
+  constructor() {
+    this._mergedConfig = {} as any;
   }
 
   deserialize(data: SerializedLoaderData) {
-    this.testPathSegment = data.testPathSegment;
     for (const config of data.configs) {
       if (typeof config === 'string')
         this.loadConfigFile(config);
       else
         this.addConfig(config);
-    }
-    for (const fixtureFile of data.fixtureFiles)
-      this.loadFixtureFile(fixtureFile);
-    this.validateFixtures();
-  }
-
-  private _loadFolioObject(folioObject: any) {
-    if ('workerFixtures' in folioObject)
-      this._loadFixtureSet('workerFixtures', folioObject.workerFixtures, 'worker', false);
-    if ('autoWorkerFixtures' in folioObject)
-      this._loadFixtureSet('autoWorkerFixtures', folioObject.autoWorkerFixtures, 'worker', true);
-    if ('testFixtures' in folioObject)
-      this._loadFixtureSet('testFixtures', folioObject.testFixtures, 'test', false);
-    if ('autoTestFixtures' in folioObject)
-      this._loadFixtureSet('autoTestFixtures', folioObject.autoTestFixtures, 'test', true);
-  }
-
-  private _loadFixtureSet(objectName: string, fixtureSet: any, scope: 'test' | 'worker', auto: boolean) {
-    if (!fixtureSet || typeof fixtureSet !== 'object')
-      throw new Error(`"${kExportsName}.${objectName}" must be an object with fixture functions`);
-    for (const [name, fixture] of Object.entries(fixtureSet)) {
-      if (typeof fixture !== 'function')
-        throw new Error(`"${kExportsName}.${objectName}.${name}" must be a fixture function`);
-      this.fixturePool.registerFixture(name, scope, fixture, auto);
-    }
-  }
-
-  loadFixtureFile(file: string) {
-    this.fixtureFiles.push(file);
-    const revertBabelRequire = installTransform();
-    try {
-      const fileExports = require(file);
-      if (!fileExports || typeof fileExports !== 'object' || !fileExports[kExportsName] || typeof fileExports[kExportsName] !== 'object')
-        throw new Error(`Fixture file did not export "${kExportsName}" object`);
-      this._loadFolioObject(fileExports[kExportsName]);
-    } catch (e) {
-      // Drop the stack.
-      const error = new Error(e.message);
-      prependErrorMessage(error, `Error while reading ${file}:\n`);
-      throw error;
-    } finally {
-      revertBabelRequire();
     }
   }
 
@@ -100,11 +46,23 @@ export class Loader {
     const revertBabelRequire = installTransform();
     try {
       const fileExports = require(file);
-      if (!fileExports || typeof fileExports !== 'object' || !fileExports.config || typeof fileExports.config !== 'object')
-        throw new Error(`Folio config file did not export "config" object`);
-      // TODO: add config validation.
-      this.addConfig(fileExports.config);
+      if (!fileExports || typeof fileExports !== 'object')
+        throw new Error(`Configuration file must export an object`);
+
+      if ('config' in fileExports) {
+        if (!fileExports.config || typeof fileExports.config !== 'object')
+          throw new Error(`"config" must be an object`);
+        // TODO: add config validation.
+        this.addConfig(fileExports.config);
+      } else {
+        this.addConfig({});
+      }
       this._layeredConfigs[this._layeredConfigs.length - 1].source = file;
+
+      for (const [name, value] of Object.entries(fileExports)) {
+        if (isSuiteDescription(value))
+          this.suites.set(name, value as SuiteDescription);
+      }
     } catch (e) {
       // Drop the stack.
       throw new Error(e.message);
@@ -115,13 +73,12 @@ export class Loader {
 
   addConfig(config: PartialConfig) {
     this._layeredConfigs.push({ config });
-    const mergedFixtureOptions = mergeFixtureOptions(this._mergedConfig.fixtureOptions, config.fixtureOptions || {});
-    this._mergedConfig = { ...this._mergedConfig, ...config, fixtureOptions: mergedFixtureOptions };
+    this._mergedConfig = { ...this._mergedConfig, ...config };
   }
 
   loadTestFile(file: string) {
     const revertBabelRequire = installTransform();
-    setCurrentFile(file, this.suitesWithOptions, this.fixturePool);
+    setCurrentFile(file);
     try {
       require(file);
     } catch (e) {
@@ -133,19 +90,13 @@ export class Loader {
     }
   }
 
-  validateFixtures() {
-    this.fixturePool.validate();
-  }
-
-  config() {
+  config(): Config {
     return this._mergedConfig;
   }
 
   serialize(): SerializedLoaderData {
     return {
       configs: this._layeredConfigs.map(c => c.source || c.config),
-      fixtureFiles: this.fixtureFiles,
-      testPathSegment: this.testPathSegment,
     };
   }
 }

@@ -39,13 +39,19 @@ class LineReporter extends BaseReporter {
     this._dumpToStdio(test, chunk, process.stderr);
   }
 
+  private _fullTitle(test: Test) {
+    const baseName = path.basename(test.spec.file);
+    const suiteTitle = test.suiteTitle ? `[${test.suiteTitle}] ` : '';
+    return `${baseName} - ${suiteTitle}${test.spec.fullTitle()}`;
+  }
+
   private _dumpToStdio(test: Test | undefined, chunk: string | Buffer, stream: NodeJS.WriteStream) {
     if (this.config.quiet)
       return;
     stream.write(`\u001B[1A\u001B[2K`);
     if (test && this._lastTest !== test) {
       // Write new header for the output.
-      stream.write(colors.gray(`${path.basename(test.spec.file)} - ${test.spec.fullTitle()}\n`));
+      stream.write(colors.gray(this._fullTitle(test) + `\n`));
       this._lastTest = test;
     }
 
@@ -55,10 +61,8 @@ class LineReporter extends BaseReporter {
 
   onTestEnd(test: Test, result: TestResult) {
     super.onTestEnd(test, result);
-    const spec = test.spec;
-    const baseName = path.basename(spec.file);
     const width = process.stdout.columns - 1;
-    const title = `[${++this._current}/${this._total}] ${baseName} - ${spec.fullTitle()}`.substring(0, width);
+    const title = `[${++this._current}/${this._total}] ${this._fullTitle(test)}`.substring(0, width);
     process.stdout.write(`\u001B[1A\u001B[2K${title}\n`);
     if (!this.willRetry(test, result) && !test.ok()) {
       process.stdout.write(`\u001B[1A\u001B[2K`);

@@ -15,46 +15,100 @@
  */
 
 import { expect } from './expect';
-import { currentTestInfo, FixturePool } from './fixtures';
+import { currentTestInfo } from './env';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
 
 Error.stackTraceLimit = 15;
 
-export type SuitesWithOptions = { suite: Suite, fixtureOptions: folio.FixtureOptions }[];
-let currentFile: { file: string, suitesWithOptions: SuitesWithOptions, fixturePool: FixturePool, ordinal: number } | undefined;
+let currentFile: string | undefined;
 
-export function setCurrentFile(file: string, suitesWithOptions: SuitesWithOptions, fixturePool: FixturePool) {
-  currentFile = { file, suitesWithOptions, ordinal: 0, fixturePool };
+export function setCurrentFile(file: string) {
+  currentFile = file;
 }
 export function clearCurrentFile() {
   currentFile = undefined;
 }
 
-export function createTestImpl(fixtureOptions: folio.FixtureOptions) {
-  if (!currentFile)
-    throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
+export type SuiteDescription = {
+  fileSuites: Map<string, Suite>;
+  env: any;
+  timeout?: number;
+};
 
-  const rootSuite = new Suite('');
-  rootSuite._ordinal = currentFile.ordinal++;
-  currentFile.suitesWithOptions.push({ suite: rootSuite, fixtureOptions });
-  const location = callLocation(currentFile.file);
-  rootSuite.file = location.file;
-  rootSuite.line = location.line;
-  rootSuite.column = location.column;
+const allSuiteDescriptions = new Set<SuiteDescription>();
+export function isSuiteDescription(d: any) {
+  return allSuiteDescriptions.has(d);
+}
 
-  const suites: Suite[] = [rootSuite];
+function mergeEnvs(envs: any[]): any {
+  if (envs.length === 1)
+    return envs[0];
+  const forward = [...envs];
+  const backward = [...forward].reverse();
+  return {
+    beforeAll: async () => {
+      for (const env of forward) {
+        if (env.beforeAll)
+          await env.beforeAll();
+      }
+    },
+    afterAll: async () => {
+      for (const env of backward) {
+        if (env.afterAll)
+          await env.afterAll();
+      }
+    },
+    beforeEach: async () => {
+      let result = undefined;
+      for (const env of forward) {
+        if (env.beforeEach) {
+          const r = await env.beforeEach();
+          result = result === undefined ? r : { ...result, ...r };
+        }
+      }
+      return result;
+    },
+    afterEach: async () => {
+      for (const env of backward) {
+        if (env.afterEach)
+          await env.afterEach();
+      }
+    },
+  };
+}
 
-  function spec(type: 'default' | 'only', title: string, fn: Function) {
+export function newTestTypeImpl(): any {
+  const fileSuites = new Map<string, Suite>();
+  let suites: Suite[] = [];
+
+  function ensureSuiteForCurrentLocation() {
+    const location = callLocation(currentFile);
+    let fileSuite = fileSuites.get(location.file);
+    if (!fileSuite) {
+      fileSuite = new Suite('');
+      fileSuite.file = location.file;
+      fileSuites.set(location.file, fileSuite);
+    }
+    if (suites[suites.length - 1] !== fileSuite)
+      suites = [fileSuite];
+    return location;
+  }
+
+  function spec(type: 'default' | 'only', title: string, options: Function | any, fn?: Function) {
     if (!currentFile)
-      throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
+      throw errorWithCallLocation(`Test can only be defined in a test file.`);
+    const location = ensureSuiteForCurrentLocation();
 
+    if (typeof fn !== 'function') {
+      fn = options;
+      options = {};
+    }
     const spec = new Spec(title, fn, suites[0]);
-    const location = callLocation(currentFile.file);
     spec.file = location.file;
     spec.line = location.line;
     spec.column = location.column;
-    currentFile.fixturePool.validateFunction(fn, `Test`, true);
+    spec.testOptions = options;
 
     if (type === 'only')
       spec._only = true;
@@ -62,10 +116,10 @@ export function createTestImpl(fixtureOptions: folio.FixtureOptions) {
 
   function describe(type: 'default' | 'only', title: string, fn: Function) {
     if (!currentFile)
-      throw errorWithCallLocation(`Suite cannot be defined in a fixture file.`);
+      throw errorWithCallLocation(`Suite can only be defined in a test file.`);
+    const location = ensureSuiteForCurrentLocation();
 
     const child = new Suite(title, suites[0]);
-    const location = callLocation(currentFile.file);
     child.file = location.file;
     child.line = location.line;
     child.column = location.column;
@@ -80,9 +134,7 @@ export function createTestImpl(fixtureOptions: folio.FixtureOptions) {
 
   function hook(name: string, fn: Function) {
     if (!currentFile)
-      throw errorWithCallLocation(`Hook cannot be defined in a fixture file.`);
-
-    currentFile.fixturePool.validateFunction(fn, `${name} hook`, name === 'beforeEach' || name === 'afterEach');
+      throw errorWithCallLocation(`Hook can only be defined in a test file.`);
     suites[0]._addHook(name, fn);
   }
 
@@ -122,6 +174,20 @@ export function createTestImpl(fixtureOptions: folio.FixtureOptions) {
   test.skip = modifier.bind(null, 'skip');
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
+  test.runWith = (...envs: any[]): SuiteDescription => {
+    let options = envs[envs.length - 1];
+    if (!envs.length || options.beforeAll || options.beforeEach || options.afterAll || options.afterEach)
+      options = {};
+    else
+      envs.pop();
+    const description = {
+      fileSuites,
+      env: mergeEnvs(envs),
+      timeout: options.timeout,
+    };
+    allSuiteDescriptions.add(description);
+    return description;
+  };
   return test;
 }
 

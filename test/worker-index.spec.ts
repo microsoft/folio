@@ -22,8 +22,8 @@ it('should run in parallel', async ({ runInlineTest }) => {
     '1.spec.ts': `
       import * as fs from 'fs';
       import * as path from 'path';
-      test('succeeds', async ({ testWorkerIndex, testInfo }) => {
-        expect(testWorkerIndex).toBe(0);
+      test('succeeds', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
         // First test waits for the second to start to work around the race.
         while (true) {
           if (fs.existsSync(path.join(testInfo.config.outputDir, 'parallel-index.txt')))
@@ -35,11 +35,11 @@ it('should run in parallel', async ({ runInlineTest }) => {
     '2.spec.ts': `
       import * as fs from 'fs';
       import * as path from 'path';
-      test('succeeds', async ({ testWorkerIndex, testInfo }) => {
+      test('succeeds', async ({}, testInfo) => {
         // First test waits for the second to start to work around the race.
         fs.mkdirSync(testInfo.config.outputDir, { recursive: true });
         fs.writeFileSync(path.join(testInfo.config.outputDir, 'parallel-index.txt'), 'TRUE');
-        expect(testWorkerIndex).toBe(1);
+        expect(testInfo.workerIndex).toBe(1);
       });
     `,
   });
@@ -47,31 +47,19 @@ it('should run in parallel', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should reuse worker for the same parameters', async ({ runInlineTest }) => {
+it('should reuse worker for multiple tests', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixtures.ts': `
-      async function worker1({}, runTest) {
-        await runTest();
-      }
-
-      async function worker2({}, runTest) {
-        await runTest();
-      }
-
-      export const toBeRenamed = { workerFixtures: { worker1, worker2 } };
-    `,
     'a.test.js': `
-      test('succeeds', async ({ worker1, testWorkerIndex }) => {
-        expect(testWorkerIndex).toBe(0);
+      test('succeeds', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
       });
 
-      test('succeeds', async ({ worker2, testWorkerIndex }) => {
-        expect(testWorkerIndex).toBe(0);
+      test('succeeds', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
       });
 
-      const test2 = createTest();
-      test2('succeeds', async ({ worker2, testWorkerIndex }) => {
-        expect(testWorkerIndex).toBe(0);
+      test('succeeds', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
       });
     `,
   });
@@ -79,29 +67,25 @@ it('should reuse worker for the same parameters', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should not reuse worker for different worker fixture options', async ({ runInlineTest }) => {
+it('should not reuse worker for different suites', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'one.fixtures.js': `
-      async function worker({}, run, options) {
-        await run(options || 'worker');
-      }
-      exports.toBeRenamed = { workerFixtures: { worker } };
+    'folio.config.ts': `
+      export const test = folio.newTestType();
+      export const suite1 = test.runWith();
+      export const suite2 = test.runWith();
+      export const suite3 = test.runWith();
     `,
     'a.test.js': `
-      test('succeeds', async ({ worker, testWorkerIndex }) => {
-        expect(worker).toBe('worker');
-      });
-      const test1 = createTest({ worker: 'foo' });
-      test1('succeeds', async ({ worker, testWorkerIndex }) => {
-        expect(worker).toBe('foo');
-      });
-      const test2 = createTest({ worker: 'bar' });
-      test2('succeeds', async ({ worker, testWorkerIndex }) => {
-        expect(worker).toBe('bar');
+      const { test } = require('./folio.config');
+      test('succeeds', async ({}, testInfo) => {
+        console.log('workerIndex-' + testInfo.workerIndex);
       });
     `,
   });
   expect(result.passed).toBe(3);
   expect(result.exitCode).toBe(0);
   expect(result.results.map(r => r.workerIndex).sort()).toEqual([0, 1, 2]);
+  expect(result.output).toContain('workerIndex-0');
+  expect(result.output).toContain('workerIndex-1');
+  expect(result.output).toContain('workerIndex-2');
 });

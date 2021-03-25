@@ -17,17 +17,21 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should access error in fixture', async ({ runInlineTest }) => {
+it('should access error in env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixtures.ts': `
-      async function postProcess({testInfo}, runTest) {
-        await runTest('');
-        console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
+    'folio.config.ts': `
+      const { newTestType } = folio;
+      class MyEnv {
+        async afterEach(testInfo) {
+          console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
+        }
       }
-      export const toBeRenamed = { testFixtures: { postProcess } };
+      export const test = newTestType();
+      export const suite = test.runWith(new MyEnv());
     `,
-    'test-error-visible-in-fixture.spec.ts': `
-      test('ensure fixture handles test error', async ({ postProcess }) => {
+    'test-error-visible-in-env.spec.ts': `
+      import { test } from './folio.config';
+      test('ensure env handles test error', async ({}) => {
         expect(true).toBe(false);
       });
     `
@@ -39,21 +43,25 @@ it('should access error in fixture', async ({ runInlineTest }) => {
   expect(data.message).toContain('Object.is equality');
 });
 
-it('should access data in fixture', async ({ runInlineTest }) => {
+it('should access data in env', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
-    'fixtures.ts': `
-      async function testInfoForward({testInfo}, runTest) {
-        await runTest(testInfo);
-        testInfo.data['myname'] = 'myvalue';
+    'folio.config.ts': `
+      const { newTestType } = folio;
+      class MyEnv {
+        async afterEach(testInfo) {
+          testInfo.data['myname'] = 'myvalue';
+        }
       }
-      export const toBeRenamed = { testFixtures: { testInfoForward } };
+      export const test = newTestType();
+      export const suite = test.runWith(new MyEnv());
     `,
-    'test-data-visible-in-fixture.spec.ts': `
-      test('ensure fixture handles test error', async ({ testInfoForward }) => {
+    'test-data-visible-in-env.spec.ts': `
+      import { test } from './folio.config';
+      test('ensure env can set data', async ({}, testInfo) => {
         console.log('console.log');
         console.error('console.error');
-        expect(testInfoForward.config.testDir).toBeTruthy();
-        expect(testInfoForward.file).toContain('test-data-visible-in-fixture');
+        expect(testInfo.config.testDir).toBeTruthy();
+        expect(testInfo.file).toContain('test-data-visible-in-env');
       });
     `
   });

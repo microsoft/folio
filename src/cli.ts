@@ -30,7 +30,7 @@ import { Runner } from './runner';
 import { Config, PartialConfig } from './types';
 import { Loader } from './loader';
 
-export const reporters = {
+export const reporters: { [name: string]: new () => Reporter } = {
   'dot': DotReporter,
   'json': JSONReporter,
   'junit': JUnitReporter,
@@ -42,20 +42,17 @@ export const reporters = {
 const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
 
 const defaultConfig: Config = {
-  fixtureIgnore: 'node_modules/**',
-  fixtureMatch: '**/?(*.)fixtures.[jt]s',
-  fixtureOptions: {} as any,
   forbidOnly: false,
   globalTimeout: 0,
   grep: '.*',
   maxFailures: 0,
-  outputDir: path.join(process.cwd(), 'test-results'),
+  outputDir: path.resolve(process.cwd(), 'test-results'),
   quiet: false,
   repeatEach: 1,
   retries: 0,
   shard: undefined,
   snapshotDir: '__snapshots__',
-  testDir: '',
+  testDir: path.resolve(process.cwd()),
   testIgnore: 'node_modules/**',
   testMatch: '**/?(*.)+(spec|test).[jt]s',
   timeout: 10000,
@@ -76,7 +73,7 @@ loadProgram.action(async command => {
 loadProgram.parse(process.argv);
 
 async function runTests(command: any) {
-  const reporterList = command.reporter.split(',');
+  const reporterList: string[] = command.reporter.split(',');
   const reporterObjects: Reporter[] = reporterList.map(c => {
     if (reporters[c])
       return new reporters[c]();
@@ -89,17 +86,26 @@ async function runTests(command: any) {
     }
   });
 
-  const loader = new Loader(defaultConfig);
+  const loader = new Loader();
+  loader.addConfig(defaultConfig);
 
-  if (command.config) {
-    const configFile = path.resolve(process.cwd(), command.config);
-    if (!fs.existsSync(configFile))
-      throw new Error(`${configFile} does not exist`);
-    loader.loadConfigFile(configFile);
+  function loadConfig(configName: string) {
+    const configFile = path.resolve(process.cwd(), configName);
+    if (fs.existsSync(configFile)) {
+      loader.loadConfigFile(configFile);
+      return true;
+    }
+    return false;
   }
 
-  if (command.args.length)
-    loader.addConfig({ testDir: path.resolve(process.cwd(), command.args[0] || '.') });
+  if (command.config) {
+    if (!loadConfig(command.config))
+      throw new Error(`${command.config} does not exist`);
+  } else if (!loadConfig('folio.config.ts') && !loadConfig('folio.config.js')) {
+    throw new Error(`Configuration file not found. Either pass --config, or create folio.config.(js|ts) file`);
+  }
+
+  loader.addConfig(configFromCommand(command));
 
   const testDir = loader.config().testDir;
   if (!fs.existsSync(testDir))
@@ -107,28 +113,23 @@ async function runTests(command: any) {
   if (!fs.statSync(testDir).isDirectory())
     throw new Error(`${testDir} is not a directory`);
 
-  if (!command.config) {
-    for (const configFile of [path.join(testDir, 'folio.config.ts'), path.join(testDir, 'folio.config.js')]) {
-      if (fs.existsSync(configFile)) {
-        loader.loadConfigFile(configFile);
-        break;
-      }
-    }
+  const suiteNames = new Set(loader.suites.keys());
+  const suiteFilter: string[] = [];
+  const testFileFilter: string[] = [];
+  for (const arg of command.args) {
+    if (suiteNames.has(arg))
+      suiteFilter.push(arg);
+    else
+      testFileFilter.push(arg);
   }
 
-  loader.addConfig(configFromCommand(command));
-
   const allFiles = await collectFiles(testDir);
-  const testFiles = filterFiles(testDir, allFiles, command.args.slice(1), loader.config().testMatch, loader.config().testIgnore);
-  const fixtureFiles = filterFiles(testDir, allFiles, [], loader.config().fixtureMatch, loader.config().fixtureIgnore);
-  for (const file of fixtureFiles)
-    loader.loadFixtureFile(file);
-  loader.validateFixtures();
+  const testFiles = filterFiles(testDir, allFiles, testFileFilter, loader.config().testMatch, loader.config().testIgnore);
   for (const file of testFiles)
     loader.loadTestFile(file);
 
   const reporter = new Multiplexer(reporterObjects);
-  const runner = new Runner(loader, reporter);
+  const runner = new Runner(loader, reporter, suiteFilter.length ? suiteFilter : undefined);
 
   if (command.list) {
     runner.list();
@@ -156,7 +157,7 @@ async function runTests(command: any) {
 
 async function collectFiles(testDir: string): Promise<string[]> {
   const entries: any[] = [];
-  let callback: () => void;
+  let callback = () => {};
   const promise = new Promise<void>(f => callback = f);
   ignore({ path: testDir, ignoreFiles: ['.gitignore'] })
       .on('child', (entry: any) => entries.push(entry))
@@ -189,12 +190,10 @@ function filterFiles(base: string, files: string[], filters: string[], filesMatc
 function addRunnerOptions(program: commander.Command) {
   program = program
       .version('Version ' + /** @type {any} */ (require)('../package.json').version)
-      .option('--config <file>', `Configuration file (default: folio.config.ts or folio.config.js)`)
+      .option('-c, --config <file>', `Configuration file (default: folio.config.ts or folio.config.js)`)
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
       .option('-g, --grep <grep>', `Only run tests matching this string or regexp (default: "${defaultConfig.grep}")`)
       .option('--global-timeout <timeout>', `Specify maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)
-      .option('--fixture-ignore <pattern>', `Pattern used to ignore fixture files (default: "${defaultConfig.fixtureIgnore}")`)
-      .option('--fixture-match <pattern>', `Pattern used to find fixture files (default: "${defaultConfig.fixtureMatch}")`)
       .option('-h, --help', `Display help`)
       .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
       .option('--list', `Only collect all the test and report them`)
@@ -206,6 +205,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('--retries <retries>', `Specify retry count (default: ${defaultConfig.retries})`)
       .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
       .option('--snapshot-dir <dir>', `Snapshot directory, relative to tests directory (default: "${defaultConfig.snapshotDir}"`)
+      .option('--test-dir <dir>', `Directory containing test files (default: current directory)`)
       .option('--test-ignore <pattern>', `Pattern used to ignore test files (default: "${defaultConfig.testIgnore}")`)
       .option('--test-match <pattern>', `Pattern used to find test files (default: "${defaultConfig.testMatch}")`)
       .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: ${defaultConfig.timeout})`)
@@ -224,7 +224,7 @@ function configFromCommand(command: any): PartialConfig {
   if (command.maxFailures || command.x)
     config.maxFailures = command.x ? 1 : parseInt(command.maxFailures, 10);
   if (command.output)
-    config.outputDir = command.output;
+    config.outputDir = path.resolve(process.cwd(), command.output);
   if (command.quiet)
     config.quiet = command.quiet;
   if (command.repeatEach)
@@ -237,14 +237,12 @@ function configFromCommand(command: any): PartialConfig {
   }
   if (command.snapshotDir)
     config.snapshotDir = command.snapshotDir;
+  if (command.testDir)
+    config.testDir = path.resolve(process.cwd(), command.testDir);
   if (command.testMatch)
     config.testMatch = command.testMatch;
   if (command.testIgnore)
     config.testIgnore = command.testIgnore;
-  if (command.fixtureMatch)
-    config.fixtureMatch = command.fixtureMatch;
-  if (command.fixtureIgnore)
-    config.fixtureIgnore = command.fixtureIgnore;
   if (command.timeout)
     config.timeout = parseInt(command.timeout, 10);
   if (command.updateSnapshots)

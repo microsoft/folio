@@ -22,7 +22,7 @@ const { it, expect } = folio;
 
 it('should support golden', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
+    '__snapshots__/a/is-a-test/suite/snapshot.txt': `Hello world`,
     'a.spec.js': `
       test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot();
@@ -34,7 +34,7 @@ it('should support golden', async ({runInlineTest}) => {
 
 it('should fail on wrong golden', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.txt': `Line1
+    '__snapshots__/a/is-a-test/suite/snapshot.txt': `Line1
 Line2
 Line3
 Hello world line1
@@ -74,13 +74,13 @@ it('should write missing expectations', async ({runInlineTest, testInfo}) => {
   });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('snapshot.txt is missing in golden results, writing actual');
-  const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
+  const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/suite/snapshot.txt'));
   expect(data.toString()).toBe('Hello world');
 });
 
 it('should update expectations', async ({runInlineTest, testInfo}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
+    '__snapshots__/a/is-a-test/suite/snapshot.txt': `Hello world`,
     'a.spec.js': `
       test('is a test', ({}) => {
         expect('Hello world updated').toMatchSnapshot();
@@ -90,15 +90,15 @@ it('should update expectations', async ({runInlineTest, testInfo}) => {
   expect(result.exitCode).toBe(0);
   expect(result.output).toContain('Updating snapshot at');
   expect(result.output).toContain('snapshot.txt');
-  const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
+  const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/suite/snapshot.txt'));
   expect(data.toString()).toBe('Hello world updated');
 });
 
 it('should match multiple snapshots', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
-    '__snapshots__/a/is-a-test/snapshot_1.txt': `Snapshot2`,
-    '__snapshots__/a/is-a-test/snapshot_2.txt': `Snapshot3`,
+    '__snapshots__/a/is-a-test/suite/snapshot.txt': `Snapshot1`,
+    '__snapshots__/a/is-a-test/suite/snapshot_1.txt': `Snapshot2`,
+    '__snapshots__/a/is-a-test/suite/snapshot_2.txt': `Snapshot3`,
     'a.spec.js': `
       test('is a test', ({}) => {
         expect('Snapshot1').toMatchSnapshot();
@@ -112,7 +112,7 @@ it('should match multiple snapshots', async ({runInlineTest}) => {
 
 it('should use provided name', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
+    '__snapshots__/a/is-a-test/suite/provided.txt': `Hello world`,
     'a.spec.js': `
       test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot('provided.txt');
@@ -124,7 +124,7 @@ it('should use provided name', async ({runInlineTest}) => {
 
 it('should use provided name via options', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
+    '__snapshots__/a/is-a-test/suite/provided.txt': `Hello world`,
     'a.spec.js': `
       test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot({ name: 'provided.txt' });
@@ -136,7 +136,7 @@ it('should use provided name via options', async ({runInlineTest}) => {
 
 it('should compare binary', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.dat': Buffer.from([1,2,3,4]),
+    '__snapshots__/a/is-a-test/suite/snapshot.dat': Buffer.from([1,2,3,4]),
     'a.spec.js': `
       test('is a test', ({}) => {
         expect(Buffer.from([1,2,3,4])).toMatchSnapshot();
@@ -148,7 +148,7 @@ it('should compare binary', async ({runInlineTest}) => {
 
 it('should compare PNG images', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.png':
+    '__snapshots__/a/is-a-test/suite/snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
     'a.spec.js': `
       test('is a test', ({}) => {
@@ -161,7 +161,7 @@ it('should compare PNG images', async ({runInlineTest}) => {
 
 it('should compare different PNG images', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.png':
+    '__snapshots__/a/is-a-test/suite/snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
     'a.spec.js': `
       test('is a test', ({}) => {
@@ -178,8 +178,8 @@ it('should respect threshold', async ({runInlineTest}) => {
   const expected = fs.readFileSync(path.join(__dirname, 'assets/screenshot-canvas-expected.png'));
   const actual = fs.readFileSync(path.join(__dirname, 'assets/screenshot-canvas-actual.png'));
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.png': expected,
-    '__snapshots__/a/is-a-test/snapshot2.png': expected,
+    '__snapshots__/a/is-a-test/suite/snapshot.png': expected,
+    '__snapshots__/a/is-a-test/suite/snapshot2.png': expected,
     'a.spec.js': `
       test('is a test', ({}) => {
         expect(Buffer.from('${actual.toString('base64')}', 'base64')).toMatchSnapshot({ threshold: 0.3 });

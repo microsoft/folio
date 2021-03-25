@@ -17,11 +17,9 @@
 import type { Expect } from './expectType';
 
 export interface Config {
-  fixtureIgnore: string;
-  fixtureMatch: string;
-  fixtureOptions: folio.FixtureOptions;
   forbidOnly?: boolean;
   globalTimeout: number;
+  // TODO: change grep to be a RegExp instance, glob pattern or array.
   grep?: string;
   maxFailures: number;
   outputDir: string;
@@ -31,31 +29,21 @@ export interface Config {
   shard?: { total: number, current: number };
   snapshotDir: string;
   testDir: string;
+  // TODO: change testIgnore to be a RegExp instance, glob pattern or array.
   testIgnore: string;
+  // TODO: change testMatch to be a RegExp instance, glob pattern or array.
   testMatch: string;
   timeout: number;
   updateSnapshots: boolean;
   workers: number;
 }
+// TODO: make Config partial and FullConfig=Required<Config>.
 export type PartialConfig = Partial<Config>;
 
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
-interface TestModifier {
-  skip(): void;
-  skip(condition: boolean): void;
-  skip(description: string): void;
-  skip(condition: boolean, description: string): void;
-
-  fixme(): void;
-  fixme(condition: boolean): void;
-  fixme(description: string): void;
-  fixme(condition: boolean, description: string): void;
-
-  fail(): void;
-  fail(condition: boolean): void;
-  fail(description: string): void;
-  fail(condition: boolean, description: string): void;
+export interface WorkerInfo {
+  workerIndex: number;
 }
 
 export interface TestInfo {
@@ -71,6 +59,7 @@ export interface TestInfo {
   repeatEachIndex: number;
   retry: number;
   config: Config;
+  testOptions: any; // TODO: make testOptions typed.
 
   // Modifiers
   expectedStatus: TestStatus;
@@ -94,47 +83,59 @@ export interface TestInfo {
 interface SuiteFunction {
   (name: string, inner: () => void): void;
 }
-interface SuiteHookFunction {
-  (inner: (fixtures: folio.WorkerFixtures) => Promise<void> | void): void;
+
+interface TestFunction<TestArgs, TestOptions> {
+  (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
+  (name: string, options: TestOptions, fn: (args: TestArgs, testInfo: TestInfo) => any): void;
 }
 
-interface TestFunction {
-  (name: string, inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
-}
-interface TestHookFunction {
-  (inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
-}
-
-export interface TestSuiteFunction extends TestFunction, TestModifier {
-  only: TestFunction;
+export interface Tests<TestArgs, TestOptions> extends TestFunction<TestArgs, TestOptions> {
+  only: TestFunction<TestArgs, TestOptions>;
   describe: SuiteFunction & {
     only: SuiteFunction;
   };
 
-  beforeEach: TestHookFunction;
-  afterEach: TestHookFunction;
-  beforeAll: SuiteHookFunction;
-  afterAll: SuiteHookFunction;
+  beforeEach: (inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void) => void;
+  afterEach: (inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void) => void;
+  beforeAll: (inner: (workerInfo: WorkerInfo) => Promise<void> | void) => void;
+  afterAll: (inner: (workerInfo: WorkerInfo) => Promise<void> | void) => void;
 
   expect: Expect;
+
+  skip(): void;
+  skip(condition: boolean): void;
+  skip(description: string): void;
+  skip(condition: boolean, description: string): void;
+
+  fixme(): void;
+  fixme(condition: boolean): void;
+  fixme(description: string): void;
+  fixme(condition: boolean, description: string): void;
+
+  fail(): void;
+  fail(condition: boolean): void;
+  fail(description: string): void;
+  fail(condition: boolean, description: string): void;
+
+  runWith(options?: { timeout?: number; title?: string }): TestSuite;
+  runWith(env: Env<TestArgs>, options?: { timeout?: number; title?: string }): TestSuite;
+  runWith<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, options?: { timeout?: number; title?: string }): TestSuiteOrNever<TestArgs, TestArgs1 & TestArgs2>;
+  runWith<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, options?: { timeout?: number; title?: string }): TestSuiteOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
 }
 
-type OptionsForFixture<K extends string> = K extends keyof folio.FixtureOptions ? folio.FixtureOptions[K] : void;
-interface RunFixtureFunction<R> extends TestModifier {
-  (value: R): Promise<void>;
+export interface Env<TestArgs> {
+  beforeAll?(workerInfo: WorkerInfo): Promise<any>;
+  beforeEach?(testInfo: TestInfo): Promise<TestArgs>;
+  afterEach?(testInfo: TestInfo): Promise<any>;
+  afterAll?(workerInfo: WorkerInfo): Promise<any>;
 }
-export interface WorkerFixture<K extends keyof folio.WorkerFixtures> {
-  (fixtures: folio.WorkerFixtures, run: RunFixtureFunction<folio.WorkerFixtures[K]>, options?: OptionsForFixture<K>): Promise<any>;
+
+interface TestSuite {
+  // This is just a tag type - we do not expose what's inside.
 }
-export interface TestFixture<K extends keyof folio.TestFixtures> {
-  (fixtures: folio.WorkerFixtures & folio.TestFixtures, run: RunFixtureFunction<folio.TestFixtures[K]>, options?: OptionsForFixture<K>): Promise<any>;
-}
-export interface ToBeRenamedInterface {
-  testFixtures?: { [K in keyof folio.TestFixtures]?: TestFixture<K> };
-  autoTestFixtures?: { [K in keyof folio.TestFixtures]?: TestFixture<K> };
-  workerFixtures?: { [K in keyof folio.WorkerFixtures]?: WorkerFixture<K> };
-  autoWorkerFixtures?: { [K in keyof folio.WorkerFixtures]?: WorkerFixture<K> };
-}
+type TestSuiteOrNever<ExpectedTestArgs, CombinedTestArgs> = CombinedTestArgs extends ExpectedTestArgs ? TestSuite : never;
+
+// ---------- Reporters API -----------
 
 export interface Suite {
   title: string;
@@ -163,6 +164,7 @@ export interface Test {
   expectedStatus: TestStatus;
   timeout: number;
   annotations: any[];
+  suiteTitle: string;
   status(): 'skipped' | 'expected' | 'unexpected' | 'flaky';
   ok(): boolean;
 }
@@ -180,26 +182,4 @@ export interface TestError {
   message?: string;
   stack?: string;
   value?: string;
-}
-
-declare global {
-  namespace folio {
-    // Fixtures initialized once per worker, available to any hooks and tests.
-    interface WorkerFixtures {
-      // Worker index that runs this test, built-in Folio fixture.
-      testWorkerIndex: number;
-    }
-
-    // Fixtures initialized once per test, available to any test.
-    interface TestFixtures {
-      // Information about the test being run, built-in Folio fixture.
-      testInfo: TestInfo;
-    }
-
-    // Options that can be passed to createTest().
-    interface FixtureOptions {
-      // Relative path, empty by default, built-in Folio option.
-      testPathSegment?: string;
-    }
-  }
 }

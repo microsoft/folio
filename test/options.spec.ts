@@ -19,22 +19,25 @@ const { it, expect } = folio;
 
 it('should create two suites with different options', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixtures.ts': `
-      async function foo({ testInfo }, run, options) {
-        await run(options || 'foo');
+    'folio.config.ts': `
+      global.logs = [];
+      class MyEnv {
+        async beforeEach(testInfo) {
+          return { foo: testInfo.testOptions.foo || 'foo' };
+        }
       }
-      export const toBeRenamed = { testFixtures: { foo } };
+      export const test = folio.newTestType();
+      export const suite = test.runWith(new MyEnv());
     `,
     'a.test.ts': `
-      test('test', ({ testInfo, foo }) => {
+      import { test } from './folio.config';
+      test('test', ({ foo }) => {
         expect(foo).toBe('foo');
       });
-      const test1 = createTest({ foo: 'bar' });
-      test1('test1', ({ testInfo, foo }) => {
+      test('test1', { foo: 'bar' }, ({ foo }) => {
         expect(foo).toBe('bar');
       });
-      const test2 = createTest({ foo: 'baz' });
-      test2('test2', ({ testInfo, foo }) => {
+      test('test2', { foo: 'baz' }, ({ foo }) => {
         expect(foo).toBe('baz');
       });
     `

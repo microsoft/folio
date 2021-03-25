@@ -19,9 +19,10 @@ import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
 import { Reporter } from './reporter';
-import { mergeFixtureOptions, monotonicTime, raceAgainstDeadline } from './util';
+import { monotonicTime, raceAgainstDeadline } from './util';
 import { Suite } from './test';
 import { Loader } from './loader';
+import { SuiteDescription } from './spec';
 export { Reporter } from './reporter';
 export { Test, TestResult, Suite, TestStatus, TestError } from './types';
 
@@ -34,41 +35,50 @@ export class Runner {
   private _loader: Loader;
   private _rootSuite: Suite;
 
-  constructor(loader: Loader, reporter: Reporter, shouldSkipSuite?: (suite: Suite, fixtureOptions: folio.FixtureOptions) => boolean) {
+  constructor(loader: Loader, reporter: Reporter, suiteFilter?: string[]) {
     this._reporter = reporter;
     this._loader = loader;
 
     // This makes sure we don't generate 1000000 tests if only one spec is focused.
-    const filtered = loader.suitesWithOptions.filter(s => s.suite._hasOnly());
-    const suitesWithOptions = filtered.length === 0 ? loader.suitesWithOptions : filtered;
+    const filtered = new Set<Suite>();
+    for (const { fileSuites } of loader.suites.values()) {
+      for (const fileSuite of fileSuites.values()) {
+        if (fileSuite._hasOnly())
+          filtered.add(fileSuite);
+      }
+    }
 
     this._rootSuite = new Suite('');
     let grep: RegExp = null;
     if (loader.config().grep) {
-      // TODO: change config.grep to be a RegExp instance.
       const match = loader.config().grep.match(/^\/(.*)\/(g|i|)$|.*/);
       grep = new RegExp(match[1] || match[0], match[2]);
     }
 
-    const workerHashKeys = loader.fixturePool.workerFixtureNames();
-    for (const { suite, fixtureOptions } of suitesWithOptions) {
-      if (shouldSkipSuite && shouldSkipSuite(suite, fixtureOptions))
+    const nonEmptySuites = new Set<Suite>();
+    for (const [suiteTitle, suite] of loader.suites) {
+      if (suiteFilter && !suiteFilter.includes(suiteTitle))
         continue;
-      const specs = suite._allSpecs().filter(spec => {
-        if (grep && !grep.test(spec.fullTitle()))
-          return false;
-        return true;
-      });
-      if (!specs.length)
-        continue;
-      suite._renumber();
-      const mergedFixtureOptions = mergeFixtureOptions(loader.config().fixtureOptions, fixtureOptions);
-      for (const spec of specs) {
-        for (let i = 0; i < loader.config().repeatEach; ++i)
-          spec._appendTest(suite._ordinal, mergedFixtureOptions, i, workerHashKeys);
+      for (const fileSuite of suite.fileSuites.values()) {
+        if (filtered.size && !filtered.has(fileSuite))
+          continue;
+        const specs = fileSuite._allSpecs().filter(spec => {
+          if (grep && !grep.test(spec.fullTitle()))
+            return false;
+          return true;
+        });
+        if (!specs.length)
+          continue;
+        fileSuite._renumber();
+        for (const spec of specs) {
+          for (let i = 0; i < loader.config().repeatEach; ++i)
+            spec._appendTest(suiteTitle, i);
+        }
+        nonEmptySuites.add(fileSuite);
       }
-      this._rootSuite._addSuite(suite);
     }
+    for (const fileSuite of nonEmptySuites)
+      this._rootSuite._addSuite(fileSuite);
 
     filterOnly(this._rootSuite);
   }

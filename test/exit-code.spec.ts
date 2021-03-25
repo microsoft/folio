@@ -91,7 +91,7 @@ it('should repeat each', async ({ runInlineTest }) => {
 it('should allow flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      test('flake', async ({ testInfo }) => {
+      test('flake', async ({}, testInfo) => {
         expect(testInfo.retry).toBe(1);
       });
     `,
@@ -129,13 +129,19 @@ it('should respect global timeout', async ({ runInlineTest }) => {
 });
 
 it('should exit with code 1 if the specified folder does not exist', async ({runInlineTest}) => {
-  const result = await runInlineTest({}, { testDir: '111111111111.js' });
+  const result = await runInlineTest({}, { 'test-dir': '111111111111.js' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`111111111111.js does not exist`);
 });
 
 it('should exit with code 1 if passed a file name', async ({runInlineTest}) => {
-  const result = await runInlineTest({'test.spec.js': ''}, { testDir: 'test.spec.js' });
+  const result = await runInlineTest({'test.spec.js': ''}, { 'test-dir': 'test.spec.js' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`test.spec.js is not a directory`);
+});
+
+it('should exit with code 1 when config is not found', async ({runInlineTest}) => {
+  const result = await runInlineTest({'my.config.js': ''}, { 'config': 'foo.config.js' });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain(`foo.config.js does not exist`);
 });

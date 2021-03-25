@@ -21,9 +21,12 @@ it('should be able to redefine config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const config = { timeout: 12345 };
+      export const test = folio.newTestType();
+      export const suite = test.runWith();
     `,
     'a.test.ts': `
-      test('pass', async ({ testInfo }) => {
+      import { test } from './folio.config';
+      test('pass', async ({}, testInfo) => {
         expect(testInfo.timeout).toBe(12345);
       });
     `
@@ -40,16 +43,20 @@ it('should read config from --config', async ({ runInlineTest }) => {
       export const config = {
         testDir: path.join(__dirname, 'dir'),
       };
+      export const test = folio.newTestType();
+      export const suite = test.runWith();
     `,
     'a.test.ts': `
+      import { test } from './my.config';
       test('ignored', async ({}) => {
       });
     `,
     'dir/b.test.ts': `
+      import { test } from '../my.config';
       test('run', async ({}) => {
       });
     `,
-  }, { testDir: '', config: 'my.config.ts' });
+  }, { config: 'my.config.ts' });
 
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);

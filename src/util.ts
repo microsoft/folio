@@ -120,15 +120,3 @@ export function interpretCondition(arg?: boolean | string, description?: string)
     return { condition: true, description: arg };
   return { condition: !!arg, description };
 }
-
-export function mergeFixtureOptions(options1: folio.FixtureOptions, options2: folio.FixtureOptions): folio.FixtureOptions {
-  const options = { ...options1 };
-  for (const [name, value] of Object.entries(options2)) {
-    const previous = options1[name];
-    if (value && previous && typeof value === 'object' && typeof previous === 'object')
-      options[name] = { ...previous, ...value };
-    else
-      options[name] = value;
-  }
-  return options;
-}
