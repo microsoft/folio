@@ -124,10 +124,10 @@ it('should teardown env after timeout', async ({ runInlineTest, testInfo }) => {
     'folio.config.ts': `
       class MyEnv {
         async afterAll() {
-          require('fs').appendFileSync(process.env.TEST_FILE, 'test fixture teardown\\n', 'utf8');
+          require('fs').appendFileSync(process.env.TEST_FILE, 'afterAll\\n', 'utf8');
         }
         async afterEach() {
-          require('fs').appendFileSync(process.env.TEST_FILE, 'worker fixture teardown\\n', 'utf8');
+          require('fs').appendFileSync(process.env.TEST_FILE, 'afterEach\\n', 'utf8');
         }
       }
       export const test = folio.newTestType();
@@ -142,6 +142,40 @@ it('should teardown env after timeout', async ({ runInlineTest, testInfo }) => {
   }, { timeout: 1000 }, { TEST_FILE: file });
   expect(result.results[0].status).toBe('timedOut');
   const content = require('fs').readFileSync(file, 'utf8');
-  expect(content).toContain('worker fixture teardown');
-  expect(content).toContain('test fixture teardown');
+  expect(content).toContain('afterEach');
+  expect(content).toContain('afterAll');
+});
+
+it('should initialize env once across files', async ({ runInlineTest }) => {
+  const { passed, failed, output } = await runInlineTest({
+    'folio.config.js': `
+      global.logs = [];
+      class MyEnv {
+        async beforeAll() {
+          global.logs.push('beforeAll');
+        }
+        async afterAll() {
+          global.logs.push('afterAll');
+          console.log(global.logs.join('\\n'));
+        }
+      }
+      exports.test = folio.newTestType();
+      exports.suite = exports.test.runWith(new MyEnv());
+    `,
+    'a.test.js': `
+      const {test} = require('./folio.config');
+      test('should work', async ({}) => {
+        global.logs.push('test1');
+      });
+    `,
+    'b.test.js': `
+      const {test} = require('./folio.config');
+      test('should work', async ({}) => {
+        global.logs.push('test2');
+      });
+    `,
+  }, { workers: 1 });
+  expect(passed).toBe(2);
+  expect(failed).toBe(0);
+  expect(output).toContain('beforeAll\ntest1\ntest2\nafterAll');
 });

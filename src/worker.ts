@@ -16,10 +16,7 @@
 
 import { Console } from 'console';
 import * as util from 'util';
-import { debugLog, setDebugWorkerIndex } from './debug';
-import { envAfterAll, envAfterEach, setCurrentWorkerIndex } from './env';
 import { RunPayload, TestOutputPayload, WorkerInitParams } from './ipc';
-import { Loader } from './loader';
 import { serializeError } from './util';
 import { WorkerRunner } from './workerRunner';
 
@@ -35,7 +32,7 @@ global.console = new Console({
 
 process.stdout.write = chunk => {
   const outPayload: TestOutputPayload = {
-    testId: testRunner ? testRunner._testId : undefined,
+    testId: workerRunner ? workerRunner._testId : undefined,
     ...chunkToParams(chunk)
   };
   sendMessageToParent('stdOut', outPayload);
@@ -45,7 +42,7 @@ process.stdout.write = chunk => {
 if (!process.env.PW_RUNNER_DEBUG) {
   process.stderr.write = chunk => {
     const outPayload: TestOutputPayload = {
-      testId: testRunner ? testRunner._testId : undefined,
+      testId: workerRunner ? workerRunner._testId : undefined,
       ...chunkToParams(chunk)
     };
     sendMessageToParent('stdErr', outPayload);
@@ -57,50 +54,33 @@ process.on('disconnect', gracefullyCloseAndExit);
 process.on('SIGINT',() => {});
 process.on('SIGTERM',() => {});
 
-let testRunner: WorkerRunner;
-let initParams: WorkerInitParams;
-let loader: Loader;
-let loaderInitialized = false;
+let workerRunner: WorkerRunner;
 
 process.on('unhandledRejection', (reason, promise) => {
-  if (testRunner)
-    testRunner.unhandledError(reason);
+  if (workerRunner)
+    workerRunner.unhandledError(reason);
 });
 
 process.on('uncaughtException', error => {
-  if (testRunner)
-    testRunner.unhandledError(error);
+  if (workerRunner)
+    workerRunner.unhandledError(error);
 });
 
 process.on('message', async message => {
   if (message.method === 'init') {
-    initParams = message.params as WorkerInitParams;
-    setDebugWorkerIndex(initParams.workerIndex);
-    setCurrentWorkerIndex(initParams.workerIndex);
-    loader = new Loader();
-    debugLog(`init`, initParams);
+    const initParams = message.params as WorkerInitParams;
+    workerRunner = new WorkerRunner(initParams);
+    for (const event of ['testBegin', 'testEnd', 'done'])
+      workerRunner.on(event, sendMessageToParent.bind(null, event));
     return;
   }
   if (message.method === 'stop') {
-    debugLog(`stopping...`);
     await gracefullyCloseAndExit();
-    debugLog(`stopped`);
     return;
   }
   if (message.method === 'run') {
     const runPayload = message.params as RunPayload;
-    debugLog(`run`, runPayload);
-    // TODO: perhaps make a single instance of WorkerRunner per worker?
-    testRunner = new WorkerRunner(loader, initParams.repeatEachIndex, initParams.suiteTitle, runPayload);
-    for (const event of ['testBegin', 'testEnd', 'done'])
-      testRunner.on(event, sendMessageToParent.bind(null, event));
-    if (!loaderInitialized) {
-      // Initialize after creating WorkerRunner, just in case we encounter errors while loading.
-      loaderInitialized = true;
-      loader.deserialize(initParams.loader);
-    }
-    await testRunner.run();
-    testRunner = null;
+    await workerRunner!.run(runPayload);
   }
 });
 
@@ -109,14 +89,13 @@ async function gracefullyCloseAndExit() {
     return;
   closed = true;
   // Force exit after 30 seconds.
-  const shutdownTimeout = +(process.env.FOLIO_TEST_SHUTDOWN_TIMEOUT || 30000);
-  setTimeout(() => process.exit(0), shutdownTimeout);
+  setTimeout(() => process.exit(0), 30000);
   // Meanwhile, try to gracefully shutdown.
-  if (testRunner)
-    testRunner.stop();
   try {
-    await envAfterEach();
-    await envAfterAll();
+    if (workerRunner) {
+      workerRunner.stop();
+      await workerRunner.cleanup();
+    }
   } catch (e) {
     process.send({ method: 'teardownError', params: { error: serializeError(e) } });
   }
@@ -125,8 +104,6 @@ async function gracefullyCloseAndExit() {
 
 function sendMessageToParent(method, params = {}) {
   try {
-    if (method !== 'ready')
-      debugLog(`send`, { method, params });
     process.send({ method, params });
   } catch (e) {
     // Can throw when closing.

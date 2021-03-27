@@ -18,15 +18,20 @@ import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
 import { monotonicTime, raceAgainstDeadline, serializeError } from './util';
-import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload } from './ipc';
-import { debugLog } from './debug';
-import { setCurrentTestInfo, currentWorkerIndex, envBeforeAll, envAfterAll, envBeforeEach, envAfterEach, setCurrentEnv } from './env';
+import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
+import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
 import { Spec, Suite, Test } from './test';
 import { Config, TestInfo, WorkerInfo } from './types';
-import { SkipError } from './spec';
+import { SkipError, SuiteDescription } from './spec';
 
 export class WorkerRunner extends EventEmitter {
+  private _params: WorkerInitParams;
+  private _loader: Loader;
+  private _suiteDescription: SuiteDescription;
+  private _workerInfo: WorkerInfo;
+  private _envInitialized = false;
+
   private _failedTestId: string | undefined;
   private _fatalError: any | undefined;
   private _entries: Map<string, TestEntry>;
@@ -35,26 +40,30 @@ export class WorkerRunner extends EventEmitter {
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
   private _file: string;
-  private _loaded = false;
-  private _repeatEachIndex: number;
-  private _suiteTitle: string;
-  private _loader: Loader;
   private _timeout: number;
 
-  constructor(loader: Loader, repeatEachIndex: number, suiteTitle: string, runPayload: RunPayload) {
+  constructor(params: WorkerInitParams) {
     super();
-    this._loader = loader;
-    this._file = runPayload.file;
-    this._repeatEachIndex = repeatEachIndex;
-    this._suiteTitle = suiteTitle;
-    this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
-    this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
+    this._params = params;
+    this._workerInfo = { workerIndex: params.workerIndex };
   }
 
   stop() {
     this._isStopped = true;
     this._testId = null;
     this._setCurrentTestInfo(null);
+  }
+
+  async cleanup() {
+    if (!this._envInitialized)
+      return;
+    this._envInitialized = false;
+    if (this._suiteDescription.env.afterAll) {
+      // TODO: separate timeout for afterAll?
+      const result = await raceAgainstDeadline(this._suiteDescription.env.afterAll(this._workerInfo), this._deadline());
+      if (result.timedOut)
+        throw new Error(`Timeout of ${this._timeout}ms exceeded while shutting down environment`);
+    }
   }
 
   unhandledError(error: Error | any) {
@@ -65,53 +74,78 @@ export class WorkerRunner extends EventEmitter {
       this._testInfo.error = serializeError(error);
       this._failedTestId = this._testId;
       this.emit('testEnd', buildTestEndPayload(this._testId, this._testInfo));
-    } else if (!this._loaded) {
+    } else {
       // No current test - fatal error.
       this._fatalError = serializeError(error);
     }
     this._reportDoneAndStop();
   }
 
-  async run() {
-    const suiteDescription = this._loader.suites.get(this._suiteTitle);
-    this._timeout = suiteDescription.timeout === undefined ? this._loader.config().timeout : suiteDescription.timeout;
-    setCurrentEnv(suiteDescription.env);
-    this._loader.loadTestFile(this._file);
-    const fileSuite = suiteDescription.fileSuites.get(this._file);
-    if (!fileSuite) {
-      this._reportDoneAndStop();
+  private _deadline() {
+    return this._timeout ? monotonicTime() + this._timeout : 0;
+  }
+
+  private async _loadIfNeeded() {
+    if (this._loader)
       return;
-    }
 
-    fileSuite._renumber();
-    fileSuite.findSpec(spec => {
-      spec._appendTest(this._suiteTitle, this._repeatEachIndex);
-    });
+    this._loader = new Loader();
+    this._loader.deserialize(this._params.loader);
+    this._suiteDescription = this._loader.suites.get(this._params.suiteTitle);
+    this._timeout = this._suiteDescription.timeout === undefined ? this._loader.config().timeout : this._suiteDescription.timeout;
 
-    this._loaded = true;
-    try {
-      await envBeforeAll();
-    } catch (e) {
-      this._fatalError = serializeError(e);
-      this._reportDoneAndStop();
+    if (this._isStopped)
+      return;
+
+    if (this._suiteDescription.env.beforeAll) {
+      // TODO: separate timeout for beforeAll?
+      const result = await raceAgainstDeadline(this._suiteDescription.env.beforeAll(this._workerInfo), this._deadline());
+      if (result.timedOut) {
+        this._fatalError = serializeError(new Error(`Timeout of ${this._timeout}ms exceeded while initializing environment`));
+        this._reportDoneAndStop();
+      }
     }
-    await this._runSuite(fileSuite);
-    try {
-      await envAfterAll();
-    } catch (e) {
-      this._fatalError = serializeError(e);
+    this._envInitialized = true;
+  }
+
+  async run(runPayload: RunPayload) {
+    this._file = runPayload.file;
+    this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
+    this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
+
+    await this._loadIfNeeded();
+    if (this._isStopped)
+      return;
+
+    this._loader.loadTestFile(this._file);
+    const fileSuite = this._suiteDescription.fileSuites.get(this._file);
+    if (fileSuite) {
+      fileSuite._renumber();
+      fileSuite.findSpec(spec => {
+        spec._appendTest(this._params.suiteTitle, this._params.repeatEachIndex);
+      });
+      await this._runSuite(fileSuite);
     }
-    this._reportDoneAndStop();
+    if (this._isStopped)
+      return;
+    this._reportDone();
   }
 
   private async _runSuite(suite: Suite) {
     if (this._isStopped)
       return;
-    try {
-      await this._runHooks(suite, 'beforeAll', 'before');
-    } catch (e) {
-      this._fatalError = serializeError(e);
-      this._reportDoneAndStop();
+    const skipHooks = !this._hasTestsToRun(suite);
+    for (const hook of suite._hooks) {
+      if (hook.type !== 'beforeAll' || skipHooks)
+        continue;
+      if (this._isStopped)
+        return;
+      // TODO: separate timeout for beforeAll?
+      const result = await raceAgainstDeadline(hook.fn(this._workerInfo), this._deadline());
+      if (result.timedOut) {
+        this._fatalError = serializeError(new Error(`Timeout of ${this._timeout}ms exceeded while running beforeAll hook`));
+        this._reportDoneAndStop();
+      }
     }
     for (const entry of suite._entries) {
       if (entry instanceof Suite)
@@ -119,11 +153,17 @@ export class WorkerRunner extends EventEmitter {
       else
         await this._runSpec(entry);
     }
-    try {
-      await this._runHooks(suite, 'afterAll', 'after');
-    } catch (e) {
-      this._fatalError = serializeError(e);
-      this._reportDoneAndStop();
+    for (const hook of suite._hooks) {
+      if (hook.type !== 'afterAll' || skipHooks)
+        continue;
+      if (this._isStopped)
+        return;
+      // TODO: separate timeout for afterAll?
+      const result = await raceAgainstDeadline(hook.fn(this._workerInfo), this._deadline());
+      if (result.timedOut) {
+        this._fatalError = serializeError(new Error(`Timeout of ${this._timeout}ms exceeded while running afterAll hook`));
+        this._reportDoneAndStop();
+      }
     }
   }
 
@@ -135,8 +175,7 @@ export class WorkerRunner extends EventEmitter {
       return;
     const { retry } = this._entries.get(test._id);
     // TODO: support some of test.slow(), test.setTimeout(), describe.slow() and describe.setTimeout()
-    const timeout = this._timeout;
-    const deadline = timeout ? monotonicTime() + timeout : 0;
+    const deadline = this._deadline();
     this._remaining.delete(test._id);
 
     const testId = test._id;
@@ -148,8 +187,8 @@ export class WorkerRunner extends EventEmitter {
       line: spec.line,
       column: spec.column,
       fn: spec.fn,
-      repeatEachIndex: this._repeatEachIndex,
-      workerIndex: currentWorkerIndex(),
+      repeatEachIndex: this._params.repeatEachIndex,
+      workerIndex: this._params.workerIndex,
       retry,
       config: this._loader.config(),
       expectedStatus: 'passed',
@@ -158,7 +197,7 @@ export class WorkerRunner extends EventEmitter {
       status: 'passed',
       stdout: [],
       stderr: [],
-      timeout,
+      timeout: this._timeout,
       data: {},
       relativeArtifactsPath: '',
       outputPath: () => '',
@@ -179,39 +218,49 @@ export class WorkerRunner extends EventEmitter {
     else if (testInfo.annotations.some(a => a.type === 'fail'))
       testInfo.expectedStatus = 'failed';
 
-    this.emit('testBegin', buildTestBeginPayload(testId, this._testInfo));
+    this.emit('testBegin', buildTestBeginPayload(testId, testInfo));
 
     if (testInfo.expectedStatus === 'skipped') {
-      this._testInfo.status = 'skipped';
-      this.emit('testEnd', buildTestEndPayload(testId, this._testInfo));
+      testInfo.status = 'skipped';
+      this.emit('testEnd', buildTestEndPayload(testId, testInfo));
       return;
     }
 
     const startTime = monotonicTime();
 
-    let result = await raceAgainstDeadline(this._runTestWithFixturesAndHooks(test, this._testInfo), deadline);
-    // Do not overwrite test failure upon timeout in fixture or hook.
-    if (result.timedOut && this._testInfo.status === 'passed')
-      this._testInfo.status = 'timedOut';
-
-    if (!result.timedOut) {
-      result = await raceAgainstDeadline(envAfterEach(), deadline);
-      // Do not overwrite test failure upon timeout in fixture or hook.
-      if (result.timedOut && this._testInfo.status === 'passed')
-        this._testInfo.status = 'timedOut';
-    } else {
-      // A timed-out test gets a full additional timeout to teardown test fixture scope.
-      const newDeadline = timeout ? monotonicTime() + timeout : 0;
-      await raceAgainstDeadline(envAfterEach(), newDeadline);
-    }
-
-    // Async hop above, we could have stopped.
-    if (!this._testInfo)
+    const testArgsResult = await raceAgainstDeadline(this._runEnvBeforeEach(testInfo), deadline);
+    if (testArgsResult.timedOut && testInfo.status === 'passed')
+      testInfo.status = 'timedOut';
+    if (this._isStopped)
       return;
 
-    this._testInfo.duration = monotonicTime() - startTime;
-    this.emit('testEnd', buildTestEndPayload(testId, this._testInfo));
-    if (this._testInfo.status !== 'passed') {
+    const testArgs = testArgsResult.result;
+    // Do not run test/teardown if we failed to initialize.
+    if (testArgs !== undefined) {
+      const result = await raceAgainstDeadline(this._runTestWithBeforeHooks(test, testInfo, testArgs), deadline);
+      // Do not overwrite test failure upon hook timeout.
+      if (result.timedOut && testInfo.status === 'passed')
+        testInfo.status = 'timedOut';
+      if (this._isStopped)
+        return;
+
+      if (!result.timedOut) {
+        const hooksResult = await raceAgainstDeadline(this._runAfterHooks(test, testInfo, testArgs), deadline);
+        // Do not overwrite test failure upon hook timeout.
+        if (hooksResult.timedOut && testInfo.status === 'passed')
+          testInfo.status = 'timedOut';
+      } else {
+        // A timed-out test gets a full additional timeout to run after hooks.
+        const newDeadline = this._deadline();
+        await raceAgainstDeadline(this._runAfterHooks(test, testInfo, testArgs), newDeadline);
+      }
+    }
+    if (this._isStopped)
+      return;
+
+    testInfo.duration = monotonicTime() - startTime;
+    this.emit('testEnd', buildTestEndPayload(testId, testInfo));
+    if (testInfo.status !== 'passed') {
       this._failedTestId = this._testId;
       this._reportDoneAndStop();
     }
@@ -224,21 +273,26 @@ export class WorkerRunner extends EventEmitter {
     setCurrentTestInfo(testInfo);
   }
 
-  private async _runTestWithFixturesAndHooks(test: Test, testInfo: TestInfo) {
-    let testArgs: any = {};
+  // Returns TestArgs or undefined when env.beforeEach has failed.
+  private async _runEnvBeforeEach(testInfo: TestInfo): Promise<any> {
     try {
-      testArgs = await envBeforeEach();
+      let testArgs: any = {};
+      if (this._suiteDescription.env.beforeEach)
+        testArgs = await this._suiteDescription.env.beforeEach(testInfo);
       if (testArgs === undefined)
         testArgs = {};
+      return testArgs;
     } catch (error) {
       testInfo.status = 'failed';
       testInfo.error = serializeError(error);
       // Failed to initialize environment - no need to run any hooks now.
-      return;
+      return undefined;
     }
+  }
 
+  private async _runTestWithBeforeHooks(test: Test, testInfo: TestInfo, testArgs: any) {
     try {
-      await this._runHooks(test.spec.parent, 'beforeEach', 'before', testArgs, testInfo);
+      await this._runHooks(test.spec.parent, 'beforeEach', testArgs, testInfo);
     } catch (error) {
       if (error instanceof SkipError) {
         testInfo.status = 'skipped';
@@ -249,13 +303,13 @@ export class WorkerRunner extends EventEmitter {
       // Continue running afterEach hooks even after the failure.
     }
 
-    debugLog(`running test "${test.spec.fullTitle()}"`);
+    // Do not run the test when beforeEach hook fails.
+    if (this._isStopped || testInfo.status === 'failed' || testInfo.status === 'skipped')
+      return;
+
     try {
-      // Do not run the test when beforeEach hook fails.
-      if (!this._isStopped && testInfo.status !== 'failed' && testInfo.status !== 'skipped') {
-        await test.spec.fn(testArgs, testInfo);
-        testInfo.status = 'passed';
-      }
+      await test.spec.fn(testArgs, testInfo);
+      testInfo.status = 'passed';
     } catch (error) {
       if (error instanceof SkipError) {
         testInfo.status = 'skipped';
@@ -263,62 +317,68 @@ export class WorkerRunner extends EventEmitter {
         testInfo.status = 'failed';
         testInfo.error = serializeError(error);
       }
-      // Continue running afterEach hooks and fixtures teardown even after the failure.
     }
-    debugLog(`done running test "${test.spec.fullTitle()}"`);
+  }
+
+  private async _runAfterHooks(test: Test, testInfo: TestInfo, testArgs: any) {
     try {
-      await this._runHooks(test.spec.parent, 'afterEach', 'after', testArgs, testInfo);
+      await this._runHooks(test.spec.parent, 'afterEach', testArgs, testInfo);
     } catch (error) {
       // Do not overwrite test failure error.
       if (!(error instanceof SkipError) && testInfo.status === 'passed') {
         testInfo.status = 'failed';
         testInfo.error = serializeError(error);
-        // Continue running fixtures teardown even after the failure.
+        // Continue running even after the failure.
+      }
+    }
+    try {
+      if (this._suiteDescription.env.afterEach)
+        await this._suiteDescription.env.afterEach(testInfo);
+    } catch (error) {
+      // Do not overwrite test failure error.
+      if (testInfo.status === 'passed') {
+        testInfo.status = 'failed';
+        testInfo.error = serializeError(error);
       }
     }
   }
 
-  private async _runHooks(suite: Suite, type: string, dir: 'before' | 'after', testArgs?: any, testInfo?: TestInfo) {
+  private async _runHooks(suite: Suite, type: 'beforeEach' | 'afterEach', testArgs: any, testInfo: TestInfo) {
     if (this._isStopped)
       return;
-    debugLog(`running hooks "${type}" for suite "${suite.fullTitle()}"`);
-    if (!this._hasTestsToRun(suite))
-      return;
     const all = [];
-    for (let s = suite; s; s = (type === 'beforeEach' || type === 'afterEach' ? s.parent : undefined)) {
+    for (let s = suite; s; s = s.parent) {
       const funcs = s._hooks.filter(e => e.type === type).map(e => e.fn);
       all.push(...funcs.reverse());
     }
-    if (dir === 'before')
+    if (type === 'beforeEach')
       all.reverse();
     let error: Error | undefined;
     for (const hook of all) {
       try {
-        if (type === 'beforeEach' || type === 'afterEach') {
-          await hook(testArgs, testInfo);
-        } else {
-          const workerInfo: WorkerInfo = { workerIndex: currentWorkerIndex() };
-          await hook(workerInfo);
-        }
+        await hook(testArgs, testInfo);
       } catch (e) {
         // Always run all the hooks, and capture the first error.
         error = error || e;
       }
     }
-    debugLog(`done running hooks "${type}" for suite "${suite.fullTitle()}"`);
     if (error)
       throw error;
   }
 
-  private _reportDoneAndStop() {
-    if (this._isStopped)
-      return;
+  private _reportDone() {
     const donePayload: DonePayload = {
       failedTestId: this._failedTestId,
       fatalError: this._fatalError,
       remaining: [...this._remaining.values()],
     };
     this.emit('done', donePayload);
+  }
+
+  private _reportDoneAndStop() {
+    if (this._isStopped)
+      return;
+    this._reportDone();
     this.stop();
   }
 

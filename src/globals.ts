@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-import { debug as debugImpl } from 'debug';
+import { TestInfo } from './types';
 
-let workerIndex: number | undefined;
-
-export function setDebugWorkerIndex(index: number) {
-  workerIndex = index;
+let currentTestInfoValue: TestInfo | null = null;
+export function setCurrentTestInfo(testInfo: TestInfo | null) {
+  currentTestInfoValue = testInfo;
 }
-
-export const debugLog = (message: string, ...args: any[]) => {
-  if (workerIndex === undefined)
-    debugImpl('pwr:runner')(message, ...args);
-  else
-    debugImpl(`pwr:worker[${workerIndex}]`)(message, ...args);
-};
+export function currentTestInfo(): TestInfo | null {
+  return currentTestInfoValue;
+}

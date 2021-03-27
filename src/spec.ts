@@ -15,9 +15,10 @@
  */
 
 import { expect } from './expect';
-import { currentTestInfo } from './env';
+import { currentTestInfo } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
+import { Env } from './types';
 
 Error.stackTraceLimit = 15;
 
@@ -32,7 +33,7 @@ export function clearCurrentFile() {
 
 export type SuiteDescription = {
   fileSuites: Map<string, Suite>;
-  env: any;
+  env: Env<any>;
   timeout?: number;
 };
 
