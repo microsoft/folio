@@ -17,19 +17,20 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should run fixture tear down on timeout', async ({ runInlineTest }) => {
+it('should run env afterEach on timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixtures.js': `
-      async function foo({testInfo}, runTest) {
-        await runTest();
-        console.log('STATUS:' + testInfo.status);
+    'folio.config.ts': `
+      class MyEnv {
+        async afterEach(testInfo) {
+          console.log('STATUS:' + testInfo.status);
+        }
       }
-      exports.toBeRenamed = {
-        testFixtures: { foo }
-      };
+      export const test = folio.newTestType();
+      export const suite = test.runWith(new MyEnv());
     `,
     'c.spec.ts': `
-      test('works', async ({ foo }) => {
+      import { test } from './folio.config';
+      test('works', async ({}) => {
         await new Promise(f => setTimeout(f, 100000));
       });
     `

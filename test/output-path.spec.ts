@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('should include repeat token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
-      test('test', ({testInfo}) => {
+      test('test', ({}, testInfo) => {
         if (testInfo.repeatEachIndex)
           expect(testInfo.outputPath('')).toContain('repeat' + testInfo.repeatEachIndex);
         else
@@ -35,7 +35,7 @@ it('should include repeat token', async ({runInlineTest}) => {
 it('should include retry token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
-      test('test', ({testInfo}) => {
+      test('test', ({}, testInfo) => {
         expect(testInfo.outputPath('')).toContain('retry' + testInfo.retry);
         expect(testInfo.retry).toBe(2);
       });
@@ -43,4 +43,21 @@ it('should include retry token', async ({runInlineTest}) => {
   }, { 'retries': 2 });
   expect(result.exitCode).toBe(0);
   expect(result.flaky).toBe(1);
+});
+
+it('should include suite title', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      export const test = folio.newTestType();
+      export const suite1 = test.runWith();
+    `,
+    'a.spec.js': `
+      const { test } = require('./folio.config');
+      test('test', ({}, testInfo) => {
+        expect(testInfo.outputPath('')).toContain('suite1');
+      });
+    `
+  }, { 'retries': 2 });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
 });

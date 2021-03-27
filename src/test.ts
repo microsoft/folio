@@ -47,6 +47,7 @@ class Base {
 export class Spec extends Base implements types.Spec {
   fn: Function;
   tests: Test[] = [];
+  testOptions: any = {};
 
   constructor(title: string, fn: Function, suite: Suite) {
     super(title, suite);
@@ -58,11 +59,12 @@ export class Spec extends Base implements types.Spec {
     return !this.tests.find(r => !r.ok());
   }
 
-  _appendTest(suiteOrdinal: number, fixtureOptions: folio.FixtureOptions, repeatEachIndex: number, workerHashKeys: string[]) {
+  _appendTest(suiteTitle: string, repeatEachIndex: number) {
     const test = new Test(this);
-    test._workerHash = `[${optionsToWorkerHash(fixtureOptions, workerHashKeys)}]#repeat-${repeatEachIndex}`;
+    test.suiteTitle = suiteTitle;
+    test._workerHash = `${suiteTitle}#repeat-${repeatEachIndex}`;
+    test._id = `${this._ordinal}@${this.file}::[${test._workerHash}]`;
     test._repeatEachIndex = repeatEachIndex;
-    test._id = `${suiteOrdinal}/${this._ordinal}@${this.file}::[${test._workerHash}]`;
     this.tests.push(test);
     return test;
   }
@@ -79,6 +81,14 @@ export class Suite extends Base implements types.Suite {
     super(title, parent);
     if (parent)
       parent._addSuite(this);
+  }
+
+  _clear() {
+    this.suites = [];
+    this.specs = [];
+    this._entries = [];
+    this._hooks = [];
+    this._annotations = [];
   }
 
   _addSpec(spec: Spec) {
@@ -174,10 +184,12 @@ export class Test implements types.Test {
   expectedStatus: types.TestStatus = 'passed';
   timeout = 0;
   annotations: any[] = [];
+  suiteTitle = '';
 
   _id: string;
   _workerHash: string;
   _repeatEachIndex: number;
+  // TODO: can we get rid of some of these values?
 
   constructor(spec: Spec) {
     this.spec = spec;
@@ -221,11 +233,4 @@ export class Test implements types.Test {
     this.results.push(result);
     return result;
   }
-}
-
-function optionsToWorkerHash(options: folio.FixtureOptions, keys: string[]): string {
-  const tokens = [];
-  for (const key of keys)
-    tokens.push(`${key}=${JSON.stringify(options[key])}`);
-  return tokens.join(', ');
 }

@@ -20,10 +20,9 @@ export type { TestStatus } from './types';
 export type WorkerInitParams = {
   workerIndex: number;
   repeatEachIndex: number;
+  suiteTitle: string;
   loader: {
     configs: (string | PartialConfig)[];
-    fixtureFiles: string[];
-    testPathSegment: string;
   };
 };
 

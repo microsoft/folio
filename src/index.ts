@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-import type { TestSuiteFunction } from './types';
-import { createTestImpl } from './spec';
+import type { Tests } from './types';
+import { newTestTypeImpl } from './spec';
 
 export * from './types';
 export { expect } from './expect';
 
-export function createTest(fixtureOptions: folio.FixtureOptions = {} as any): TestSuiteFunction {
-  return createTestImpl(fixtureOptions);
+export function newTestType<TestArgs = {}, TestOptions = {}>(): Tests<TestArgs, TestOptions> {
+  return newTestTypeImpl();
 }

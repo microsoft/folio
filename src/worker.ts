@@ -17,7 +17,7 @@
 import { Console } from 'console';
 import * as util from 'util';
 import { debugLog, setDebugWorkerIndex } from './debug';
-import { setCurrentWorkerIndex } from './fixtures';
+import { envAfterAll, envAfterEach, setCurrentWorkerIndex } from './env';
 import { RunPayload, TestOutputPayload, WorkerInitParams } from './ipc';
 import { Loader } from './loader';
 import { serializeError } from './util';
@@ -77,7 +77,7 @@ process.on('message', async message => {
     initParams = message.params as WorkerInitParams;
     setDebugWorkerIndex(initParams.workerIndex);
     setCurrentWorkerIndex(initParams.workerIndex);
-    loader = new Loader({} as any);
+    loader = new Loader();
     debugLog(`init`, initParams);
     return;
   }
@@ -90,7 +90,8 @@ process.on('message', async message => {
   if (message.method === 'run') {
     const runPayload = message.params as RunPayload;
     debugLog(`run`, runPayload);
-    testRunner = new WorkerRunner(loader, initParams.repeatEachIndex, runPayload);
+    // TODO: perhaps make a single instance of WorkerRunner per worker?
+    testRunner = new WorkerRunner(loader, initParams.repeatEachIndex, initParams.suiteTitle, runPayload);
     for (const event of ['testBegin', 'testEnd', 'done'])
       testRunner.on(event, sendMessageToParent.bind(null, event));
     if (!loaderInitialized) {
@@ -108,15 +109,14 @@ async function gracefullyCloseAndExit() {
     return;
   closed = true;
   // Force exit after 30 seconds.
-  setTimeout(() => process.exit(0), 30000);
-  // Meanwhile, try to gracefully close all browsers.
+  const shutdownTimeout = +(process.env.FOLIO_TEST_SHUTDOWN_TIMEOUT || 30000);
+  setTimeout(() => process.exit(0), shutdownTimeout);
+  // Meanwhile, try to gracefully shutdown.
   if (testRunner)
     testRunner.stop();
   try {
-    if (loader) {
-      await loader.fixturePool.teardownScope('test');
-      await loader.fixturePool.teardownScope('worker');
-    }
+    await envAfterEach();
+    await envAfterAll();
   } catch (e) {
     process.send({ method: 'teardownError', params: { error: serializeError(e) } });
   }

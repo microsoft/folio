@@ -169,7 +169,8 @@ function formatTestHeader(config: Config, test: Test, indent: string, index?: nu
   let relativePath = path.relative(config.testDir, spec.file) || path.basename(spec.file);
   relativePath += ':' + spec.line + ':' + spec.column;
   const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
-  const header = `${indent}${index ? index + ') ' : ''}${relativePath} › ${spec.fullTitle()}${passedUnexpectedlySuffix}`;
+  const suiteTitle = test.suiteTitle ? `[${test.suiteTitle}] ` : '';
+  const header = `${indent}${index ? index + ') ' : ''}${relativePath} › ${suiteTitle}${spec.fullTitle()}${passedUnexpectedlySuffix}`;
   tokens.push(colors.red(pad(header, '=')));
   return tokens.join('\n');
 }

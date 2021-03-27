@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('should retry failures', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'retry-failures.spec.js': `
-      test('flake', async ({ testInfo }) => {
+      test('flake', async ({}, testInfo) => {
         // Passes on the second run.
         expect(testInfo.retry).toBe(1);
       });

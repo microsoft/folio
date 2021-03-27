@@ -21,9 +21,12 @@ it('should consider dynamically set value', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       exports.config = { timeout: 100 };
+      exports.test = folio.newTestType();
+      exports.suite = exports.test.runWith();
     `,
     'a.test.js': `
-      test('pass', ({ testInfo }) => {
+      const { test } = require('./folio.config');
+      test('pass', ({}, testInfo) => {
         expect(testInfo.timeout).toBe(100);
       })
     `
@@ -32,13 +35,37 @@ it('should consider dynamically set value', async ({ runInlineTest }) => {
   expect(result.passed).toBe(1);
 });
 
+it('should allow different timeouts', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.js': `
+      exports.config = { timeout: 100 };
+      exports.test = folio.newTestType();
+      exports.suite1 = exports.test.runWith({ timeout: 200 });
+      exports.suite2 = exports.test.runWith();
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      test('pass', ({}, testInfo) => {
+        console.log('timeout:' + testInfo.timeout);
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(2);
+  expect(result.output).toContain('timeout:100');
+  expect(result.output).toContain('timeout:200');
+});
+
 it('should prioritize value set via command line', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       exports.config = { timeout: 100 };
+      exports.test = folio.newTestType();
+      exports.suite = exports.test.runWith();
     `,
     'a.test.js': `
-      test('pass', ({ testInfo }) => {
+      const { test } = require('./folio.config');
+      test('pass', ({}, testInfo) => {
         expect(testInfo.timeout).toBe(1000);
       })
     `

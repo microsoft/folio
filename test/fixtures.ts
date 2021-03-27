@@ -18,6 +18,7 @@ import { folio as base, TestInfo } from 'folio';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import type { ReportFormat } from '../src/reporters/json';
 export { config } from 'folio';
 
@@ -38,35 +39,50 @@ type Params = { [key: string]: string | number | boolean | string[] };
 async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string | Buffer }, params: any, env: any): Promise<RunResult> {
   const baseDir = testInfo.outputPath();
 
+  const header = `
+    const folio = require(${JSON.stringify(path.join(__dirname, '..'))});
+  `;
+  const testHeader = header + `const { expect } = folio;`;
+
+  const hasConfig = Object.keys(files).some(name => name.includes('.config.'));
+  if (!hasConfig) {
+    files = {
+      ...files,
+      'folio.config.js': `
+        exports.test = folio.newTestType();
+        exports.suite = exports.test.runWith();
+      `,
+    };
+  }
+
   await Promise.all(Object.keys(files).map(async name => {
     const fullName = path.join(baseDir, name);
     await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
     if (/(spec|test)\.(js|ts)$/.test(name)) {
-      const header = `
-        const { createTest, expect } = require(${JSON.stringify(path.join(__dirname, '..'))});
-        const test = createTest({});
-      `;
-      await fs.promises.writeFile(fullName, header + files[name]);
-    } else if (/config\.(js|ts)$/.test(name)) {
-      await fs.promises.writeFile(fullName, files[name]);
+      let fileHeader = testHeader + '\n';
+      if (!hasConfig) {
+        const configPath = path.join(baseDir, 'folio.config.js');
+        let relativePath = path.relative(path.dirname(fullName), configPath);
+        if (os.platform() === 'win32')
+          relativePath = relativePath.replace(/\\/g, '/');
+        fileHeader = testHeader + `const { test } = require('./${relativePath}');\n`;
+      }
+      await fs.promises.writeFile(fullName, fileHeader + files[name]);
     } else if (/\.(js|ts)$/.test(name)) {
-      const header = `
-        const { createTest, expect, config } = require(${JSON.stringify(path.join(__dirname, '..'))});
-      `;
       await fs.promises.writeFile(fullName, header + files[name]);
     } else {
       await fs.promises.writeFile(fullName, files[name]);
     }
   }));
 
-  let testDir = '.';
   const paramList = [];
+  let additionalArgs = '';
   for (const key of Object.keys(params)) {
-    if (key === 'testDir') {
-      testDir = params[key];
+    if (key === 'args') {
+      additionalArgs = params[key];
       continue;
     }
-    for (const value of  Array.isArray(params[key]) ? params[key] : [params[key]]) {
+    for (const value of Array.isArray(params[key]) ? params[key] : [params[key]]) {
       const k = key.startsWith('-') ? key : '--' + key;
       paramList.push(params[key] === true ? `${k}` : `${k}=${value}`);
     }
@@ -74,14 +90,14 @@ async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string |
   const outputDir = path.join(baseDir, 'test-results');
   const reportFile = path.join(outputDir, 'report.json');
   const args = [path.join(__dirname, '..', 'cli.js')];
-  if (testDir)
-    args.push(testDir);
   args.push(
       '--output=' + outputDir,
       '--reporter=dot,json',
       '--workers=2',
       ...paramList
   );
+  if (additionalArgs)
+    args.push(...additionalArgs);
   const testProcess = spawn('node', args, {
     env: {
       ...process.env,

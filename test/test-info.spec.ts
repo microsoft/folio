@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import { expect } from 'folio';
 import { folio } from './fixtures';
 const { it } = folio;
@@ -20,10 +21,10 @@ const { it } = folio;
 it('should work directly', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      test('test 1', async ({testInfo}) => {
+      test('test 1', async ({}, testInfo) => {
         expect(testInfo.title).toBe('test 1');
       });
-      test('test 2', async ({testInfo}) => {
+      test('test 2', async ({}, testInfo) => {
         expect(testInfo.title).toBe('test 2');
       });
     `,
@@ -31,17 +32,19 @@ it('should work directly', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should work via fixture', async ({ runInlineTest }) => {
+it('should work via env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'fixtures.js': `
-      async function title({testInfo}, runTest) {
-        await runTest(testInfo.title);
+    'folio.config.ts': `
+      class MyEnv {
+        async beforeEach(testInfo) {
+          return { title: testInfo.title };
+        }
       }
-      exports.toBeRenamed = {
-        testFixtures: { title }
-      };
+      export const test = folio.newTestType();
+      export const suite = test.runWith(new MyEnv());
     `,
     'a.test.js': `
+      const { test } = require('./folio.config');
       test('test 1', async ({title}) => {
         expect(title).toBe('test 1');
       });

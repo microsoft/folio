@@ -82,7 +82,7 @@ it('render unexpected after retry', async ({ runInlineTest }) => {
 it('render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      test('one', async ({testInfo}) => {
+      test('one', async ({}, testInfo) => {
         expect(testInfo.retry).toBe(3);
       });
     `,
@@ -94,7 +94,7 @@ it('render flaky', async ({ runInlineTest }) => {
 it('render stdout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
-      test('one', async ({testInfo}) => {
+      test('one', async ({}) => {
         console.log('Hello world');
       });
     `,

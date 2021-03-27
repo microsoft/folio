@@ -37,19 +37,22 @@ it('should get top level stdio', async ({runInlineTest}) => {
   ]);
 });
 
-it('should get stdio from worker fixture teardown', async ({runInlineTest}) => {
+it('should get stdio from env afterAll', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    'fixtures.js': `
-      async function fixture({}, runTest) {
-        console.log('\\n%% worker setup');
-        await runTest();
-        console.log('\\n%% worker teardown');
+    'folio.config.ts': `
+      class MyEnv {
+        async beforeAll() {
+          console.log('\\n%% worker setup');
+        }
+        async afterAll() {
+          console.log('\\n%% worker teardown');
+        }
       }
-      exports.toBeRenamed = {
-        workerFixtures: { fixture }
-      };
+      export const test = folio.newTestType();
+      export const suite = test.runWith(new MyEnv());
     `,
     'a.spec.js': `
+      const { test } = require('./folio.config');
       test('is a test', async ({fixture}) => {});
     `
   });

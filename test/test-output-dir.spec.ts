@@ -20,12 +20,12 @@ const { it } = folio;
 it('should work and remove empty dir', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my-test.spec.js': `
-      test('test 1', async ({testInfo}) => {
+      test('test 1', async ({}, testInfo) => {
         if (testInfo.retry) {
-          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1-retry1', 'foo', 'bar'));
+          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'suite-retry1', 'foo', 'bar'));
         } else {
-          expect(testInfo.outputPath()).toContain(require('path').join('my-test', 'test-1'));
-          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'foo', 'bar'));
+          expect(testInfo.outputPath()).toContain(require('path').join('my-test', 'test-1', 'suite'));
+          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'suite', 'foo', 'bar'));
         }
         expect(require('fs').existsSync(testInfo.outputPath())).toBe(true);
         if (testInfo.retry !== 1)
