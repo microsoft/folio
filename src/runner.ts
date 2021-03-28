@@ -18,13 +18,10 @@
 import rimraf from 'rimraf';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { Reporter } from './reporter';
-import { monotonicTime, raceAgainstDeadline } from './util';
+import { Reporter } from './types';
+import { createMatcher, monotonicTime, raceAgainstDeadline } from './util';
 import { Suite } from './test';
 import { Loader } from './loader';
-import { SuiteDescription } from './spec';
-export { Reporter } from './reporter';
-export { Test, TestResult, Suite, TestStatus, TestError } from './types';
 
 const removeFolderAsync = promisify(rimraf);
 
@@ -49,11 +46,7 @@ export class Runner {
     }
 
     this._rootSuite = new Suite('');
-    let grep: RegExp = null;
-    if (loader.config().grep) {
-      const match = loader.config().grep.match(/^\/(.*)\/(g|i|)$|.*/);
-      grep = new RegExp(match[1] || match[0], match[2]);
-    }
+    const grepMatcher = createMatcher(loader.config().grep);
 
     const nonEmptySuites = new Set<Suite>();
     for (const [suiteTitle, suite] of loader.suites) {
@@ -62,11 +55,7 @@ export class Runner {
       for (const fileSuite of suite.fileSuites.values()) {
         if (filtered.size && !filtered.has(fileSuite))
           continue;
-        const specs = fileSuite._allSpecs().filter(spec => {
-          if (grep && !grep.test(spec.fullTitle()))
-            return false;
-          return true;
-        });
+        const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
         if (!specs.length)
           continue;
         fileSuite._renumber();

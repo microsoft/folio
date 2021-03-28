@@ -18,7 +18,7 @@ import { expect } from './expect';
 import { currentTestInfo } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
-import { Env } from './types';
+import { Env, SuiteConfig } from './types';
 
 Error.stackTraceLimit = 15;
 
@@ -34,7 +34,7 @@ export function clearCurrentFile() {
 export type SuiteDescription = {
   fileSuites: Map<string, Suite>;
   env: Env<any>;
-  timeout?: number;
+  config: SuiteConfig;
 };
 
 const allSuiteDescriptions = new Set<SuiteDescription>();
@@ -184,7 +184,7 @@ export function newTestTypeImpl(): any {
     const description = {
       fileSuites,
       env: mergeEnvs(envs),
-      timeout: options.timeout,
+      config: { timeout: options.timeout },
     };
     allSuiteDescriptions.add(description);
     return description;

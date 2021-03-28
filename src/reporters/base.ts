@@ -20,15 +20,14 @@ import fs from 'fs';
 import milliseconds from 'ms';
 import path from 'path';
 import StackUtils from 'stack-utils';
-import { Reporter } from '../runner';
-import { TestStatus, Test, Suite, TestResult, TestError } from '../types';
-import { Config } from '../types';
+import { TestStatus, Test, Suite, TestResult, TestError, Reporter } from '../types';
+import { FullConfig } from '../types';
 
 const stackUtils = new StackUtils();
 
 export class BaseReporter implements Reporter  {
   duration = 0;
-  config: Config;
+  config: FullConfig;
   suite: Suite;
   timeout: number;
   fileDurations = new Map<string, number>();
@@ -37,7 +36,7 @@ export class BaseReporter implements Reporter  {
   constructor() {
   }
 
-  onBegin(config: Config, suite: Suite) {
+  onBegin(config: FullConfig, suite: Suite) {
     this.monotonicStartTime = monotonicTime();
     this.config = config;
     this.suite = suite;
@@ -151,7 +150,7 @@ export class BaseReporter implements Reporter  {
   }
 }
 
-export function formatFailure(config: Config, test: Test, index?: number): string {
+export function formatFailure(config: FullConfig, test: Test, index?: number): string {
   const tokens: string[] = [];
   tokens.push(formatTestHeader(config, test, '  ', index));
   for (const result of test.results) {
@@ -163,7 +162,7 @@ export function formatFailure(config: Config, test: Test, index?: number): strin
   return tokens.join('\n');
 }
 
-function formatTestHeader(config: Config, test: Test, indent: string, index?: number): string {
+function formatTestHeader(config: FullConfig, test: Test, indent: string, index?: number): string {
   const tokens: string[] = [];
   const spec = test.spec;
   let relativePath = path.relative(config.testDir, spec.file) || path.basename(spec.file);

@@ -16,37 +16,38 @@
 
 import type { Expect } from './expectType';
 
-export interface Config {
-  forbidOnly?: boolean;
-  globalTimeout: number;
-  // TODO: change grep to be a RegExp instance, glob pattern or array.
-  grep?: string;
-  maxFailures: number;
-  outputDir: string;
-  quiet?: boolean;
-  repeatEach: number;
-  retries: number;
-  shard?: { total: number, current: number };
-  snapshotDir: string;
-  testDir: string;
-  // TODO: change testIgnore to be a RegExp instance, glob pattern or array.
-  testIgnore: string;
-  // TODO: change testMatch to be a RegExp instance, glob pattern or array.
-  testMatch: string;
-  timeout: number;
-  updateSnapshots: boolean;
-  workers: number;
+export interface SuiteConfig {
+  timeout?: number;
+  // TODO: move retries, outputDir, repeatEach, snapshotDir, testPathSegment here from Config.
 }
-// TODO: make Config partial and FullConfig=Required<Config>.
-export type PartialConfig = Partial<Config>;
+
+export interface Config extends SuiteConfig {
+  forbidOnly?: boolean;
+  globalTimeout?: number;
+  grep?: string | RegExp | (string | RegExp)[];
+  maxFailures?: number;
+  outputDir?: string;
+  quiet?: boolean;
+  repeatEach?: number;
+  retries?: number;
+  shard?: { total: number, current: number } | null;
+  snapshotDir?: string;
+  testDir?: string;
+  testIgnore?: string | RegExp | (string | RegExp)[];
+  testMatch?: string | RegExp | (string | RegExp)[];
+  updateSnapshots?: boolean;
+  workers?: number;
+}
+export type FullConfig = Required<Config>;
 
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
 export interface WorkerInfo {
+  config: FullConfig;
   workerIndex: number;
 }
 
-export interface TestInfo {
+export interface TestInfo extends WorkerInfo {
   // Declaration
   title: string;
   file: string;
@@ -54,17 +55,13 @@ export interface TestInfo {
   column: number;
   fn: Function;
 
-  // Parameters
-  workerIndex: number;
-  repeatEachIndex: number;
-  retry: number;
-  config: Config;
-  testOptions: any; // TODO: make testOptions typed.
-
   // Modifiers
   expectedStatus: TestStatus;
   timeout: number;
   annotations: any[];
+  testOptions: any; // TODO: make testOptions typed.
+  repeatEachIndex: number;
+  retry: number;
 
   // Results
   duration: number;
@@ -117,10 +114,10 @@ export interface Tests<TestArgs, TestOptions> extends TestFunction<TestArgs, Tes
   fail(description: string): void;
   fail(condition: boolean, description: string): void;
 
-  runWith(options?: { timeout?: number; title?: string }): TestSuite;
-  runWith(env: Env<TestArgs>, options?: { timeout?: number; title?: string }): TestSuite;
-  runWith<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, options?: { timeout?: number; title?: string }): TestSuiteOrNever<TestArgs, TestArgs1 & TestArgs2>;
-  runWith<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, options?: { timeout?: number; title?: string }): TestSuiteOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
+  runWith(config?: SuiteConfig): TestSuite;
+  runWith(env: Env<TestArgs>, config?: SuiteConfig): TestSuite;
+  runWith<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: SuiteConfig): TestSuiteOrNever<TestArgs, TestArgs1 & TestArgs2>;
+  runWith<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: SuiteConfig): TestSuiteOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
 }
 
 export interface Env<TestArgs> {
@@ -182,4 +179,14 @@ export interface TestError {
   message?: string;
   stack?: string;
   value?: string;
+}
+export interface Reporter {
+  onBegin(config: FullConfig, suite: Suite): void;
+  onTestBegin(test: Test): void;
+  onStdOut(chunk: string | Buffer, test?: Test): void;
+  onStdErr(chunk: string | Buffer, test?: Test): void;
+  onTestEnd(test: Test, result: TestResult): void;
+  onTimeout(timeout: number): void;
+  onError(error: TestError): void;
+  onEnd(): void;
 }

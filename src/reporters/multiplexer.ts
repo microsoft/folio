@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { Reporter } from '../reporter';
-import { Config, Suite, Test, TestError, TestResult } from '../types';
+import { FullConfig, Suite, Test, TestError, TestResult, Reporter } from '../types';
 
 export class Multiplexer implements Reporter {
   private _reporters: Reporter[];
@@ -24,7 +23,7 @@ export class Multiplexer implements Reporter {
     this._reporters = reporters;
   }
 
-  onBegin(config: Config, suite: Suite) {
+  onBegin(config: FullConfig, suite: Suite) {
     for (const reporter of this._reporters)
       reporter.onBegin(config, suite);
   }

@@ -17,14 +17,14 @@
 import colors from 'colors/safe';
 import milliseconds from 'ms';
 import { BaseReporter } from './base';
-import { Config, Suite, Test, TestResult } from '../types';
+import { FullConfig, Suite, Test, TestResult } from '../types';
 
 class ListReporter extends BaseReporter {
   private _failure = 0;
   private _lastRow = 0;
   private _testRows = new Map<Test, number>();
 
-  onBegin(config: Config, suite: Suite) {
+  onBegin(config: FullConfig, suite: Suite) {
     super.onBegin(config, suite);
     console.log();
   }
