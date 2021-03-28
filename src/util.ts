@@ -18,6 +18,7 @@ import path from 'path';
 import util from 'util';
 import StackUtils from 'stack-utils';
 import { TestError } from './types';
+import { default as minimatch } from 'minimatch';
 
 const FOLIO_DIRS = [__dirname, path.join(__dirname, '..', 'src')];
 const cwd = process.cwd();
@@ -119,4 +120,20 @@ export function interpretCondition(arg?: boolean | string, description?: string)
   if (typeof arg === 'string')
     return { condition: true, description: arg };
   return { condition: !!arg, description };
+}
+
+export function createMatcher(patterns: string | RegExp | (string | RegExp)[]): (value: string) => boolean {
+  const list = Array.isArray(patterns) ? patterns : [patterns];
+  return (value: string) => {
+    for (const pattern of list) {
+      if (pattern instanceof RegExp || Object.prototype.toString.call(pattern) === '[object RegExp]') {
+        if ((pattern as RegExp).test(value))
+          return true;
+      } else {
+        if (minimatch(value, pattern))
+          return true;
+      }
+    }
+    return false;
+  };
 }

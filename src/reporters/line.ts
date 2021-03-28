@@ -17,7 +17,7 @@
 import colors from 'colors/safe';
 import * as path from 'path';
 import { BaseReporter, formatFailure } from './base';
-import { Config, Test, Suite, TestResult } from '../types';
+import { FullConfig, Test, Suite, TestResult } from '../types';
 
 class LineReporter extends BaseReporter {
   private _total: number;
@@ -25,7 +25,7 @@ class LineReporter extends BaseReporter {
   private _failures = 0;
   private _lastTest: Test;
 
-  onBegin(config: Config, suite: Suite) {
+  onBegin(config: FullConfig, suite: Suite) {
     super.onBegin(config, suite);
     this._total = suite.totalTestCount();
     console.log();

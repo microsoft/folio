@@ -90,3 +90,28 @@ it('should use a different test match', async ({ runInlineTest }) => {
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
 });
+
+it('should use an array for testMatch', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      export const config = { testMatch: ['b.test.ts', /^a.*TS$/i] };
+      export const test = folio.newTestType();
+      export const suite = test.runWith();
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('pass', ({}) => {});
+    `,
+    'b.test.ts': `
+      import { test } from './folio.config';
+      test('pass', ({}) => {});
+    `,
+    'c.test.ts': `
+      import { test } from './folio.config';
+      test('pass', ({}) => {});
+    `
+  });
+  expect(result.passed).toBe(2);
+  expect(result.report.suites.map(s => s.file).sort()).toEqual(['a.test.ts', 'b.test.ts']);
+  expect(result.exitCode).toBe(0);
+});

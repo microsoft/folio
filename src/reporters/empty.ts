@@ -14,21 +14,10 @@
  * limitations under the License.
  */
 
-import { Config, TestResult, Test, Suite, TestError } from './types';
+import { FullConfig, TestResult, Test, Suite, TestError, Reporter } from '../types';
 
-export interface Reporter {
-  onBegin(config: Config, suite: Suite): void;
-  onTestBegin(test: Test): void;
-  onStdOut(chunk: string | Buffer, test?: Test): void;
-  onStdErr(chunk: string | Buffer, test?: Test): void;
-  onTestEnd(test: Test, result: TestResult): void;
-  onTimeout(timeout: number): void;
-  onError(error: TestError): void;
-  onEnd(): void;
-}
-
-export class EmptyReporter implements Reporter {
-  onBegin(config: Config, suite: Suite) {}
+class EmptyReporter implements Reporter {
+  onBegin(config: FullConfig, suite: Suite) {}
   onTestBegin(test: Test) {}
   onStdOut(chunk: string | Buffer, test?: Test) {}
   onStdErr(chunk: string | Buffer, test?: Test) {}
@@ -37,3 +26,5 @@ export class EmptyReporter implements Reporter {
   onError(error: TestError) {}
   onEnd() {}
 }
+
+export default EmptyReporter;

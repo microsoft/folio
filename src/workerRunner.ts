@@ -22,7 +22,7 @@ import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, W
 import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
 import { Spec, Suite, Test } from './test';
-import { Config, TestInfo, WorkerInfo } from './types';
+import { FullConfig, TestInfo, WorkerInfo } from './types';
 import { SkipError, SuiteDescription } from './spec';
 
 export class WorkerRunner extends EventEmitter {
@@ -45,7 +45,6 @@ export class WorkerRunner extends EventEmitter {
   constructor(params: WorkerInitParams) {
     super();
     this._params = params;
-    this._workerInfo = { workerIndex: params.workerIndex };
   }
 
   stop() {
@@ -92,7 +91,8 @@ export class WorkerRunner extends EventEmitter {
     this._loader = new Loader();
     this._loader.deserialize(this._params.loader);
     this._suiteDescription = this._loader.suites.get(this._params.suiteTitle);
-    this._timeout = this._suiteDescription.timeout === undefined ? this._loader.config().timeout : this._suiteDescription.timeout;
+    this._timeout = this._suiteDescription.config.timeout === undefined ? this._loader.config().timeout : this._suiteDescription.config.timeout;
+    this._workerInfo = { workerIndex: this._params.workerIndex, config: this._loader.config() };
 
     if (this._isStopped)
       return;
@@ -416,13 +416,13 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
   };
 }
 
-function relativeArtifactsPath(config: Config, testInfo: TestInfo, suitePathSegment: string) {
+function relativeArtifactsPath(config: FullConfig, testInfo: TestInfo, suitePathSegment: string) {
   const relativePath = path.relative(config.testDir, testInfo.file.replace(/\.(spec|test)\.(js|ts)/, ''));
   const sanitizedTitle = testInfo.title.replace(/[^\w\d]+/g, '-');
   return path.join(relativePath, sanitizedTitle, suitePathSegment);
 }
 
-function outputPath(config: Config, testInfo: TestInfo): (...pathSegments: string[]) => string {
+function outputPath(config: FullConfig, testInfo: TestInfo): (...pathSegments: string[]) => string {
   const retrySuffix = testInfo.retry ? '-retry' + testInfo.retry : '';
   const repeatEachSuffix = testInfo.repeatEachIndex ? '-repeat' + testInfo.repeatEachIndex : '';
   const basePath = path.join(config.outputDir, testInfo.relativeArtifactsPath) + retrySuffix + repeatEachSuffix;
@@ -432,7 +432,7 @@ function outputPath(config: Config, testInfo: TestInfo): (...pathSegments: strin
   };
 }
 
-function snapshotPath(config: Config, testInfo: TestInfo): (...pathSegments: string[]) => string {
+function snapshotPath(config: FullConfig, testInfo: TestInfo): (...pathSegments: string[]) => string {
   const basePath = path.join(config.testDir, config.snapshotDir, testInfo.relativeArtifactsPath);
   return (...pathSegments: string[]): string => {
     return path.join(basePath, ...pathSegments);

@@ -16,14 +16,14 @@
 
 import fs from 'fs';
 import path from 'path';
-import { Config } from '../types';
-import { EmptyReporter } from '../reporter';
+import { FullConfig } from '../types';
+import EmptyReporter from './empty';
 import { Suite, Test } from '../test';
 import { monotonicTime } from '../util';
 import { formatFailure, stripAscii } from './base';
 
 class JUnitReporter extends EmptyReporter {
-  private config: Config;
+  private config: FullConfig;
   private suite: Suite;
   private timestamp: number;
   private startTime: number;
@@ -31,7 +31,7 @@ class JUnitReporter extends EmptyReporter {
   private totalFailures = 0;
   private totalSkipped = 0;
 
-  onBegin(config: Config, suite: Suite) {
+  onBegin(config: FullConfig, suite: Suite) {
     this.config = config;
     this.suite = suite;
     this.timestamp = Date.now();

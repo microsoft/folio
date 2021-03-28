@@ -16,8 +16,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { EmptyReporter } from '../reporter';
-import { Config, Test, Suite, Spec, TestResult, TestError } from '../types';
+import EmptyReporter from './empty';
+import { FullConfig, Test, Suite, Spec, TestResult, TestError } from '../types';
 
 export interface SerializedSuite {
   title: string;
@@ -29,7 +29,7 @@ export interface SerializedSuite {
 }
 
 export type ReportFormat = {
-  config: Config;
+  config: FullConfig;
   // TODO: remove the extra object wrapper.
   errors?: { error: TestError }[];
   suites?: SerializedSuite[];
@@ -40,11 +40,11 @@ function toPosixPath(aPath: string): string {
 }
 
 class JSONReporter extends EmptyReporter {
-  config: Config;
+  config: FullConfig;
   suite: Suite;
   private _errors: { error: TestError }[] = [];
 
-  onBegin(config: Config, suite: Suite) {
+  onBegin(config: FullConfig, suite: Suite) {
     this.config = config;
     this.suite = suite;
   }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { PartialConfig, TestStatus, TestError } from './types';
+import type { Config, TestStatus, TestError } from './types';
 export type { TestStatus } from './types';
 
 export type WorkerInitParams = {
@@ -22,7 +22,7 @@ export type WorkerInitParams = {
   repeatEachIndex: number;
   suiteTitle: string;
   loader: {
-    configs: (string | PartialConfig)[];
+    configs: (string | Config)[];
   };
 };
 

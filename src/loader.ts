@@ -15,19 +15,19 @@
  */
 
 import { installTransform } from './transform';
-import { Config, PartialConfig } from './types';
+import { Config, FullConfig } from './types';
 import { prependErrorMessage } from './util';
 import { clearCurrentFile, isSuiteDescription, setCurrentFile, SuiteDescription } from './spec';
 
 type SerializedLoaderData = {
-  configs: (string | PartialConfig)[];
+  configs: (string | Config)[];
 };
 
 export class Loader {
   suites = new Map<string, SuiteDescription>();
 
-  private _mergedConfig: Config;
-  private _layeredConfigs: { config: PartialConfig, source?: string }[] = [];
+  private _mergedConfig: FullConfig;
+  private _layeredConfigs: { config: Config, source?: string }[] = [];
 
   constructor() {
     this._mergedConfig = {} as any;
@@ -71,7 +71,7 @@ export class Loader {
     }
   }
 
-  addConfig(config: PartialConfig) {
+  addConfig(config: Config) {
     this._layeredConfigs.push({ config });
     this._mergedConfig = { ...this._mergedConfig, ...config };
   }
@@ -90,7 +90,7 @@ export class Loader {
     }
   }
 
-  config(): Config {
+  config(): FullConfig {
     return this._mergedConfig;
   }
 

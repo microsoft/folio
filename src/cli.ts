@@ -17,9 +17,8 @@
 import { default as ignore } from 'fstream-ignore';
 import * as commander from 'commander';
 import * as fs from 'fs';
-import { default as minimatch } from 'minimatch';
 import * as path from 'path';
-import { Reporter, EmptyReporter } from './reporter';
+import EmptyReporter from './reporters/empty';
 import DotReporter from './reporters/dot';
 import JSONReporter from './reporters/json';
 import JUnitReporter from './reporters/junit';
@@ -27,8 +26,9 @@ import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
 import { Multiplexer } from './reporters/multiplexer';
 import { Runner } from './runner';
-import { Config, PartialConfig } from './types';
+import { Config, FullConfig, Reporter } from './types';
 import { Loader } from './loader';
+import { createMatcher } from './util';
 
 export const reporters: { [name: string]: new () => Reporter } = {
   'dot': DotReporter,
@@ -41,16 +41,16 @@ export const reporters: { [name: string]: new () => Reporter } = {
 
 const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
 
-const defaultConfig: Config = {
+const defaultConfig: FullConfig = {
   forbidOnly: false,
   globalTimeout: 0,
-  grep: '.*',
+  grep: /.*/,
   maxFailures: 0,
   outputDir: path.resolve(process.cwd(), 'test-results'),
   quiet: false,
   repeatEach: 1,
   retries: 0,
-  shard: undefined,
+  shard: null,
   snapshotDir: '__snapshots__',
   testDir: path.resolve(process.cwd()),
   testIgnore: 'node_modules/**',
@@ -106,6 +106,8 @@ async function runTests(command: any) {
   }
 
   loader.addConfig(configFromCommand(command));
+  loader.addConfig({ testMatch: normalizeFilePatterns(loader.config().testMatch) });
+  loader.addConfig({ testIgnore: normalizeFilePatterns(loader.config().testIgnore) });
 
   const testDir = loader.config().testDir;
   if (!fs.existsSync(testDir))
@@ -124,7 +126,7 @@ async function runTests(command: any) {
   }
 
   const allFiles = await collectFiles(testDir);
-  const testFiles = filterFiles(testDir, allFiles, testFileFilter, loader.config().testMatch, loader.config().testIgnore);
+  const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(loader.config().testMatch), createMatcher(loader.config().testIgnore));
   for (const file of testFiles)
     loader.loadTestFile(file);
 
@@ -170,16 +172,12 @@ async function collectFiles(testDir: string): Promise<string[]> {
   }).map(e => e.path);
 }
 
-function filterFiles(base: string, files: string[], filters: string[], filesMatch: string, filesIgnore: string): string[] {
-  if (!filesIgnore.includes('/') && !filesIgnore.includes('\\'))
-    filesIgnore = '**/' + filesIgnore;
-  if (!filesMatch.includes('/') && !filesMatch.includes('\\'))
-    filesMatch = '**/' + filesMatch;
+function filterFiles(base: string, files: string[], filters: string[], filesMatch: (value: string) => boolean, filesIgnore: (value: string) => boolean): string[] {
   return files.filter(file => {
     file = path.relative(base, file);
-    if (filesIgnore && minimatch(file, filesIgnore))
+    if (filesIgnore(file))
       return false;
-    if (filesMatch && !minimatch(file, filesMatch))
+    if (!filesMatch(file))
       return false;
     if (filters.length && !filters.find(filter => file.includes(filter)))
       return false;
@@ -213,14 +211,14 @@ function addRunnerOptions(program: commander.Command) {
       .option('-x', `Stop after the first failure`);
 }
 
-function configFromCommand(command: any): PartialConfig {
-  const config: PartialConfig = {};
+function configFromCommand(command: any): Config {
+  const config: Config = {};
   if (command.forbidOnly)
     config.forbidOnly = true;
   if (command.globalTimeout)
     config.globalTimeout = parseInt(command.globalTimeout, 10);
   if (command.grep)
-    config.grep = command.grep;
+    config.grep = maybeRegExp(command.grep);
   if (command.maxFailures || command.x)
     config.maxFailures = command.x ? 1 : parseInt(command.maxFailures, 10);
   if (command.output)
@@ -240,9 +238,9 @@ function configFromCommand(command: any): PartialConfig {
   if (command.testDir)
     config.testDir = path.resolve(process.cwd(), command.testDir);
   if (command.testMatch)
-    config.testMatch = command.testMatch;
+    config.testMatch = maybeRegExp(command.testMatch);
   if (command.testIgnore)
-    config.testIgnore = command.testIgnore;
+    config.testIgnore = maybeRegExp(command.testIgnore);
   if (command.timeout)
     config.timeout = parseInt(command.timeout, 10);
   if (command.updateSnapshots)
@@ -250,4 +248,25 @@ function configFromCommand(command: any): PartialConfig {
   if (command.workers)
     config.workers = parseInt(command.workers, 10);
   return config;
+}
+
+function normalizeFilePattern(pattern: string): string {
+  if (!pattern.includes('/') && !pattern.includes('\\'))
+    pattern = '**/' + pattern;
+  return pattern;
+}
+
+function normalizeFilePatterns(patterns: string | RegExp | (string | RegExp)[]) {
+  if (typeof patterns === 'string')
+    patterns = normalizeFilePattern(patterns);
+  else if (Array.isArray(patterns))
+    patterns = patterns.map(item => typeof item === 'string' ? normalizeFilePattern(item) : item);
+  return patterns;
+}
+
+function maybeRegExp(pattern: string): string | RegExp {
+  const match = pattern.match(/^\/(.*)\/([gi]*)$/);
+  if (match)
+    return new RegExp(match[1], match[2]);
+  return pattern;
 }
