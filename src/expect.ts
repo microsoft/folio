@@ -16,7 +16,7 @@
 
 import type { Expect } from './expectType';
 import expectLibrary from 'expect';
-import { currentTestInfo } from './env';
+import { currentTestInfo } from './globals';
 import { compare } from './golden';
 
 export const expect: Expect = expectLibrary;

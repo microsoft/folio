@@ -38,14 +38,13 @@ it('should handle env afterEach timeout', async ({ runInlineTest }) => {
         expect(1).toBe(2);
       });
     `
-  }, { timeout: 500 }, { FOLIO_TEST_SHUTDOWN_TIMEOUT: 2000 });
+  }, { timeout: 500 });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('Timeout of 500ms');
   expect(result.failed).toBe(2);
 });
 
-// TODO: we are lacking timeout for beforeAll/afterAll
-it.skip('should handle env afterAll timeout', async ({ runInlineTest }) => {
+it('should handle env afterAll timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
@@ -61,7 +60,7 @@ it.skip('should handle env afterAll timeout', async ({ runInlineTest }) => {
       test('fails', async ({}) => {
       });
     `
-  }, { timeout: 500 }, { FOLIO_TEST_SHUTDOWN_TIMEOUT: 2000 });
+  }, { timeout: 500 });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('Timeout of 500ms');
 });
