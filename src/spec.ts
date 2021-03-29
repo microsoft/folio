@@ -18,27 +18,28 @@ import { expect } from './expect';
 import { currentTestInfo } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
-import { Env, RunListConfig, TestInfo, WorkerInfo } from './types';
+import { Config, Env, RunWithConfig, TestInfo, WorkerInfo } from './types';
 
 Error.stackTraceLimit = 15;
 
 let currentFile: string | undefined;
-
-export function setCurrentFile(file: string) {
+export function setCurrentFile(file?: string) {
   currentFile = file;
-}
-export function clearCurrentFile() {
-  currentFile = undefined;
 }
 
 export type RunListDescription = {
   alias: string;
   fileSuites: Map<string, Suite>;
   env: Env<any>;
-  config: RunListConfig;
+  config: RunWithConfig;
 };
 
-export const allRunLists: RunListDescription[] = [];
+export const configFile: {
+  config?: Config,
+  globalSetup?: () => any,
+  globalTeardown?: (globalSetupResult: any) => any,
+  runLists: RunListDescription[]
+} = { runLists: [] };
 
 function mergeEnvs(envs: any[]): any {
   if (envs.length === 1)
@@ -173,7 +174,7 @@ export function newTestTypeImpl(): any {
   test.skip = modifier.bind(null, 'skip');
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
-  test.runWith = (...envs: any[]): RunListDescription => {
+  test.runWith = (...envs: any[]) => {
     let alias = '';
     if (typeof envs[0] === 'string') {
       alias = envs[0];
@@ -184,17 +185,32 @@ export function newTestTypeImpl(): any {
       options = {};
     else
       envs = envs.slice(0, envs.length - 1);
-    const description = {
+    configFile.runLists.push({
       fileSuites,
       env: mergeEnvs(envs),
       alias,
       config: { timeout: options.timeout },
-    };
-    allRunLists.push(description);
-    return description;
+    });
   };
   return test;
 }
 
 export class SkipError extends Error {
+}
+
+export function setConfig(config: Config) {
+  // TODO: add config validation.
+  configFile.config = config;
+}
+
+export function globalSetup(globalSetupFunction: () => any) {
+  if (typeof globalSetupFunction !== 'function')
+    throw errorWithCallLocation(`globalSetup takes a single function argument.`);
+  configFile.globalSetup = globalSetupFunction;
+}
+
+export function globalTeardown(globalTeardownFunction: (globalSetupResult: any) => any) {
+  if (typeof globalTeardownFunction !== 'function')
+    throw errorWithCallLocation(`globalTeardown takes a single function argument.`);
+  configFile.globalTeardown = globalTeardownFunction;
 }

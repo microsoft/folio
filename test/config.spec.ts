@@ -20,7 +20,7 @@ const { it, expect } = folio;
 it('should be able to redefine config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const config = { timeout: 12345 };
+      folio.setConfig({ timeout: 12345 });
       export const test = folio.newTestType();
       test.runWith();
     `,
@@ -40,9 +40,9 @@ it('should read config from --config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my.config.ts': `
       import * as path from 'path';
-      export const config = {
+      folio.setConfig({
         testDir: path.join(__dirname, 'dir'),
-      };
+      });
       export const test = folio.newTestType();
       test.runWith();
     `,

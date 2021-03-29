@@ -94,7 +94,7 @@ it('should use a different test match', async ({ runInlineTest }) => {
 it('should use an array for testMatch', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const config = { testMatch: ['b.test.ts', /^a.*TS$/i] };
+      folio.setConfig({ testMatch: ['b.test.ts', /^a.*TS$/i] });
       export const test = folio.newTestType();
       test.runWith();
     `,

@@ -17,7 +17,7 @@
 import { installTransform } from './transform';
 import { Config, FullConfig } from './types';
 import { prependErrorMessage } from './util';
-import { allRunLists, clearCurrentFile, setCurrentFile, RunListDescription } from './spec';
+import { configFile, setCurrentFile, RunListDescription } from './spec';
 
 type SerializedLoaderData = {
   configs: (string | Config)[];
@@ -29,7 +29,6 @@ export class Loader {
 
   private _mergedConfig: FullConfig;
   private _layeredConfigs: { config: Config, source?: string }[] = [];
-  private _runLists: RunListDescription[] = [];
 
   constructor() {
     this._mergedConfig = {} as any;
@@ -47,35 +46,11 @@ export class Loader {
   loadConfigFile(file: string) {
     const revertBabelRequire = installTransform();
     try {
-      allRunLists.splice(0, allRunLists.length);
-
-      const fileExports = require(file);
-      if (!fileExports || typeof fileExports !== 'object')
-        throw new Error(`Configuration file must export an object`);
-
-      if ('config' in fileExports) {
-        if (!fileExports.config || typeof fileExports.config !== 'object')
-          throw new Error(`"config" must be an object`);
-        // TODO: add config validation.
-        this.addConfig(fileExports.config);
-      } else {
-        this.addConfig({});
-      }
+      require(file);
+      this.addConfig(configFile.config || {});
       this._layeredConfigs[this._layeredConfigs.length - 1].source = file;
-
-      if ('globalSetup' in fileExports) {
-        if (typeof fileExports.globalSetup !== 'function')
-          throw new Error(`"globalSetup" must be a function`);
-        this.globalSetup = fileExports.globalSetup;
-      }
-
-      if ('globalTeardown' in fileExports) {
-        if (typeof fileExports.globalTeardown !== 'function')
-          throw new Error(`"globalTeardown" must be a function`);
-        this.globalTeardown = fileExports.globalTeardown;
-      }
-
-      this._runLists.push(...allRunLists);
+      this.globalSetup = configFile.globalSetup;
+      this.globalTeardown = configFile.globalTeardown;
     } catch (e) {
       // Drop the stack.
       throw new Error(e.message);
@@ -98,7 +73,7 @@ export class Loader {
       prependErrorMessage(e, `Error while reading ${file}:\n`);
       throw e;
     } finally {
-      clearCurrentFile();
+      setCurrentFile();
       revertBabelRequire();
     }
   }
@@ -108,7 +83,7 @@ export class Loader {
   }
 
   runLists(): RunListDescription[] {
-    return this._runLists;
+    return configFile.runLists;
   }
 
   serialize(): SerializedLoaderData {

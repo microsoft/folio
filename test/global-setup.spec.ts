@@ -19,13 +19,13 @@ const { it, expect } = folio;
 it('globalSetup and globalTeardown should work', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
-      export async function globalSetup() {
+      folio.globalSetup(async () => {
         await new Promise(f => setTimeout(f, 100));
         return 42;
-      }
-      export async function globalTeardown(value) {
+      });
+      folio.globalTeardown(value => {
         console.log('teardown=' + value);
-      }
+      });
       export const test = folio.newTestType();
       test.runWith();
     `,
@@ -43,13 +43,13 @@ it('globalSetup and globalTeardown should work', async ({ runInlineTest }) => {
 it('globalTeardown runs after failures', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
-      export async function globalSetup() {
+      folio.globalSetup(async () => {
         await new Promise(f => setTimeout(f, 100));
         return 42;
-      }
-      export async function globalTeardown(value) {
+      });
+      folio.globalTeardown(value => {
         console.log('teardown=' + value);
-      }
+      });
       export const test = folio.newTestType();
       test.runWith();
     `,
@@ -67,16 +67,16 @@ it('globalTeardown runs after failures', async ({ runInlineTest }) => {
 it('globalTeardown does not run when globalSetup times out', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export async function globalSetup() {
+      folio.globalSetup(async () => {
         await new Promise(f => setTimeout(f, 10000));
         return 42;
-      }
-      export async function globalTeardown(value) {
+      });
+      folio.globalTeardown(value => {
         console.log('teardown=' + value);
-      }
+      });
       export const test = folio.newTestType();
       test.runWith();
-      export const config = { globalTimeout: 1000 };
+      folio.setConfig({ globalTimeout: 1000 });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
