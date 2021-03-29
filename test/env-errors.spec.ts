@@ -105,7 +105,7 @@ it('should handle env afterAll error', async ({ runInlineTest }) => {
       });
     `
   });
-  expect(result.report.errors[0].error.message).toContain('Worker failed');
+  expect(result.report.errors[0].message).toContain('Worker failed');
   expect(result.exitCode).toBe(1);
 });
 

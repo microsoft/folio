@@ -41,8 +41,8 @@ class LineReporter extends BaseReporter {
 
   private _fullTitle(test: Test) {
     const baseName = path.basename(test.spec.file);
-    const suiteTitle = test.suiteTitle ? `[${test.suiteTitle}] ` : '';
-    return `${baseName} - ${suiteTitle}${test.spec.fullTitle()}`;
+    const runListName = test.runListName ? `[${test.runListName}] ` : '';
+    return `${baseName} - ${runListName}${test.spec.fullTitle()}`;
   }
 
   private _dumpToStdio(test: Test | undefined, chunk: string | Buffer, stream: NodeJS.WriteStream) {

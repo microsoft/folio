@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-import type { Tests } from './types';
+import type { TestType } from './types';
 import { newTestTypeImpl } from './spec';
 
 export * from './types';
 export { expect } from './expect';
 
-export function newTestType<TestArgs = {}, TestOptions = {}>(): Tests<TestArgs, TestOptions> {
+export function newTestType<TestArgs = {}, TestOptions = {}>(): TestType<TestArgs, TestOptions> {
   return newTestTypeImpl();
 }
