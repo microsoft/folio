@@ -21,6 +21,7 @@ export type WorkerInitParams = {
   workerIndex: number;
   repeatEachIndex: number;
   runListName: string;
+  globalSetupResult: any;
   loader: {
     configs: (string | Config)[];
   };

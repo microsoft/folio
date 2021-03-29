@@ -99,8 +99,7 @@ export class Runner {
   }
 
   private async _runTests(suite: Suite): Promise<RunResult> {
-    // Trial run does not need many workers, use one.
-    const runner = new Dispatcher(this._loader, suite, this._reporter);
+    const dispatcher = new Dispatcher(this._loader, suite, this._reporter);
     let sigint = false;
     let sigintCallback: () => void;
     const sigIntPromise = new Promise<void>(f => sigintCallback = f);
@@ -111,12 +110,12 @@ export class Runner {
     };
     process.on('SIGINT', sigintHandler);
     this._reporter.onBegin(this._loader.config(), suite);
-    await Promise.race([runner.run(), sigIntPromise]);
-    await runner.stop();
+    await Promise.race([dispatcher.run(), sigIntPromise]);
+    await dispatcher.stop();
     this._reporter.onEnd();
     if (sigint)
       return 'sigint';
-    return runner.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
+    return dispatcher.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
   }
 }
 
