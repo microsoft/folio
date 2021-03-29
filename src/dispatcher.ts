@@ -26,7 +26,7 @@ type DispatcherEntry = {
   runPayload: RunPayload;
   hash: string;
   repeatEachIndex: number;
-  runListName: string;
+  runListIndex: number;
 };
 
 export class Dispatcher {
@@ -113,7 +113,7 @@ export class Dispatcher {
                 file: spec.file,
               },
               repeatEachIndex: test._repeatEachIndex,
-              runListName: test.runListName,
+              runListIndex: test._runListIndex,
               hash: test._workerHash,
             };
             entriesByFile.set(spec.file, entry);
@@ -363,7 +363,7 @@ class Worker extends EventEmitter {
     const params: WorkerInitParams = {
       workerIndex: this.index,
       repeatEachIndex: entry.repeatEachIndex,
-      runListName: entry.runListName,
+      runListIndex: entry.runListIndex,
       globalSetupResult: this.runner._globalSetupResult,
       loader: this.runner._loader.serialize(),
     };

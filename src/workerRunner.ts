@@ -23,12 +23,12 @@ import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
 import { Spec, Suite, Test } from './test';
 import { FullConfig, TestInfo, WorkerInfo } from './types';
-import { SkipError, SuiteDescription } from './spec';
+import { SkipError, RunListDescription } from './spec';
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
   private _loader: Loader;
-  private _suiteDescription: SuiteDescription;
+  private _runList: RunListDescription;
   private _workerInfo: WorkerInfo;
   private _envInitialized = false;
 
@@ -57,9 +57,9 @@ export class WorkerRunner extends EventEmitter {
     if (!this._envInitialized)
       return;
     this._envInitialized = false;
-    if (this._suiteDescription.env.afterAll) {
+    if (this._runList.env.afterAll) {
       // TODO: separate timeout for afterAll?
-      const result = await raceAgainstDeadline(this._suiteDescription.env.afterAll(this._workerInfo), this._deadline());
+      const result = await raceAgainstDeadline(this._runList.env.afterAll(this._workerInfo), this._deadline());
       if (result.timedOut)
         throw new Error(`Timeout of ${this._timeout}ms exceeded while shutting down environment`);
     }
@@ -90,8 +90,8 @@ export class WorkerRunner extends EventEmitter {
 
     this._loader = new Loader();
     this._loader.deserialize(this._params.loader);
-    this._suiteDescription = this._loader.suites.get(this._params.runListName);
-    this._timeout = this._suiteDescription.config.timeout === undefined ? this._loader.config().timeout : this._suiteDescription.config.timeout;
+    this._runList = this._loader.runLists()[this._params.runListIndex];
+    this._timeout = this._runList.config.timeout === undefined ? this._loader.config().timeout : this._runList.config.timeout;
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
       config: this._loader.config(),
@@ -101,9 +101,9 @@ export class WorkerRunner extends EventEmitter {
     if (this._isStopped)
       return;
 
-    if (this._suiteDescription.env.beforeAll) {
+    if (this._runList.env.beforeAll) {
       // TODO: separate timeout for beforeAll?
-      const result = await raceAgainstDeadline(this._suiteDescription.env.beforeAll(this._workerInfo), this._deadline());
+      const result = await raceAgainstDeadline(this._runList.env.beforeAll(this._workerInfo), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._timeout}ms exceeded while initializing environment`));
         this._reportDoneAndStop();
@@ -122,11 +122,11 @@ export class WorkerRunner extends EventEmitter {
       return;
 
     this._loader.loadTestFile(this._file);
-    const fileSuite = this._suiteDescription.fileSuites.get(this._file);
+    const fileSuite = this._runList.fileSuites.get(this._file);
     if (fileSuite) {
       fileSuite._renumber();
       fileSuite.findSpec(spec => {
-        spec._appendTest(this._params.runListName, this._params.repeatEachIndex);
+        spec._appendTest(this._params.runListIndex, this._runList.alias, this._params.repeatEachIndex);
       });
       await this._runSuite(fileSuite);
     }
@@ -208,7 +208,7 @@ export class WorkerRunner extends EventEmitter {
       testOptions: spec.testOptions,
     };
     // Resolve artifacts and output paths.
-    testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, test.runListName);
+    testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, test.alias);
     testInfo.outputPath = outputPath(this._loader.config(), testInfo);
     testInfo.snapshotPath = snapshotPath(this._loader.config(), testInfo);
     this._setCurrentTestInfo(testInfo);
@@ -280,8 +280,8 @@ export class WorkerRunner extends EventEmitter {
   private async _runEnvBeforeEach(testInfo: TestInfo): Promise<any> {
     try {
       let testArgs: any = {};
-      if (this._suiteDescription.env.beforeEach)
-        testArgs = await this._suiteDescription.env.beforeEach(testInfo);
+      if (this._runList.env.beforeEach)
+        testArgs = await this._runList.env.beforeEach(testInfo);
       if (testArgs === undefined)
         testArgs = {};
       return testArgs;
@@ -335,8 +335,8 @@ export class WorkerRunner extends EventEmitter {
       }
     }
     try {
-      if (this._suiteDescription.env.afterEach)
-        await this._suiteDescription.env.afterEach(testInfo);
+      if (this._runList.env.afterEach)
+        await this._runList.env.afterEach(testInfo);
     } catch (error) {
       // Do not overwrite test failure error.
       if (testInfo.status === 'passed') {

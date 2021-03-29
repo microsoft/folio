@@ -96,7 +96,7 @@ it('should use an array for testMatch', async ({ runInlineTest }) => {
     'folio.config.ts': `
       export const config = { testMatch: ['b.test.ts', /^a.*TS$/i] };
       export const test = folio.newTestType();
-      export const suite = test.runWith();
+      test.runWith();
     `,
     'a.test.ts': `
       import { test } from './folio.config';

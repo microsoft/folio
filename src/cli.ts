@@ -61,6 +61,7 @@ const defaultConfig: FullConfig = {
 };
 
 const loadProgram = new commander.Command();
+loadProgram.helpOption(false);
 addRunnerOptions(loadProgram);
 loadProgram.action(async command => {
   try {
@@ -73,6 +74,11 @@ loadProgram.action(async command => {
 loadProgram.parse(process.argv);
 
 async function runTests(command: any) {
+  if (command.help === undefined) {
+    console.log(loadProgram.helpInformation());
+    process.exit(0);
+  }
+
   const reporterList: string[] = command.reporter.split(',');
   const reporterObjects: Reporter[] = reporterList.map(c => {
     if (reporters[c])
@@ -115,12 +121,12 @@ async function runTests(command: any) {
   if (!fs.statSync(testDir).isDirectory())
     throw new Error(`${testDir} is not a directory`);
 
-  const suiteNames = new Set(loader.suites.keys());
-  const suiteFilter: string[] = [];
+  const allAliases = new Set(loader.runLists().map(s => s.alias));
+  const runListFilter: string[] = [];
   const testFileFilter: string[] = [];
   for (const arg of command.args) {
-    if (suiteNames.has(arg))
-      suiteFilter.push(arg);
+    if (allAliases.has(arg))
+      runListFilter.push(arg);
     else
       testFileFilter.push(arg);
   }
@@ -131,7 +137,7 @@ async function runTests(command: any) {
     loader.loadTestFile(file);
 
   const reporter = new Multiplexer(reporterObjects);
-  const runner = new Runner(loader, reporter, suiteFilter.length ? suiteFilter : undefined);
+  const runner = new Runner(loader, reporter, runListFilter.length ? runListFilter : undefined);
 
   if (command.list) {
     runner.list();
@@ -188,7 +194,7 @@ function filterFiles(base: string, files: string[], filters: string[], filesMatc
 function addRunnerOptions(program: commander.Command) {
   program = program
       .version('Version ' + /** @type {any} */ (require)('../package.json').version)
-      .option('-c, --config <file>', `Configuration file (default: folio.config.ts or folio.config.js)`)
+      .option('-c, --config <file>', `Configuration file (default: "folio.config.ts" or "folio.config.js")`)
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
       .option('-g, --grep <grep>', `Only run tests matching this string or regexp (default: "${defaultConfig.grep}")`)
       .option('--global-timeout <timeout>', `Specify maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)

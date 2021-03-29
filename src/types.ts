@@ -16,12 +16,12 @@
 
 import type { Expect } from './expectType';
 
-export interface SuiteConfig {
+export interface RunListConfig {
   timeout?: number;
   // TODO: move retries, outputDir, repeatEach, snapshotDir, testPathSegment here from Config.
 }
 
-export interface Config extends SuiteConfig {
+export interface Config extends RunListConfig {
   forbidOnly?: boolean;
   globalTimeout?: number;
   grep?: string | RegExp | (string | RegExp)[];
@@ -115,10 +115,14 @@ export interface TestType<TestArgs, TestOptions> extends TestFunction<TestArgs, 
   fail(description: string): void;
   fail(condition: boolean, description: string): void;
 
-  runWith(config?: SuiteConfig): RunList;
-  runWith(env: Env<TestArgs>, config?: SuiteConfig): RunList;
-  runWith<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: SuiteConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2>;
-  runWith<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: SuiteConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
+  runWith(config?: RunListConfig): RunList;
+  runWith(alias: string, config?: RunListConfig): RunList;
+  runWith(env: Env<TestArgs>, config?: RunListConfig): RunList;
+  runWith(alias: string, env: Env<TestArgs>, config?: RunListConfig): RunList;
+  runWith<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: RunListConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2>;
+  runWith<TestArgs1, TestArgs2>(alias: string, env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: RunListConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2>;
+  runWith<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: RunListConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
+  runWith<TestArgs1, TestArgs2, TestArgs3>(alias: string, env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: RunListConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
 }
 
 export interface Env<TestArgs> {
@@ -162,7 +166,7 @@ export interface Test {
   expectedStatus: TestStatus;
   timeout: number;
   annotations: any[];
-  runListName: string;
+  alias: string;
   status(): 'skipped' | 'expected' | 'unexpected' | 'flaky';
   ok(): boolean;
 }

@@ -59,10 +59,11 @@ export class Spec extends Base implements types.Spec {
     return !this.tests.find(r => !r.ok());
   }
 
-  _appendTest(runListName: string, repeatEachIndex: number) {
+  _appendTest(runListIndex: number, runListAlias: string, repeatEachIndex: number) {
     const test = new Test(this);
-    test.runListName = runListName;
-    test._workerHash = `${runListName}#repeat-${repeatEachIndex}`;
+    test.alias = runListAlias;
+    test._runListIndex = runListIndex;
+    test._workerHash = `${runListIndex}#repeat-${repeatEachIndex}`;
     test._id = `${this._ordinal}@${this.file}::[${test._workerHash}]`;
     test._repeatEachIndex = repeatEachIndex;
     this.tests.push(test);
@@ -184,11 +185,12 @@ export class Test implements types.Test {
   expectedStatus: types.TestStatus = 'passed';
   timeout = 0;
   annotations: any[] = [];
-  runListName = '';
+  alias = '';
 
   _id: string;
   _workerHash: string;
   _repeatEachIndex: number;
+  _runListIndex: number;
 
   constructor(spec: Spec) {
     this.spec = spec;

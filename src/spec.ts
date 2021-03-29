@@ -18,7 +18,7 @@ import { expect } from './expect';
 import { currentTestInfo } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
-import { Env, SuiteConfig } from './types';
+import { Env, RunListConfig, TestInfo, WorkerInfo } from './types';
 
 Error.stackTraceLimit = 15;
 
@@ -31,16 +31,14 @@ export function clearCurrentFile() {
   currentFile = undefined;
 }
 
-export type SuiteDescription = {
+export type RunListDescription = {
+  alias: string;
   fileSuites: Map<string, Suite>;
   env: Env<any>;
-  config: SuiteConfig;
+  config: RunListConfig;
 };
 
-const allSuiteDescriptions = new Set<SuiteDescription>();
-export function isSuiteDescription(d: any) {
-  return allSuiteDescriptions.has(d);
-}
+export const allRunLists: RunListDescription[] = [];
 
 function mergeEnvs(envs: any[]): any {
   if (envs.length === 1)
@@ -48,32 +46,32 @@ function mergeEnvs(envs: any[]): any {
   const forward = [...envs];
   const backward = [...forward].reverse();
   return {
-    beforeAll: async () => {
+    beforeAll: async (workerInfo: WorkerInfo) => {
       for (const env of forward) {
         if (env.beforeAll)
-          await env.beforeAll();
+          await env.beforeAll(workerInfo);
       }
     },
-    afterAll: async () => {
+    afterAll: async (workerInfo: WorkerInfo) => {
       for (const env of backward) {
         if (env.afterAll)
-          await env.afterAll();
+          await env.afterAll(workerInfo);
       }
     },
-    beforeEach: async () => {
+    beforeEach: async (testInfo: TestInfo) => {
       let result = undefined;
       for (const env of forward) {
         if (env.beforeEach) {
-          const r = await env.beforeEach();
+          const r = await env.beforeEach(testInfo);
           result = result === undefined ? r : { ...result, ...r };
         }
       }
       return result;
     },
-    afterEach: async () => {
+    afterEach: async (testInfo: TestInfo) => {
       for (const env of backward) {
         if (env.afterEach)
-          await env.afterEach();
+          await env.afterEach(testInfo);
       }
     },
   };
@@ -175,18 +173,24 @@ export function newTestTypeImpl(): any {
   test.skip = modifier.bind(null, 'skip');
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
-  test.runWith = (...envs: any[]): SuiteDescription => {
+  test.runWith = (...envs: any[]): RunListDescription => {
+    let alias = '';
+    if (typeof envs[0] === 'string') {
+      alias = envs[0];
+      envs = envs.slice(1);
+    }
     let options = envs[envs.length - 1];
     if (!envs.length || options.beforeAll || options.beforeEach || options.afterAll || options.afterEach)
       options = {};
     else
-      envs.pop();
+      envs = envs.slice(0, envs.length - 1);
     const description = {
       fileSuites,
       env: mergeEnvs(envs),
+      alias,
       config: { timeout: options.timeout },
     };
-    allSuiteDescriptions.add(description);
+    allRunLists.push(description);
     return description;
   };
   return test;
