@@ -16,12 +16,12 @@
 
 import type { Expect } from './expectType';
 
-export interface RunListConfig {
+export interface RunWithConfig {
   timeout?: number;
   // TODO: move retries, outputDir, repeatEach, snapshotDir, testPathSegment here from Config.
 }
 
-export interface Config extends RunListConfig {
+export interface Config extends RunWithConfig {
   forbidOnly?: boolean;
   globalTimeout?: number;
   grep?: string | RegExp | (string | RegExp)[];
@@ -115,14 +115,14 @@ export interface TestType<TestArgs, TestOptions> extends TestFunction<TestArgs, 
   fail(description: string): void;
   fail(condition: boolean, description: string): void;
 
-  runWith(config?: RunListConfig): RunList;
-  runWith(alias: string, config?: RunListConfig): RunList;
-  runWith(env: Env<TestArgs>, config?: RunListConfig): RunList;
-  runWith(alias: string, env: Env<TestArgs>, config?: RunListConfig): RunList;
-  runWith<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: RunListConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2>;
-  runWith<TestArgs1, TestArgs2>(alias: string, env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: RunListConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2>;
-  runWith<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: RunListConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
-  runWith<TestArgs1, TestArgs2, TestArgs3>(alias: string, env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: RunListConfig): RunListOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
+  runWith(config?: RunWithConfig): void;
+  runWith(alias: string, config?: RunWithConfig): void;
+  runWith(env: Env<TestArgs>, config?: RunWithConfig): void;
+  runWith(alias: string, env: Env<TestArgs>, config?: RunWithConfig): void;
+  runWith<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: RunWithConfig): RunWithOrNever<TestArgs, TestArgs1 & TestArgs2>;
+  runWith<TestArgs1, TestArgs2>(alias: string, env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: RunWithConfig): RunWithOrNever<TestArgs, TestArgs1 & TestArgs2>;
+  runWith<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: RunWithConfig): RunWithOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
+  runWith<TestArgs1, TestArgs2, TestArgs3>(alias: string, env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: RunWithConfig): RunWithOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
 }
 
 export interface Env<TestArgs> {
@@ -132,10 +132,7 @@ export interface Env<TestArgs> {
   afterAll?(workerInfo: WorkerInfo): Promise<any>;
 }
 
-interface RunList {
-  // This is just a tag type - we do not expose what's inside.
-}
-type RunListOrNever<ExpectedTestArgs, CombinedTestArgs> = CombinedTestArgs extends ExpectedTestArgs ? RunList : never;
+type RunWithOrNever<ExpectedTestArgs, CombinedTestArgs> = CombinedTestArgs extends ExpectedTestArgs ? void : never;
 
 // ---------- Reporters API -----------
 

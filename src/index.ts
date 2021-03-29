@@ -20,6 +20,7 @@ import { newTestTypeImpl } from './spec';
 
 export * from './types';
 export { expect } from './expect';
+export { setConfig, globalSetup, globalTeardown } from './spec';
 
 export function newTestType<TestArgs = {}, TestOptions = {}>(): TestType<TestArgs, TestOptions> {
   return newTestTypeImpl();
