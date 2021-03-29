@@ -27,7 +27,7 @@ it('globalSetup and globalTeardown should work', async ({ runInlineTest }) => {
         console.log('teardown=' + value);
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith();
+      test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -51,7 +51,7 @@ it('globalTeardown runs after failures', async ({ runInlineTest }) => {
         console.log('teardown=' + value);
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith();
+      test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -75,7 +75,7 @@ it('globalTeardown does not run when globalSetup times out', async ({ runInlineT
         console.log('teardown=' + value);
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith();
+      test.runWith();
       export const config = { globalTimeout: 1000 };
     `,
     'a.test.js': `

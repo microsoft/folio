@@ -32,13 +32,13 @@ export class Runner {
   private _loader: Loader;
   private _rootSuite: Suite;
 
-  constructor(loader: Loader, reporter: Reporter, suiteFilter?: string[]) {
+  constructor(loader: Loader, reporter: Reporter, runListFilter?: string[]) {
     this._reporter = reporter;
     this._loader = loader;
 
     // This makes sure we don't generate 1000000 tests if only one spec is focused.
     const filtered = new Set<Suite>();
-    for (const { fileSuites } of loader.suites.values()) {
+    for (const { fileSuites } of loader.runLists()) {
       for (const fileSuite of fileSuites.values()) {
         if (fileSuite._hasOnly())
           filtered.add(fileSuite);
@@ -49,10 +49,11 @@ export class Runner {
     const grepMatcher = createMatcher(loader.config().grep);
 
     const nonEmptySuites = new Set<Suite>();
-    for (const [runListName, suite] of loader.suites) {
-      if (suiteFilter && !suiteFilter.includes(runListName))
+    for (let runListIndex = 0; runListIndex < loader.runLists().length; runListIndex++) {
+      const runList = loader.runLists()[runListIndex];
+      if (runListFilter && !runListFilter.includes(runList.alias))
         continue;
-      for (const fileSuite of suite.fileSuites.values()) {
+      for (const fileSuite of runList.fileSuites.values()) {
         if (filtered.size && !filtered.has(fileSuite))
           continue;
         const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
@@ -61,7 +62,7 @@ export class Runner {
         fileSuite._renumber();
         for (const spec of specs) {
           for (let i = 0; i < loader.config().repeatEach; ++i)
-            spec._appendTest(runListName, i);
+            spec._appendTest(runListIndex, runList.alias, i);
         }
         nonEmptySuites.add(fileSuite);
       }

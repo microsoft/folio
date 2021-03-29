@@ -22,7 +22,7 @@ it('should consider dynamically set value', async ({ runInlineTest }) => {
     'folio.config.js': `
       exports.config = { timeout: 100 };
       exports.test = folio.newTestType();
-      exports.suite = exports.test.runWith();
+      exports.test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -40,8 +40,8 @@ it('should allow different timeouts', async ({ runInlineTest }) => {
     'folio.config.js': `
       exports.config = { timeout: 100 };
       exports.test = folio.newTestType();
-      exports.suite1 = exports.test.runWith({ timeout: 200 });
-      exports.suite2 = exports.test.runWith();
+      exports.test.runWith({ timeout: 200 });
+      exports.test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -61,7 +61,7 @@ it('should prioritize value set via command line', async ({ runInlineTest }) => 
     'folio.config.js': `
       exports.config = { timeout: 100 };
       exports.test = folio.newTestType();
-      exports.suite = exports.test.runWith();
+      exports.test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

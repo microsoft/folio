@@ -49,12 +49,12 @@ it('should include suite title', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.newTestType();
-      export const suite1 = test.runWith();
+      test.runWith('my-title');
     `,
     'a.spec.js': `
       const { test } = require('./folio.config');
       test('test', ({}, testInfo) => {
-        expect(testInfo.outputPath('')).toContain('suite1');
+        expect(testInfo.outputPath('')).toContain('my-title');
       });
     `
   }, { 'retries': 2 });

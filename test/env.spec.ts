@@ -37,7 +37,7 @@ it('env should work', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -79,9 +79,9 @@ const multipleEnvs = {
     }
     exports.fooTest = folio.newTestType();
     exports.barTest = folio.newTestType();
-    exports.suite1 = exports.fooTest.runWith(new MyEnv('-env1'));
-    exports.suite2 = exports.fooTest.runWith(new MyEnv('-env2'));
-    exports.suite3 = exports.barTest.runWith(new MyEnv('-env3'));
+    exports.fooTest.runWith('suite1', new MyEnv('-env1'));
+    exports.fooTest.runWith('suite2', new MyEnv('-env2'));
+    exports.barTest.runWith('suite3', new MyEnv('-env3'));
   `,
   'a.test.js': `
     const {fooTest, barTest} = require('./folio.config');
@@ -131,7 +131,7 @@ it('should teardown env after timeout', async ({ runInlineTest, testInfo }) => {
         }
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -160,7 +160,7 @@ it('should initialize env once across files', async ({ runInlineTest }) => {
         }
       }
       exports.test = folio.newTestType();
-      exports.suite = exports.test.runWith(new MyEnv());
+      exports.test.runWith(new MyEnv());
     `,
     'a.test.js': `
       const {test} = require('./folio.config');
@@ -178,4 +178,31 @@ it('should initialize env once across files', async ({ runInlineTest }) => {
   expect(passed).toBe(2);
   expect(failed).toBe(0);
   expect(output).toContain('beforeAll\ntest1\ntest2\nafterAll');
+});
+
+it('multiple envs for a single test type should work', async ({ runInlineTest }) => {
+  const { passed } = await runInlineTest({
+    'folio.config.ts': `
+      class Env1 {
+        async beforeEach(testInfo) {
+          return { env1: testInfo.title + '-env1' };
+        }
+      }
+      class Env2 {
+        async beforeEach(testInfo) {
+          return { env2: testInfo.title + '-env2' };
+        }
+      }
+      export const test = folio.newTestType();
+      test.runWith(new Env1(), new Env2());
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      test('should work', async ({env1, env2}) => {
+        expect(env1).toBe('should work-env1');
+        expect(env2).toBe('should work-env2');
+      });
+    `,
+  });
+  expect(passed).toBe(1);
 });

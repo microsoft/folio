@@ -17,19 +17,19 @@
 import { installTransform } from './transform';
 import { Config, FullConfig } from './types';
 import { prependErrorMessage } from './util';
-import { clearCurrentFile, isSuiteDescription, setCurrentFile, SuiteDescription } from './spec';
+import { allRunLists, clearCurrentFile, setCurrentFile, RunListDescription } from './spec';
 
 type SerializedLoaderData = {
   configs: (string | Config)[];
 };
 
 export class Loader {
-  suites = new Map<string, SuiteDescription>();
   globalSetup?: () => any;
   globalTeardown?: (globalSetupResult: any) => any;
 
   private _mergedConfig: FullConfig;
   private _layeredConfigs: { config: Config, source?: string }[] = [];
+  private _runLists: RunListDescription[] = [];
 
   constructor() {
     this._mergedConfig = {} as any;
@@ -47,6 +47,8 @@ export class Loader {
   loadConfigFile(file: string) {
     const revertBabelRequire = installTransform();
     try {
+      allRunLists.splice(0, allRunLists.length);
+
       const fileExports = require(file);
       if (!fileExports || typeof fileExports !== 'object')
         throw new Error(`Configuration file must export an object`);
@@ -73,10 +75,7 @@ export class Loader {
         this.globalTeardown = fileExports.globalTeardown;
       }
 
-      for (const [name, value] of Object.entries(fileExports)) {
-        if (isSuiteDescription(value))
-          this.suites.set(name, value as SuiteDescription);
-      }
+      this._runLists.push(...allRunLists);
     } catch (e) {
       // Drop the stack.
       throw new Error(e.message);
@@ -106,6 +105,10 @@ export class Loader {
 
   config(): FullConfig {
     return this._mergedConfig;
+  }
+
+  runLists(): RunListDescription[] {
+    return this._runLists;
   }
 
   serialize(): SerializedLoaderData {

@@ -22,7 +22,7 @@ it('should be able to redefine config', async ({ runInlineTest }) => {
     'folio.config.ts': `
       export const config = { timeout: 12345 };
       export const test = folio.newTestType();
-      export const suite = test.runWith();
+      test.runWith();
     `,
     'a.test.ts': `
       import { test } from './folio.config';
@@ -44,7 +44,7 @@ it('should read config from --config', async ({ runInlineTest }) => {
         testDir: path.join(__dirname, 'dir'),
       };
       export const test = folio.newTestType();
-      export const suite = test.runWith();
+      test.runWith();
     `,
     'a.test.ts': `
       import { test } from './my.config';

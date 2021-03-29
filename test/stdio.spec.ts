@@ -49,7 +49,7 @@ it('should get stdio from env afterAll', async ({runInlineTest}) => {
         }
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'a.spec.js': `
       const { test } = require('./folio.config');

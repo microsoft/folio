@@ -50,7 +50,7 @@ async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string |
       ...files,
       'folio.config.js': `
         exports.test = folio.newTestType();
-        exports.suite = exports.test.runWith();
+        exports.test.runWith();
       `,
     };
   }

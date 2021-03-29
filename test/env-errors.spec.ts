@@ -26,7 +26,7 @@ it('should handle env afterEach timeout', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -53,7 +53,7 @@ it('should handle env afterAll timeout', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -74,7 +74,7 @@ it('should handle env beforeEach error', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -96,7 +96,7 @@ it('should handle env afterAll error', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';

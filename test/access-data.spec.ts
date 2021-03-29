@@ -27,7 +27,7 @@ it('should access error in env', async ({ runInlineTest }) => {
         }
       }
       export const test = newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'test-error-visible-in-env.spec.ts': `
       import { test } from './folio.config';
@@ -53,7 +53,7 @@ it('should access data in env', async ({ runInlineTest }) => {
         }
       }
       export const test = newTestType();
-      export const suite = test.runWith(new MyEnv());
+      test.runWith(new MyEnv());
     `,
     'test-data-visible-in-env.spec.ts': `
       import { test } from './folio.config';
