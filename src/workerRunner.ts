@@ -92,7 +92,11 @@ export class WorkerRunner extends EventEmitter {
     this._loader.deserialize(this._params.loader);
     this._suiteDescription = this._loader.suites.get(this._params.runListName);
     this._timeout = this._suiteDescription.config.timeout === undefined ? this._loader.config().timeout : this._suiteDescription.config.timeout;
-    this._workerInfo = { workerIndex: this._params.workerIndex, config: this._loader.config() };
+    this._workerInfo = {
+      workerIndex: this._params.workerIndex,
+      config: this._loader.config(),
+      globalSetupResult: this._params.globalSetupResult,
+    };
 
     if (this._isStopped)
       return;
@@ -182,15 +186,14 @@ export class WorkerRunner extends EventEmitter {
     this._testId = testId;
 
     const testInfo: TestInfo = {
+      ...this._workerInfo,
       title: spec.title,
       file: spec.file,
       line: spec.line,
       column: spec.column,
       fn: spec.fn,
       repeatEachIndex: this._params.repeatEachIndex,
-      workerIndex: this._params.workerIndex,
       retry,
-      config: this._loader.config(),
       expectedStatus: 'passed',
       annotations: [],
       duration: 0,

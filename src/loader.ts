@@ -25,6 +25,8 @@ type SerializedLoaderData = {
 
 export class Loader {
   suites = new Map<string, SuiteDescription>();
+  globalSetup?: () => any;
+  globalTeardown?: (globalSetupResult: any) => any;
 
   private _mergedConfig: FullConfig;
   private _layeredConfigs: { config: Config, source?: string }[] = [];
@@ -58,6 +60,18 @@ export class Loader {
         this.addConfig({});
       }
       this._layeredConfigs[this._layeredConfigs.length - 1].source = file;
+
+      if ('globalSetup' in fileExports) {
+        if (typeof fileExports.globalSetup !== 'function')
+          throw new Error(`"globalSetup" must be a function`);
+        this.globalSetup = fileExports.globalSetup;
+      }
+
+      if ('globalTeardown' in fileExports) {
+        if (typeof fileExports.globalTeardown !== 'function')
+          throw new Error(`"globalTeardown" must be a function`);
+        this.globalTeardown = fileExports.globalTeardown;
+      }
 
       for (const [name, value] of Object.entries(fileExports)) {
         if (isSuiteDescription(value))
