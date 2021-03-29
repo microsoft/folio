@@ -90,7 +90,7 @@ export class WorkerRunner extends EventEmitter {
 
     this._loader = new Loader();
     this._loader.deserialize(this._params.loader);
-    this._suiteDescription = this._loader.suites.get(this._params.suiteTitle);
+    this._suiteDescription = this._loader.suites.get(this._params.runListName);
     this._timeout = this._suiteDescription.config.timeout === undefined ? this._loader.config().timeout : this._suiteDescription.config.timeout;
     this._workerInfo = { workerIndex: this._params.workerIndex, config: this._loader.config() };
 
@@ -122,7 +122,7 @@ export class WorkerRunner extends EventEmitter {
     if (fileSuite) {
       fileSuite._renumber();
       fileSuite.findSpec(spec => {
-        spec._appendTest(this._params.suiteTitle, this._params.repeatEachIndex);
+        spec._appendTest(this._params.runListName, this._params.repeatEachIndex);
       });
       await this._runSuite(fileSuite);
     }
@@ -205,7 +205,7 @@ export class WorkerRunner extends EventEmitter {
       testOptions: spec.testOptions,
     };
     // Resolve artifacts and output paths.
-    testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, test.suiteTitle);
+    testInfo.relativeArtifactsPath = relativeArtifactsPath(this._loader.config(), testInfo, test.runListName);
     testInfo.outputPath = outputPath(this._loader.config(), testInfo);
     testInfo.snapshotPath = snapshotPath(this._loader.config(), testInfo);
     this._setCurrentTestInfo(testInfo);

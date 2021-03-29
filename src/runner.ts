@@ -49,8 +49,8 @@ export class Runner {
     const grepMatcher = createMatcher(loader.config().grep);
 
     const nonEmptySuites = new Set<Suite>();
-    for (const [suiteTitle, suite] of loader.suites) {
-      if (suiteFilter && !suiteFilter.includes(suiteTitle))
+    for (const [runListName, suite] of loader.suites) {
+      if (suiteFilter && !suiteFilter.includes(runListName))
         continue;
       for (const fileSuite of suite.fileSuites.values()) {
         if (filtered.size && !filtered.has(fileSuite))
@@ -61,7 +61,7 @@ export class Runner {
         fileSuite._renumber();
         for (const spec of specs) {
           for (let i = 0; i < loader.config().repeatEach; ++i)
-            spec._appendTest(suiteTitle, i);
+            spec._appendTest(runListName, i);
         }
         nonEmptySuites.add(fileSuite);
       }

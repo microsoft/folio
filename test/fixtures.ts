@@ -136,7 +136,7 @@ async function innerRunTest(testInfo: TestInfo, files: { [key: string]: string |
     for (const suite of suites) {
       for (const spec of suite.specs) {
         for (const test of spec.tests)
-          results.push(...test.runs);
+          results.push(...test.results);
       }
       visitSuites(suite.suites);
     }

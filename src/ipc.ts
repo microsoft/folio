@@ -20,7 +20,7 @@ export type { TestStatus } from './types';
 export type WorkerInitParams = {
   workerIndex: number;
   repeatEachIndex: number;
-  suiteTitle: string;
+  runListName: string;
   loader: {
     configs: (string | Config)[];
   };

@@ -30,8 +30,7 @@ export interface SerializedSuite {
 
 export type ReportFormat = {
   config: FullConfig;
-  // TODO: remove the extra object wrapper.
-  errors?: { error: TestError }[];
+  errors?: TestError[];
   suites?: SerializedSuite[];
 };
 
@@ -42,7 +41,7 @@ function toPosixPath(aPath: string): string {
 class JSONReporter extends EmptyReporter {
   config: FullConfig;
   suite: Suite;
-  private _errors: { error: TestError }[] = [];
+  private _errors: TestError[] = [];
 
   onBegin(config: FullConfig, suite: Suite) {
     this.config = config;
@@ -54,7 +53,7 @@ class JSONReporter extends EmptyReporter {
   }
 
   onError(error: TestError): void {
-    this._errors.push({ error });
+    this._errors.push(error);
   }
 
   onEnd() {
@@ -99,8 +98,7 @@ class JSONReporter extends EmptyReporter {
       timeout: test.timeout,
       annotations: test.annotations,
       expectedStatus: test.expectedStatus,
-      // TODO: rename to results.
-      runs: test.results.map(r => this._serializeTestResult(r))
+      results: test.results.map(r => this._serializeTestResult(r))
     };
   }
 

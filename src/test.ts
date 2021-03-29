@@ -59,10 +59,10 @@ export class Spec extends Base implements types.Spec {
     return !this.tests.find(r => !r.ok());
   }
 
-  _appendTest(suiteTitle: string, repeatEachIndex: number) {
+  _appendTest(runListName: string, repeatEachIndex: number) {
     const test = new Test(this);
-    test.suiteTitle = suiteTitle;
-    test._workerHash = `${suiteTitle}#repeat-${repeatEachIndex}`;
+    test.runListName = runListName;
+    test._workerHash = `${runListName}#repeat-${repeatEachIndex}`;
     test._id = `${this._ordinal}@${this.file}::[${test._workerHash}]`;
     test._repeatEachIndex = repeatEachIndex;
     this.tests.push(test);
@@ -184,12 +184,11 @@ export class Test implements types.Test {
   expectedStatus: types.TestStatus = 'passed';
   timeout = 0;
   annotations: any[] = [];
-  suiteTitle = '';
+  runListName = '';
 
   _id: string;
   _workerHash: string;
   _repeatEachIndex: number;
-  // TODO: can we get rid of some of these values?
 
   constructor(spec: Spec) {
     this.spec = spec;
