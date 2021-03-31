@@ -73,7 +73,7 @@ export interface TestInfo extends WorkerInfo {
   data: any;
 
   // Paths
-  relativeArtifactsPath: string;
+  snapshotPathSegment: string;
   snapshotPath: (...pathSegments: string[]) => string;
   outputPath: (...pathSegments: string[]) => string;
 }
