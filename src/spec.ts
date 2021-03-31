@@ -18,7 +18,7 @@ import { expect } from './expect';
 import { currentTestInfo } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
-import { Config, Env, RunWithConfig, TestInfo, WorkerInfo } from './types';
+import { Config, Env, RunWithConfig, TestInfo, TestType, WorkerInfo } from './types';
 
 Error.stackTraceLimit = 15;
 
@@ -32,6 +32,7 @@ export type RunListDescription = {
   fileSuites: Map<string, Suite>;
   env: Env<any>;
   config: RunWithConfig;
+  testType: TestType<any, any>;
 };
 
 export const configFile: {
@@ -190,6 +191,7 @@ export function newTestTypeImpl(): any {
       env: mergeEnvs(envs),
       alias,
       config: { timeout: options.timeout },
+      testType: test,
     });
   };
   return test;
