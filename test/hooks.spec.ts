@@ -161,3 +161,18 @@ it('beforeAll should be run once', async ({ runInlineTest }) => {
   });
   expect(report.output).toContain('beforeAll1-1\nbeforeAll2\ntest');
 });
+
+it('beforeEach should be able to skip a test', async ({ runInlineTest }) => {
+  const { passed, skipped, exitCode } = await runInlineTest({
+    'a.test.js': `
+      test.beforeEach(async ({}, testInfo) => {
+        testInfo.skip(testInfo.title === 'test2');
+      });
+      test('test1', async () => {});
+      test('test2', async () => {});
+    `,
+  });
+  expect(exitCode).toBe(0);
+  expect(passed).toBe(1);
+  expect(skipped).toBe(1);
+});
