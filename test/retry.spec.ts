@@ -116,3 +116,44 @@ it('should retry unhandled rejection', async ({ runInlineTest }) => {
   expect(stripAscii(result.output).split('\n')[0]).toBe('××F');
   expect(result.output).toContain('Unhandled rejection');
 });
+
+it('should retry beforeAll failure', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.js': `
+      test.beforeAll(async () => {
+        throw new Error('BeforeAll is bugged!');
+      });
+      test('passing test', async () => {
+      });
+    `
+  }, { retries: 2 });
+  expect(result.exitCode).toBe(1);
+  expect(result.passed).toBe(0);
+  expect(result.failed).toBe(1);
+  expect(stripAscii(result.output).split('\n')[0]).toBe('××F');
+  expect(result.output).toContain('BeforeAll is bugged!');
+});
+
+it('should retry env.beforeAll failure', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      class MyEnv {
+        async beforeAll(testInfo) {
+          throw new Error('env.beforeAll is bugged!');
+        }
+      }
+      export const test = folio.newTestType();
+      test.runWith(new MyEnv());
+    `,
+    'a.spec.ts': `
+      import { test } from './folio.config';
+      test('passing test', async () => {
+      });
+    `
+  }, { retries: 2 });
+  expect(result.exitCode).toBe(1);
+  expect(result.passed).toBe(0);
+  expect(result.failed).toBe(1);
+  expect(stripAscii(result.output).split('\n')[0]).toBe('××F');
+  expect(result.output).toContain('env.beforeAll is bugged!');
+});
