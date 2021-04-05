@@ -117,24 +117,26 @@ export interface TestType<TestArgs, TestOptions> extends TestFunction<TestArgs, 
 
   expect: Expect;
 
-  runWith(config?: RunWithConfig): void;
-  runWith(alias: string, config?: RunWithConfig): void;
-  runWith(env: Env<TestArgs>, config?: RunWithConfig): void;
-  runWith(alias: string, env: Env<TestArgs>, config?: RunWithConfig): void;
-  runWith<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: RunWithConfig): RunWithOrNever<TestArgs, TestArgs1 & TestArgs2>;
-  runWith<TestArgs1, TestArgs2>(alias: string, env1: Env<TestArgs1>, env2: Env<TestArgs2>, config?: RunWithConfig): RunWithOrNever<TestArgs, TestArgs1 & TestArgs2>;
-  runWith<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: RunWithConfig): RunWithOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
-  runWith<TestArgs1, TestArgs2, TestArgs3>(alias: string, env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>, config?: RunWithConfig): RunWithOrNever<TestArgs, TestArgs1 & TestArgs2 & TestArgs3>;
+  runWith(env: OptionalEnv<TestArgs>): void;
+  runWith(env: OptionalEnv<TestArgs>, config: RunWithConfig): void;
+  runWith(alias: string, env: OptionalEnv<TestArgs>): void;
+  runWith(alias: string, env: OptionalEnv<TestArgs>, config: RunWithConfig): void;
 }
 
-export interface Env<TestArgs> {
-  beforeAll?(workerInfo: WorkerInfo): Promise<any>;
-  beforeEach?(testInfo: TestInfo): Promise<TestArgs>;
-  afterEach?(testInfo: TestInfo): Promise<any>;
-  afterAll?(workerInfo: WorkerInfo): Promise<any>;
+interface EnvBeforeEach<TestArgs> {
+  beforeEach(testInfo: TestInfo): TestArgs | Promise<TestArgs>;
 }
+interface EnvOptionalBeforeEach<TestArgs> {
+  beforeEach?(testInfo: TestInfo): TestArgs | Promise<TestArgs>;
+}
+type EnvDetectBeforeEach<TestArgs> = {} extends TestArgs ? EnvOptionalBeforeEach<TestArgs> : EnvBeforeEach<TestArgs>;
+type OptionalEnv<TestArgs> = {} extends TestArgs ? Env<TestArgs> | void : Env<TestArgs>;
 
-type RunWithOrNever<ExpectedTestArgs, CombinedTestArgs> = CombinedTestArgs extends ExpectedTestArgs ? void : never;
+export type Env<TestArgs> = EnvDetectBeforeEach<TestArgs> & {
+  beforeAll?(workerInfo: WorkerInfo): any | Promise<any>;
+  afterEach?(testInfo: TestInfo): any | Promise<any>;
+  afterAll?(workerInfo: WorkerInfo): any | Promise<any>;
+}
 
 // ---------- Reporters API -----------
 

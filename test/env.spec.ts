@@ -194,7 +194,7 @@ it('multiple envs for a single test type should work', async ({ runInlineTest })
         }
       }
       export const test = folio.newTestType();
-      test.runWith(new Env1(), new Env2());
+      test.runWith(folio.merge(new Env1(), new Env2()));
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

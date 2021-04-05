@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-import type { TestType } from './types';
-import { newTestTypeImpl } from './spec';
+import type { Env, TestType } from './types';
+import { newTestTypeImpl, mergeEnvsImpl } from './spec';
 
 export * from './types';
 export { expect } from './expect';
@@ -24,4 +24,11 @@ export { setConfig, globalSetup, globalTeardown } from './spec';
 
 export function newTestType<TestArgs = {}, TestOptions = {}>(): TestType<TestArgs, TestOptions> {
   return newTestTypeImpl();
+}
+
+export function merge<TestArgs>(env: Env<TestArgs>): Env<TestArgs>;
+export function merge<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>): Env<TestArgs1 & TestArgs2>;
+export function merge<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>): Env<TestArgs1 & TestArgs2 & TestArgs3>;
+export function merge(...envs: any): Env<any> {
+  return mergeEnvsImpl(envs);
 }
