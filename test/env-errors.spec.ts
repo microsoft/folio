@@ -115,11 +115,37 @@ it('should throw when test() is called in config file', async ({ runInlineTest }
       export const test = folio.newTestType();
       test('hey', () => {});
     `,
-    'a.test.js': `
+    'a.test.ts': `
       import { test } from './folio.config';
       test('test', async ({}) => {
       });
     `,
   });
   expect(stripAscii(result.output)).toContain('Test can only be defined in a test file.');
+});
+
+it('should run afterAll from mulitple envs when one throws', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      class MyEnv1 {
+        async afterAll() {
+          throw new Error('Bad env');
+        }
+      }
+      class MyEnv2 {
+        async afterAll() {
+          console.log('env2-afterAll');
+        }
+      }
+      export const test = folio.newTestType();
+      test.runWith(new MyEnv1(), new MyEnv2());
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('test', async ({}) => {
+      });
+    `,
+  });
+  expect(result.output).toContain('Bad env');
+  expect(result.output).toContain('env2-afterAll');
 });
