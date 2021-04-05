@@ -42,7 +42,7 @@ export const configFile: {
   runLists: RunListDescription[]
 } = { runLists: [] };
 
-function mergeEnvs(envs: any[]): any {
+export function mergeEnvsImpl(envs: any[]): any {
   if (envs.length === 1)
     return envs[0];
   const forward = [...envs];
@@ -182,20 +182,21 @@ export function newTestTypeImpl(): any {
   test.skip = modifier.bind(null, 'skip');
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
-  test.runWith = (...envs: any[]) => {
+  test.runWith = (...args: any[]) => {
     let alias = '';
-    if (typeof envs[0] === 'string') {
-      alias = envs[0];
-      envs = envs.slice(1);
+    if (typeof args[0] === 'string') {
+      alias = args[0];
+      args = args.slice(1);
     }
-    let options = envs[envs.length - 1];
-    if (!envs.length || options.beforeAll || options.beforeEach || options.afterAll || options.afterEach)
-      options = {};
-    else
-      envs = envs.slice(0, envs.length - 1);
+    let env = { beforeEach: () => {} };
+    if (typeof args[0] === 'object' && args[0] && (args[0].beforeAll || args[0].beforeEach || args[0].afterAll || args[0].afterEach)) {
+      env = args[0];
+      args = args.slice(1);
+    }
+    const options = args[0] || {};
     configFile.runLists.push({
       fileSuites,
-      env: mergeEnvs(envs),
+      env,
       alias,
       config: { timeout: options.timeout },
       testType: test,

@@ -138,7 +138,7 @@ it('should run afterAll from mulitple envs when one throws', async ({ runInlineT
         }
       }
       export const test = folio.newTestType();
-      test.runWith(new MyEnv1(), new MyEnv2());
+      test.runWith(folio.merge(new MyEnv1(), new MyEnv2()));
     `,
     'a.test.ts': `
       import { test } from './folio.config';
