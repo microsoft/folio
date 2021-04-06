@@ -59,11 +59,9 @@ it('runWith should check types', async ({runTSC}) => {
       const x: number = '123';  // To match line numbers easier.
       test.runWith(new Env1());  // error
       test.runWith(folio.merge(new Env1(), new Env2()));
-      test.runWith('alias', new Env2());  // error
-      test.runWith('alias', folio.merge(new Env1(), new Env2()));
       test.runWith(new Env1(), {});  // error
       test.runWith(new Env1(), { timeout: 100 });  // error
-      test.runWith(folio.merge(new Env1(), new Env2()), { timeout: 100 });
+      test.runWith(folio.merge(new Env1(), new Env2()), { timeout: 100, tag: ['tag1', 'tag2'] });
       test.runWith({ timeout: 100 });  // error
       test.runWith('alias');  // error
       test.runWith({});  // error
@@ -79,13 +77,11 @@ it('runWith should check types', async ({runTSC}) => {
   expect(result.output).toContain('folio.config.ts(16');
   expect(result.output).not.toContain('folio.config.ts(17');
   expect(result.output).toContain('folio.config.ts(18');
-  expect(result.output).not.toContain('folio.config.ts(19');
-  expect(result.output).toContain('folio.config.ts(20');
+  expect(result.output).toContain('folio.config.ts(19');
+  expect(result.output).not.toContain('folio.config.ts(20');
   expect(result.output).toContain('folio.config.ts(21');
-  expect(result.output).not.toContain('folio.config.ts(22');
+  expect(result.output).toContain('folio.config.ts(22');
   expect(result.output).toContain('folio.config.ts(23');
-  expect(result.output).toContain('folio.config.ts(24');
-  expect(result.output).toContain('folio.config.ts(25');
 });
 
 it('runWith should allow void env', async ({runTSC}) => {
@@ -94,7 +90,7 @@ it('runWith should allow void env', async ({runTSC}) => {
       export const test = folio.newTestType();
       const x: number = '123';  // To match line numbers easier.
       test.runWith();
-      test.runWith('alias');
+      test.runWith('alias');  // error
       test.runWith('foo', 'bar');  // error
       test.runWith({ timeout: 100 });  // error
       test.runWith({}, { timeout: 100 });
@@ -108,7 +104,7 @@ it('runWith should allow void env', async ({runTSC}) => {
   expect(result.exitCode).not.toBe(0);
   expect(result.output).toContain(`folio.config.ts(5,13): error TS2322: Type 'string' is not assignable to type 'number'.`);
   expect(result.output).not.toContain('folio.config.ts(6');
-  expect(result.output).not.toContain('folio.config.ts(7');
+  expect(result.output).toContain('folio.config.ts(7');
   expect(result.output).toContain('folio.config.ts(8');
   expect(result.output).toContain('folio.config.ts(9');
   expect(result.output).not.toContain('folio.config.ts(10');

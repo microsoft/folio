@@ -121,23 +121,14 @@ async function runTests(command: any) {
   if (!fs.statSync(testDir).isDirectory())
     throw new Error(`${testDir} is not a directory`);
 
-  const allAliases = new Set(loader.runLists().map(s => s.alias));
-  const runListFilter: string[] = [];
-  const testFileFilter: string[] = [];
-  for (const arg of command.args) {
-    if (allAliases.has(arg))
-      runListFilter.push(arg);
-    else
-      testFileFilter.push(arg);
-  }
-
+  const testFileFilter: string[] = command.args;
   const allFiles = await collectFiles(testDir);
   const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(loader.config().testMatch), createMatcher(loader.config().testIgnore));
   for (const file of testFiles)
     loader.loadTestFile(file);
 
   const reporter = new Multiplexer(reporterObjects);
-  const runner = new Runner(loader, reporter, runListFilter.length ? runListFilter : undefined);
+  const runner = new Runner(loader, reporter, command.tag && command.tag.length ? command.tag : undefined);
 
   if (command.list) {
     runner.list();
@@ -209,6 +200,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('--retries <retries>', `Specify retry count (default: ${defaultConfig.retries})`)
       .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
       .option('--snapshot-dir <dir>', `Snapshot directory, relative to tests directory (default: "${defaultConfig.snapshotDir}"`)
+      .option('--tag <tag...>', `Only run tests tagged with one of the specified tags (default: all tests)`)
       .option('--test-dir <dir>', `Directory containing test files (default: current directory)`)
       .option('--test-ignore <pattern>', `Pattern used to ignore test files (default: "${defaultConfig.testIgnore}")`)
       .option('--test-match <pattern>', `Pattern used to find test files (default: "${defaultConfig.testMatch}")`)

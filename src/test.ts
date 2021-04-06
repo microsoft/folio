@@ -59,9 +59,9 @@ export class Spec extends Base implements types.Spec {
     return !this.tests.find(r => !r.ok());
   }
 
-  _appendTest(runListIndex: number, runListAlias: string, repeatEachIndex: number) {
+  _appendTest(runListIndex: number, tags: string[], repeatEachIndex: number) {
     const test = new Test(this);
-    test.alias = runListAlias;
+    test.tags = tags;
     test._runListIndex = runListIndex;
     test._workerHash = `${runListIndex}#repeat-${repeatEachIndex}`;
     test._id = `${this._ordinal}@${this.file}::[${test._workerHash}]`;
@@ -184,8 +184,8 @@ export class Test implements types.Test {
   skipped = false;
   expectedStatus: types.TestStatus = 'passed';
   timeout = 0;
-  annotations: any[] = [];
-  alias = '';
+  annotations: { type: string, description?: string }[] = [];
+  tags: string[] = [];
 
   _id: string;
   _workerHash: string;

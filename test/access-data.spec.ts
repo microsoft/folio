@@ -71,3 +71,21 @@ it('should access data in env', async ({ runInlineTest }) => {
   expect(testResult.stdout).toEqual([{ text: 'console.log\n' }]);
   expect(testResult.stderr).toEqual([{ text: 'console.error\n' }]);
 });
+
+it('should report tags in result', async ({ runInlineTest }) => {
+  const { exitCode, report } = await runInlineTest({
+    'folio.config.ts': `
+      export const test = folio.newTestType();
+      test.runWith({ tag: ['foo', 'bar'] });
+      test.runWith({ tag: 'some tag' });
+    `,
+    'test-data-visible-in-env.spec.ts': `
+      import { test } from './folio.config';
+      test('some test', async ({}, testInfo) => {
+      });
+    `
+  });
+  expect(report.suites[0].specs[0].tests[0].tags).toEqual(['foo', 'bar']);
+  expect(report.suites[0].specs[0].tests[1].tags).toEqual(['some tag']);
+  expect(exitCode).toBe(0);
+});

@@ -44,7 +44,7 @@ it('should work and remove empty dir', async ({ runInlineTest }) => {
   expect(result.results[1].retry).toBe(1);
 });
 
-it('should include runWith alias', async ({ runInlineTest }) => {
+it('should include runWith tag', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class Env {
@@ -58,10 +58,10 @@ it('should include runWith alias', async ({ runInlineTest }) => {
       }
       export const test = folio.newTestType();
       export const test2 = folio.newTestType();
-      test.runWith('foo', new Env('snapshots1'));
-      test.runWith('foo', new Env('snapshots2'));
-      test2.runWith('foo', new Env('snapshots1'));
-      test2.runWith(new Env('snapshots1'));
+      test.runWith(new Env('snapshots1'), { tag: 'foo' });
+      test.runWith(new Env('snapshots2'), { tag: 'foo' });
+      test2.runWith(new Env('snapshots1'), { tag: 'foo' });
+      test2.runWith(new Env('snapshots1'), { tag: ['a', 'b'] });
     `,
     'my-test.spec.js': `
       const { test, test2 } = require('./folio.config');
@@ -93,11 +93,11 @@ it('should include runWith alias', async ({ runInlineTest }) => {
   expect(result.output).toContain('test-results/my-test/test-1/foo2-retry1/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots2/bar.txt');
 
-  // test2, run with env and alias
+  // test2, run with env and tag=foo
   expect(result.output).toContain('test-results/my-test/test-2/foo/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots1/bar.txt');
 
-  // test2, run with env but no alias
-  expect(result.output).toContain('test-results/my-test/test-2/bar.txt');
+  // test2, run with env and tag=a,b
+  expect(result.output).toContain('test-results/my-test/test-2/a-b/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots1/bar.txt');
 });

@@ -32,7 +32,7 @@ export class Runner {
   private _loader: Loader;
   private _rootSuite: Suite;
 
-  constructor(loader: Loader, reporter: Reporter, runListFilter?: string[]) {
+  constructor(loader: Loader, reporter: Reporter, tagFilter?: string[]) {
     this._reporter = reporter;
     this._loader = loader;
 
@@ -51,7 +51,7 @@ export class Runner {
     const nonEmptySuites = new Set<Suite>();
     for (let runListIndex = 0; runListIndex < loader.runLists().length; runListIndex++) {
       const runList = loader.runLists()[runListIndex];
-      if (runListFilter && !runListFilter.includes(runList.alias))
+      if (tagFilter && !runList.tags.some(tag => tagFilter.includes(tag)))
         continue;
       for (const fileSuite of runList.fileSuites.values()) {
         if (filtered.size && !filtered.has(fileSuite))
@@ -62,7 +62,7 @@ export class Runner {
         fileSuite._renumber();
         for (const spec of specs) {
           for (let i = 0; i < loader.config().repeatEach; ++i)
-            spec._appendTest(runListIndex, runList.alias, i);
+            spec._appendTest(runListIndex, runList.tags, i);
         }
         nonEmptySuites.add(fileSuite);
       }

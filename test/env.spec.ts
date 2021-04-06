@@ -79,9 +79,9 @@ const multipleEnvs = {
     }
     exports.fooTest = folio.newTestType();
     exports.barTest = folio.newTestType();
-    exports.fooTest.runWith('suite1', new MyEnv('-env1'));
-    exports.fooTest.runWith('suite2', new MyEnv('-env2'));
-    exports.barTest.runWith('suite3', new MyEnv('-env3'));
+    exports.fooTest.runWith(new MyEnv('-env1'), { tag: 'suite1' });
+    exports.fooTest.runWith(new MyEnv('-env2'), { tag: 'suite2' });
+    exports.barTest.runWith(new MyEnv('-env3'), { tag: 'suite3' });
   `,
   'a.test.js': `
     const {fooTest, barTest} = require('./folio.config');
@@ -109,8 +109,8 @@ it('multiple envs and suites should work', async ({ runInlineTest }) => {
   expect(output).toContain('beforeAll-env3\nbeforeEach-env3\nbarTest1\nafterEach-env3\nbeforeEach-env3\nbarTest2\nafterEach-env3\nafterAll-env3');
 });
 
-it('should filter by suites', async ({ runInlineTest }) => {
-  const { passed, failed, output } = await runInlineTest(multipleEnvs, { args: ['suite2', 'suite1'] });
+it('should filter by tag', async ({ runInlineTest }) => {
+  const { passed, failed, output } = await runInlineTest(multipleEnvs, { tag: ['suite2', 'suite1'] });
   expect(passed).toBe(2);
   expect(failed).toBe(0);
   expect(output).toContain('beforeAll-env1\nbeforeEach-env1\nfooTest\nafterEach-env1\nafterAll-env1');

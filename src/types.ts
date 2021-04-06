@@ -16,12 +16,12 @@
 
 import type { Expect } from './expectType';
 
-export interface RunWithConfig {
+interface SharedConfig {
   timeout?: number;
   // TODO: move retries, outputDir, repeatEach, snapshotDir, snapshotPathSegment here from Config.
 }
 
-export interface Config extends RunWithConfig {
+export interface Config extends SharedConfig {
   forbidOnly?: boolean;
   globalTimeout?: number;
   grep?: string | RegExp | (string | RegExp)[];
@@ -77,7 +77,7 @@ export interface TestInfo extends WorkerInfo, TestModifier {
   expectedStatus: TestStatus;
   timeout: number;
   annotations: { type: string, description?: string }[];
-  testOptions: any;
+  testOptions: any;  // TODO: support tag in testOptions.
   repeatEachIndex: number;
   retry: number;
 
@@ -117,13 +117,13 @@ export interface TestType<TestArgs, TestOptions> extends TestFunction<TestArgs, 
 
   expect: Expect;
 
-  // TODO: rename alias to tag/tags, allow tags to be added per test (e.g. in testOptions)?
   runWith(env: OptionalEnv<TestArgs>): void;
   runWith(env: OptionalEnv<TestArgs>, config: RunWithConfig): void;
-  runWith(alias: string, env: OptionalEnv<TestArgs>): void;
-  runWith(alias: string, env: OptionalEnv<TestArgs>, config: RunWithConfig): void;
 }
 
+export type RunWithConfig = SharedConfig & {
+  tag?: string | string[];
+};
 interface EnvBeforeEach<TestArgs> {
   beforeEach(testInfo: TestInfo): TestArgs | Promise<TestArgs>;
 }
@@ -168,7 +168,7 @@ export interface Test {
   expectedStatus: TestStatus;
   timeout: number;
   annotations: { type: string, description?: string }[];
-  alias: string;
+  tags: string[];
   status(): 'skipped' | 'expected' | 'unexpected' | 'flaky';
   ok(): boolean;
 }

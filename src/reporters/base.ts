@@ -168,8 +168,8 @@ function formatTestHeader(config: FullConfig, test: Test, indent: string, index?
   let relativePath = path.relative(config.testDir, spec.file) || path.basename(spec.file);
   relativePath += ':' + spec.line + ':' + spec.column;
   const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
-  const runListName = test.alias ? `[${test.alias}] ` : '';
-  const header = `${indent}${index ? index + ') ' : ''}${relativePath} › ${runListName}${spec.fullTitle()}${passedUnexpectedlySuffix}`;
+  const tags = test.tags.length ? `[${test.tags.join(',')}] ` : '';
+  const header = `${indent}${index ? index + ') ' : ''}${relativePath} › ${tags}${spec.fullTitle()}${passedUnexpectedlySuffix}`;
   tokens.push(colors.red(pad(header, '=')));
   return tokens.join('\n');
 }
