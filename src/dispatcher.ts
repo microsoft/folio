@@ -113,7 +113,7 @@ export class Dispatcher {
                 file: spec.file,
               },
               repeatEachIndex: test._repeatEachIndex,
-              runListIndex: test._runListIndex,
+              runListIndex: test._runList.index,
               hash: test._workerHash,
             };
             entriesByFile.set(spec.file, entry);
@@ -205,7 +205,7 @@ export class Dispatcher {
       // Only retry expected failures, not passes and only if the test failed.
       for (const testId of failedTestIds) {
         const pair = this._testById.get(testId);
-        if (pair.test.expectedStatus === 'passed' && pair.test.results.length < this._loader.config().retries + 1) {
+        if (pair.test.expectedStatus === 'passed' && pair.test.results.length < pair.test.retries + 1) {
           pair.result = pair.test._appendTestResult();
           remaining.unshift({
             retry: pair.result.retry,

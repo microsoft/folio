@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
@@ -60,4 +62,36 @@ it('should include tag', async ({runInlineTest}) => {
   }, { 'retries': 2 });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
+});
+
+it('should remove output paths', async ({runInlineTest, testInfo}) => {
+  const paths: string[] = [];
+  const files: string[] = [];
+
+  for (let i = 0; i < 3; i++) {
+    const p = testInfo.outputPath('path' + i);
+    await fs.promises.mkdir(p, { recursive: true });
+    const f = path.join(p, 'my-file.txt');
+    await fs.promises.writeFile(f, 'contents', 'utf-8');
+    paths.push(p);
+    files.push(f);
+  }
+
+  const result = await runInlineTest({
+    'folio.config.js': `
+      exports.test = folio.newTestType();
+      exports.test.runWith({ outputDir: ${JSON.stringify(paths[0])} });
+      exports.test.runWith({ outputDir: ${JSON.stringify(paths[2])} });
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      test('my test', ({}, testInfo) => {});
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(2);
+
+  expect(fs.existsSync(files[0])).toBe(false);
+  expect(fs.existsSync(files[1])).toBe(true);
+  expect(fs.existsSync(files[2])).toBe(false);
 });

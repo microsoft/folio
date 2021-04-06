@@ -17,7 +17,7 @@
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
-it('should get top level stdio', async ({runInlineTest}) => {
+it('should repeat from command line', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
       test('test', ({}, testInfo) => {
@@ -32,4 +32,22 @@ it('should get top level stdio', async ({runInlineTest}) => {
   expect(result.output).toContain('REPEAT 1');
   expect(result.output).toContain('REPEAT 2');
   expect(result.output).not.toContain('REPEAT 3');
+});
+
+it('should repeat based on config', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.js': `
+      exports.test = folio.newTestType();
+      exports.test.runWith({ tag: 'no-repeats' });
+      exports.test.runWith({ repeatEach: 2, tag: 'two-repeats' });
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      test('my test', ({}, testInfo) => {});
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(3);
+  const tags = result.report.suites[0].specs[0].tests.map(test => test.tags[0]);
+  expect(tags).toEqual(['no-repeats', 'two-repeats', 'two-repeats']);
 });

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { RunListDescription } from './spec';
 import * as types from './types';
 
 class Base {
@@ -59,11 +60,12 @@ export class Spec extends Base implements types.Spec {
     return !this.tests.find(r => !r.ok());
   }
 
-  _appendTest(runListIndex: number, tags: string[], repeatEachIndex: number) {
+  _appendTest(runList: RunListDescription, repeatEachIndex: number, retries: number) {
     const test = new Test(this);
-    test.tags = tags;
-    test._runListIndex = runListIndex;
-    test._workerHash = `${runListIndex}#repeat-${repeatEachIndex}`;
+    test.tags = runList.tags;
+    test.retries = retries;
+    test._runList = runList;
+    test._workerHash = `${runList.index}#repeat-${repeatEachIndex}`;
     test._id = `${this._ordinal}@${this.file}::[${test._workerHash}]`;
     test._repeatEachIndex = repeatEachIndex;
     this.tests.push(test);
@@ -186,11 +188,12 @@ export class Test implements types.Test {
   timeout = 0;
   annotations: { type: string, description?: string }[] = [];
   tags: string[] = [];
+  retries = 0;
 
   _id: string;
   _workerHash: string;
   _repeatEachIndex: number;
-  _runListIndex: number;
+  _runList: RunListDescription;
 
   constructor(spec: Spec) {
     this.spec = spec;
