@@ -18,6 +18,7 @@ import { installTransform } from './transform';
 import { Config, FullConfig, Reporter } from './types';
 import { prependErrorMessage } from './util';
 import { configFile, setCurrentFile, RunListDescription } from './spec';
+import { Test } from './test';
 
 type SerializedLoaderData = {
   configs: (string | Config)[];
@@ -78,8 +79,10 @@ export class Loader {
     }
   }
 
-  config(): FullConfig {
-    return this._mergedConfig;
+  config(runList?: RunListDescription): FullConfig {
+    if (!runList)
+      return this._mergedConfig;
+    return { ...this._mergedConfig, ...runList.config };
   }
 
   runLists(): RunListDescription[] {

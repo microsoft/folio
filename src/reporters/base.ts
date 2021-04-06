@@ -146,7 +146,7 @@ export class BaseReporter implements Reporter  {
   }
 
   willRetry(test: Test, result: TestResult): boolean {
-    return result.status !== 'passed' && result.status !== test.expectedStatus && test.results.length <= this.config.retries;
+    return result.status !== 'passed' && result.status !== test.expectedStatus && test.results.length <= test.retries;
   }
 }
 

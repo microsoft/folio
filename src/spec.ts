@@ -28,6 +28,7 @@ export function setCurrentFile(file?: string) {
 }
 
 export type RunListDescription = {
+  index: number;
   tags: string[];
   fileSuites: Map<string, Suite>;
   env: Env<any>;
@@ -192,6 +193,7 @@ export function newTestTypeImpl(): any {
     const config = args[0] || {};
     const tag = 'tag' in config ? config.tag : [];
     configFile.runLists.push({
+      index: configFile.runLists.length,
       fileSuites,
       env,
       tags: Array.isArray(tag) ? tag : [tag],

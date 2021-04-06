@@ -22,7 +22,7 @@ import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, W
 import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
 import { Spec, Suite, Test } from './test';
-import { TestInfo, WorkerInfo } from './types';
+import { FullConfig, TestInfo, WorkerInfo } from './types';
 import { RunListDescription } from './spec';
 
 export class WorkerRunner extends EventEmitter {
@@ -41,7 +41,7 @@ export class WorkerRunner extends EventEmitter {
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
   private _file: string;
-  private _timeout: number;
+  private _config: FullConfig;
 
   constructor(params: WorkerInitParams) {
     super();
@@ -62,7 +62,7 @@ export class WorkerRunner extends EventEmitter {
       // TODO: separate timeout for afterAll?
       const result = await raceAgainstDeadline(this._runList.env.afterAll(this._workerInfo), this._deadline());
       if (result.timedOut)
-        throw new Error(`Timeout of ${this._timeout}ms exceeded while shutting down environment`);
+        throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
     }
   }
 
@@ -82,7 +82,7 @@ export class WorkerRunner extends EventEmitter {
   }
 
   private _deadline() {
-    return this._timeout ? monotonicTime() + this._timeout : 0;
+    return this._config.timeout ? monotonicTime() + this._config.timeout : 0;
   }
 
   private async _loadIfNeeded() {
@@ -98,10 +98,10 @@ export class WorkerRunner extends EventEmitter {
       this._outputPathSegment = tags + (sameTagsAndTestType.indexOf(this._runList) + 1);
     else
       this._outputPathSegment = tags;
-    this._timeout = this._runList.config.timeout === undefined ? this._loader.config().timeout : this._runList.config.timeout;
+    this._config = this._loader.config(this._runList);
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
-      config: this._loader.config(),
+      config: { ...this._config },
       globalSetupResult: this._params.globalSetupResult,
     };
 
@@ -112,7 +112,7 @@ export class WorkerRunner extends EventEmitter {
       // TODO: separate timeout for beforeAll?
       const result = await raceAgainstDeadline(this._runList.env.beforeAll(this._workerInfo), this._deadline());
       if (result.timedOut) {
-        this._fatalError = serializeError(new Error(`Timeout of ${this._timeout}ms exceeded while initializing environment`));
+        this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
         this._reportDoneAndStop();
       }
     }
@@ -133,7 +133,7 @@ export class WorkerRunner extends EventEmitter {
     if (fileSuite) {
       fileSuite._renumber();
       fileSuite.findSpec(spec => {
-        spec._appendTest(this._params.runListIndex, this._runList.tags, this._params.repeatEachIndex);
+        spec._appendTest(this._runList, this._params.repeatEachIndex, this._config.retries);
       });
       await this._runSuite(fileSuite);
     }
@@ -154,7 +154,7 @@ export class WorkerRunner extends EventEmitter {
       // TODO: separate timeout for beforeAll?
       const result = await raceAgainstDeadline(hook.fn(this._workerInfo), this._deadline());
       if (result.timedOut) {
-        this._fatalError = serializeError(new Error(`Timeout of ${this._timeout}ms exceeded while running beforeAll hook`));
+        this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while running beforeAll hook`));
         this._reportDoneAndStop();
       }
     }
@@ -172,7 +172,7 @@ export class WorkerRunner extends EventEmitter {
       // TODO: separate timeout for afterAll?
       const result = await raceAgainstDeadline(hook.fn(this._workerInfo), this._deadline());
       if (result.timedOut) {
-        this._fatalError = serializeError(new Error(`Timeout of ${this._timeout}ms exceeded while running afterAll hook`));
+        this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while running afterAll hook`));
         this._reportDoneAndStop();
       }
     }
@@ -213,7 +213,7 @@ export class WorkerRunner extends EventEmitter {
       status: 'passed',
       stdout: [],
       stderr: [],
-      timeout: this._timeout,
+      timeout: this._config.timeout,
       data: {},
       snapshotPathSegment: '',
       outputPath: (...pathSegments: string[]): string => {

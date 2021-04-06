@@ -18,7 +18,9 @@ import type { Expect } from './expectType';
 
 interface SharedConfig {
   timeout?: number;
-  // TODO: move retries, outputDir, repeatEach, snapshotDir, snapshotPathSegment here from Config.
+  retries?: number;
+  repeatEach?: number;
+  outputDir?: string;
 }
 
 export interface Config extends SharedConfig {
@@ -26,10 +28,7 @@ export interface Config extends SharedConfig {
   globalTimeout?: number;
   grep?: string | RegExp | (string | RegExp)[];
   maxFailures?: number;
-  outputDir?: string;
   quiet?: boolean;
-  repeatEach?: number;
-  retries?: number;
   shard?: { total: number, current: number } | null;
   snapshotDir?: string;
   testDir?: string;
@@ -169,6 +168,7 @@ export interface Test {
   timeout: number;
   annotations: { type: string, description?: string }[];
   tags: string[];
+  retries: number;
   status(): 'skipped' | 'expected' | 'unexpected' | 'flaky';
   ok(): boolean;
 }

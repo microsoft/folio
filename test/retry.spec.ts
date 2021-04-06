@@ -37,6 +37,29 @@ it('should retry failures', async ({ runInlineTest }) => {
   expect(result.results[1].status).toBe('passed');
 });
 
+it('should retry based on config', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.js': `
+      folio.setConfig({ retries: 1 });
+      exports.test = folio.newTestType();
+      exports.test.runWith({ retries: 0, tag: 'no-retries' });
+      exports.test.runWith({ retries: 2, tag: 'two-retries' });
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      test('pass', ({}, testInfo) => {
+        // Passes on the third run.
+        expect(testInfo.retry).toBe(2);
+      });
+    `
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.passed).toBe(0);
+  expect(result.flaky).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.results.length).toBe(4);
+});
+
 it('should retry timeout', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'one-timeout.spec.js': `

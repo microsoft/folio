@@ -50,8 +50,7 @@ export class Runner {
     const grepMatcher = createMatcher(loader.config().grep);
 
     const nonEmptySuites = new Set<Suite>();
-    for (let runListIndex = 0; runListIndex < loader.runLists().length; runListIndex++) {
-      const runList = loader.runLists()[runListIndex];
+    for (const runList of loader.runLists()) {
       if (tagFilter && !runList.tags.some(tag => tagFilter.includes(tag)))
         continue;
       for (const fileSuite of runList.fileSuites.values()) {
@@ -61,9 +60,10 @@ export class Runner {
         if (!specs.length)
           continue;
         fileSuite._renumber();
+        const config = loader.config(runList);
         for (const spec of specs) {
-          for (let i = 0; i < loader.config().repeatEach; ++i)
-            spec._appendTest(runListIndex, runList.tags, i);
+          for (let i = 0; i < config.repeatEach; ++i)
+            spec._appendTest(runList, i, config.retries);
         }
         nonEmptySuites.add(fileSuite);
       }
@@ -80,13 +80,17 @@ export class Runner {
   }
 
   async run(): Promise<RunResult> {
-    await removeFolderAsync(this._loader.config().outputDir).catch(e => {});
-
     if (this._loader.config().forbidOnly) {
       const hasOnly = this._rootSuite.findSpec(t => t._only) || this._rootSuite.findSuite(s => s._only);
       if (hasOnly)
         return 'forbid-only';
     }
+
+    const outputDirs = new Set<string>();
+    this._rootSuite.findTest(test => {
+      outputDirs.add(this._loader.config(test._runList).outputDir);
+    });
+    await Promise.all(Array.from(outputDirs).map(outputDir => removeFolderAsync(outputDir).catch(e => {})));
 
     const total = this._rootSuite.totalTestCount();
     if (!total)
