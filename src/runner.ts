@@ -22,6 +22,7 @@ import { Reporter } from './types';
 import { createMatcher, monotonicTime, raceAgainstDeadline } from './util';
 import { Suite } from './test';
 import { Loader } from './loader';
+import { Multiplexer } from './reporters/multiplexer';
 
 const removeFolderAsync = promisify(rimraf);
 
@@ -32,9 +33,9 @@ export class Runner {
   private _loader: Loader;
   private _rootSuite: Suite;
 
-  constructor(loader: Loader, reporter: Reporter, tagFilter?: string[]) {
-    this._reporter = reporter;
+  constructor(loader: Loader, tagFilter?: string[]) {
     this._loader = loader;
+    this._reporter = new Multiplexer(loader.reporters());
 
     // This makes sure we don't generate 1000000 tests if only one spec is focused.
     const filtered = new Set<Suite>();

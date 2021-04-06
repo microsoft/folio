@@ -17,10 +17,15 @@
 
 import type { Env, TestType } from './types';
 import { newTestTypeImpl, mergeEnvsImpl } from './spec';
+import DotReporter from './reporters/dot';
+import JSONReporter from './reporters/json';
+import JUnitReporter from './reporters/junit';
+import LineReporter from './reporters/line';
+import ListReporter from './reporters/list';
 
 export * from './types';
 export { expect } from './expect';
-export { setConfig, globalSetup, globalTeardown } from './spec';
+export { setConfig, setReporters, globalSetup, globalTeardown } from './spec';
 
 export function newTestType<TestArgs = {}, TestOptions = {}>(): TestType<TestArgs, TestOptions> {
   return newTestTypeImpl();
@@ -32,3 +37,11 @@ export function merge<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env
 export function merge(...envs: any): Env<any> {
   return mergeEnvsImpl(envs);
 }
+
+export const reporters = {
+  dot: DotReporter,
+  json: JSONReporter,
+  junit: JUnitReporter,
+  line: LineReporter,
+  list: ListReporter,
+};

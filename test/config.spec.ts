@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import * as fs from 'fs';
 import { folio } from './fixtures';
 const { it, expect } = folio;
 
@@ -62,4 +63,27 @@ it('should read config from --config', async ({ runInlineTest }) => {
   expect(result.passed).toBe(1);
   expect(result.report.suites.length).toBe(1);
   expect(result.report.suites[0].file).toBe('b.test.ts');
+});
+
+it('should be able to setReporters', async ({ runInlineTest, testInfo }) => {
+  const reportFile = testInfo.outputPath('my-report.json');
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      folio.setReporters([
+        new folio.reporters.json({ outputFile: ${JSON.stringify(reportFile)}}),
+        new folio.reporters.list(),
+      ]);
+      export const test = folio.newTestType();
+      test.runWith();
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('pass', async () => {
+      });
+    `
+  }, { reporter: '' });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+  const report = JSON.parse(fs.readFileSync(reportFile).toString());
+  expect(report.suites[0].file).toBe('a.test.ts');
 });

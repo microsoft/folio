@@ -42,6 +42,12 @@ class JSONReporter extends EmptyReporter {
   config: FullConfig;
   suite: Suite;
   private _errors: TestError[] = [];
+  private _outputFile: string | undefined;
+
+  constructor(options: { outputFile?: string } = {}) {
+    super();
+    this._outputFile = options.outputFile;
+  }
 
   onBegin(config: FullConfig, suite: Suite) {
     this.config = config;
@@ -65,7 +71,7 @@ class JSONReporter extends EmptyReporter {
       },
       suites: this.suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s),
       errors: this._errors
-    });
+    }, this._outputFile);
   }
 
   private _serializeSuite(suite: Suite): null | SerializedSuite {
@@ -117,12 +123,12 @@ class JSONReporter extends EmptyReporter {
   }
 }
 
-function outputReport(report: ReportFormat) {
+function outputReport(report: ReportFormat, outputFile: string | undefined) {
   const reportString = JSON.stringify(report, undefined, 2);
-  const outputName = process.env[`FOLIO_JSON_OUTPUT_NAME`];
-  if (outputName) {
-    fs.mkdirSync(path.dirname(outputName), { recursive: true });
-    fs.writeFileSync(outputName, reportString);
+  outputFile = outputFile || process.env[`FOLIO_JSON_OUTPUT_NAME`];
+  if (outputFile) {
+    fs.mkdirSync(path.dirname(outputFile), { recursive: true });
+    fs.writeFileSync(outputFile, reportString);
   } else {
     console.log(reportString);
   }
