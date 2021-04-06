@@ -45,11 +45,11 @@ it('should include retry token', async ({runInlineTest}) => {
   expect(result.flaky).toBe(1);
 });
 
-it('should include suite title', async ({runInlineTest}) => {
+it('should include tag', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.newTestType();
-      test.runWith('my-title');
+      test.runWith({ tag: 'my-title' });
     `,
     'a.spec.js': `
       const { test } = require('./folio.config');

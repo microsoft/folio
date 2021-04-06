@@ -28,7 +28,7 @@ export function setCurrentFile(file?: string) {
 }
 
 export type RunListDescription = {
-  alias: string;
+  tags: string[];
   fileSuites: Map<string, Suite>;
   env: Env<any>;
   config: RunWithConfig;
@@ -183,22 +183,18 @@ export function newTestTypeImpl(): any {
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
   test.runWith = (...args: any[]) => {
-    let alias = '';
-    if (typeof args[0] === 'string') {
-      alias = args[0];
-      args = args.slice(1);
-    }
     let env = { beforeEach: () => {} };
     if (typeof args[0] === 'object' && args[0] && (args[0].beforeAll || args[0].beforeEach || args[0].afterAll || args[0].afterEach)) {
       env = args[0];
       args = args.slice(1);
     }
-    const options = args[0] || {};
+    const config = args[0] || {};
+    const tag = 'tag' in config ? config.tag : [];
     configFile.runLists.push({
       fileSuites,
       env,
-      alias,
-      config: { timeout: options.timeout },
+      tags: Array.isArray(tag) ? tag : [tag],
+      config,
       testType: test,
     });
   };

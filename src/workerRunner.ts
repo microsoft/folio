@@ -92,11 +92,12 @@ export class WorkerRunner extends EventEmitter {
     this._loader = new Loader();
     this._loader.deserialize(this._params.loader);
     this._runList = this._loader.runLists()[this._params.runListIndex];
-    const sameAliasAndTestType = this._loader.runLists().filter(runList => runList.alias === this._runList.alias && runList.testType === this._runList.testType);
-    if (sameAliasAndTestType.length > 1)
-      this._outputPathSegment = this._runList.alias + (sameAliasAndTestType.indexOf(this._runList) + 1);
+    const tags = this._runList.tags.join('-');
+    const sameTagsAndTestType = this._loader.runLists().filter(runList => runList.tags.join('-') === tags && runList.testType === this._runList.testType);
+    if (sameTagsAndTestType.length > 1)
+      this._outputPathSegment = tags + (sameTagsAndTestType.indexOf(this._runList) + 1);
     else
-      this._outputPathSegment = this._runList.alias;
+      this._outputPathSegment = tags;
     this._timeout = this._runList.config.timeout === undefined ? this._loader.config().timeout : this._runList.config.timeout;
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
@@ -132,7 +133,7 @@ export class WorkerRunner extends EventEmitter {
     if (fileSuite) {
       fileSuite._renumber();
       fileSuite.findSpec(spec => {
-        spec._appendTest(this._params.runListIndex, this._runList.alias, this._params.repeatEachIndex);
+        spec._appendTest(this._params.runListIndex, this._runList.tags, this._params.repeatEachIndex);
       });
       await this._runSuite(fileSuite);
     }
