@@ -18,7 +18,7 @@ import type { Expect } from './expectType';
 
 export interface RunWithConfig {
   timeout?: number;
-  // TODO: move retries, outputDir, repeatEach, snapshotDir, testPathSegment here from Config.
+  // TODO: move retries, outputDir, repeatEach, snapshotDir, snapshotPathSegment here from Config.
 }
 
 export interface Config extends RunWithConfig {
@@ -76,8 +76,8 @@ export interface TestInfo extends WorkerInfo, TestModifier {
   // Modifiers
   expectedStatus: TestStatus;
   timeout: number;
-  annotations: any[];
-  testOptions: any; // TODO: make testOptions typed.
+  annotations: { type: string, description?: string }[];
+  testOptions: any;
   repeatEachIndex: number;
   retry: number;
 
@@ -87,7 +87,7 @@ export interface TestInfo extends WorkerInfo, TestModifier {
   error?: any;
   stdout: (string | Buffer)[];
   stderr: (string | Buffer)[];
-  data: any;
+  data: { [key: string]: any };
 
   // Paths
   snapshotPathSegment: string;
@@ -110,13 +110,14 @@ export interface TestType<TestArgs, TestOptions> extends TestFunction<TestArgs, 
     only: SuiteFunction;
   };
 
-  beforeEach: (inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void) => void;
-  afterEach: (inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void) => void;
-  beforeAll: (inner: (workerInfo: WorkerInfo) => Promise<void> | void) => void;
-  afterAll: (inner: (workerInfo: WorkerInfo) => Promise<void> | void) => void;
+  beforeEach(inner: (args: TestArgs, testInfo: TestInfo) => Promise<any> | any): void;
+  afterEach(inner: (args: TestArgs, testInfo: TestInfo) => Promise<any> | any): void;
+  beforeAll(inner: (workerInfo: WorkerInfo) => Promise<any> | any): void;
+  afterAll(inner: (workerInfo: WorkerInfo) => Promise<any> | any): void;
 
   expect: Expect;
 
+  // TODO: rename alias to tag/tags, allow tags to be added per test (e.g. in testOptions)?
   runWith(env: OptionalEnv<TestArgs>): void;
   runWith(env: OptionalEnv<TestArgs>, config: RunWithConfig): void;
   runWith(alias: string, env: OptionalEnv<TestArgs>): void;
@@ -166,7 +167,7 @@ export interface Test {
   skipped: boolean;
   expectedStatus: TestStatus;
   timeout: number;
-  annotations: any[];
+  annotations: { type: string, description?: string }[];
   alias: string;
   status(): 'skipped' | 'expected' | 'unexpected' | 'flaky';
   ok(): boolean;
@@ -179,7 +180,7 @@ export interface TestResult {
   error?: TestError;
   stdout: (string | Buffer)[];
   stderr: (string | Buffer)[];
-  data: any;
+  data: { [key: string]: any };
 }
 export interface TestError {
   message?: string;
