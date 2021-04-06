@@ -33,6 +33,8 @@ it('basics should work', async ({runTSC}) => {
         test.beforeEach(async () => {});
         test('my test', async({}, testInfo) => {
           expect(testInfo.title).toBe('my test');
+          testInfo.data.foo = 'bar';
+          testInfo.annotations[0].type;
         });
       });
     `
@@ -110,4 +112,29 @@ it('runWith should allow void env', async ({runTSC}) => {
   expect(result.output).toContain('folio.config.ts(8');
   expect(result.output).toContain('folio.config.ts(9');
   expect(result.output).not.toContain('folio.config.ts(10');
+});
+
+it('can pass sync functions everywhere', async ({runTSC}) => {
+  const result = await runTSC({
+    'a.spec.ts': `
+      test.beforeEach(() => {});
+      test.afterEach(() => {});
+      test.beforeAll(() => {});
+      test.afterAll(() => {});
+      test('my test', () => {});
+    `
+  });
+  expect(result.exitCode).toBe(0);
+});
+
+it('can return anything from hooks', async ({runTSC}) => {
+  const result = await runTSC({
+    'a.spec.ts': `
+      test.beforeEach(() => '123');
+      test.afterEach(() => 123);
+      test.beforeAll(() => [123]);
+      test.afterAll(() => ({ a: 123 }));
+    `
+  });
+  expect(result.exitCode).toBe(0);
 });
