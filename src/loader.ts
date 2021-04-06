@@ -15,7 +15,7 @@
  */
 
 import { installTransform } from './transform';
-import { Config, FullConfig } from './types';
+import { Config, FullConfig, Reporter } from './types';
 import { prependErrorMessage } from './util';
 import { configFile, setCurrentFile, RunListDescription } from './spec';
 
@@ -84,6 +84,10 @@ export class Loader {
 
   runLists(): RunListDescription[] {
     return configFile.runLists;
+  }
+
+  reporters(): Reporter[] {
+    return configFile.reporters;
   }
 
   serialize(): SerializedLoaderData {

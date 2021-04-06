@@ -18,7 +18,7 @@ import { expect } from './expect';
 import { currentTestInfo } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
-import { Config, Env, RunWithConfig, TestInfo, TestType, WorkerInfo } from './types';
+import { Config, Env, Reporter, RunWithConfig, TestInfo, TestType, WorkerInfo } from './types';
 
 Error.stackTraceLimit = 15;
 
@@ -39,8 +39,9 @@ export const configFile: {
   config?: Config,
   globalSetup?: () => any,
   globalTeardown?: (globalSetupResult: any) => any,
-  runLists: RunListDescription[]
-} = { runLists: [] };
+  runLists: RunListDescription[],
+  reporters: Reporter[],
+} = { runLists: [], reporters: [] };
 
 export function mergeEnvsImpl(envs: any[]): any {
   if (envs.length === 1)
@@ -216,4 +217,8 @@ export function globalTeardown(globalTeardownFunction: (globalSetupResult: any) 
   if (typeof globalTeardownFunction !== 'function')
     throw errorWithCallLocation(`globalTeardown takes a single function argument.`);
   configFile.globalTeardown = globalTeardownFunction;
+}
+
+export function setReporters(reporters: Reporter[]) {
+  configFile.reporters = reporters;
 }

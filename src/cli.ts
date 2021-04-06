@@ -24,11 +24,11 @@ import JSONReporter from './reporters/json';
 import JUnitReporter from './reporters/junit';
 import LineReporter from './reporters/line';
 import ListReporter from './reporters/list';
-import { Multiplexer } from './reporters/multiplexer';
 import { Runner } from './runner';
 import { Config, FullConfig, Reporter } from './types';
 import { Loader } from './loader';
 import { createMatcher } from './util';
+import { setReporters } from './spec';
 
 export const reporters: { [name: string]: new () => Reporter } = {
   'dot': DotReporter,
@@ -79,18 +79,7 @@ async function runTests(command: any) {
     process.exit(0);
   }
 
-  const reporterList: string[] = command.reporter.split(',');
-  const reporterObjects: Reporter[] = reporterList.map(c => {
-    if (reporters[c])
-      return new reporters[c]();
-    try {
-      const p = path.resolve(process.cwd(), c);
-      return new (require(p).default)();
-    } catch (e) {
-      console.error('Invalid reporter ' + c, e);
-      process.exit(1);
-    }
-  });
+  setReporters(process.env.CI ? [new DotReporter()] : [new LineReporter()]);
 
   const loader = new Loader();
   loader.addConfig(defaultConfig);
@@ -127,8 +116,22 @@ async function runTests(command: any) {
   for (const file of testFiles)
     loader.loadTestFile(file);
 
-  const reporter = new Multiplexer(reporterObjects);
-  const runner = new Runner(loader, reporter, command.tag && command.tag.length ? command.tag : undefined);
+  if (command.reporter && command.reporter.length) {
+    const reporterList: string[] = command.reporter.split(',');
+    setReporters(reporterList.map(c => {
+      if (reporters[c])
+        return new reporters[c]();
+      try {
+        const p = path.resolve(process.cwd(), c);
+        return new (require(p).default)();
+      } catch (e) {
+        console.error('Invalid reporter ' + c, e);
+        process.exit(1);
+      }
+    }));
+  }
+
+  const runner = new Runner(loader, command.tag && command.tag.length ? command.tag : undefined);
 
   if (command.list) {
     runner.list();
@@ -196,7 +199,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('--output <dir>', `Folder for output artifacts (default: "test-results")`)
       .option('--quiet', `Suppress stdio`)
       .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: ${defaultConfig.repeatEach})`)
-      .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters}`, process.env.CI ? 'dot' : 'line')
+      .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters} (default: "${process.env.CI ? 'dot' : 'line'}")`)
       .option('--retries <retries>', `Specify retry count (default: ${defaultConfig.retries})`)
       .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
       .option('--snapshot-dir <dir>', `Snapshot directory, relative to tests directory (default: "${defaultConfig.snapshotDir}"`)
