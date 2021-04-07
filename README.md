@@ -4,492 +4,460 @@ A customizable test framework to build your own test frameworks. Foundation for 
 
 ## Docs
 
-- [Fixtures](#fixtures)
-  - [Base concepts](#base-concepts)
-  - [Test fixtures](#test-fixtures)
-  - [Worker fixtures](#worker-fixtures)
+- [Isolation and flexibility](#isolation-and-flexibility)
+- [Writing a test](#writing-a-test)
+- [Writing a configuration file](#writing-a-configuration-file)
+- [Creating an environment](#creating-an-environment)
+- [Command line](#command-line)
+- [Snapshots](#snapshots)
 - [Annotations](#annotations)
-  - [Annotation API](#annotation-api)
   - [Flaky tests](#flaky-tests)
-- [Built-in fixtures](#built-in-fixtures)
-  - [testWorkerIndex](#testworkerindex)
-  - [testInfo](#testinfo)
-- [Reporters](#reporters)
-  - [Reporter API](#reporter-api)
-- [Parameters](#parameters)
-  - [In the command line](#in-the-command-line)
-  - [Generating tests](#generating-tests)
 - [Parallelism and sharding](#parallelism-and-sharding)
   - [Workers](#workers)
   - [Shards](#shards)
-- [Command line](#command-line)
+- [Advanced configuration](#advanced-configuration)
+  - [Configuration object](#configuration-object)
+  - [workerInfo](#workerinfo)
+  - [testInfo](#testinfo)
+  - [Multiple test types and configurations](#multiple-test-types-and-configurations)
+  - [Global setup and teardown](#global-setup-and-teardown)
+  - [Test options](#test-options)
+- [Reporters](#reporters)
+  - [Built-in reporters](#built-in-reporters)
+  - [Reporter API](#reporter-api)
 
-## Fixtures
+## Isolation and flexibility
 
-### Base concepts
+Folio focuses on test isolation and flexibility. This makes it fast, reliable and able to adapt to your specific needs.
 
-Folio is based on the concept of the test fixtures. Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else. Here is how typical test environment setup differs between traditional BDD and the fixture-based one:
+**Isolation**. Tests are isolated by default and can be run independently.
 
-#### Without fixtures
+- Folio runs tests in parallel by default, making your test suite much faster. Thanks to isolation, Folio reuses processes for multiple tests, suites and file, which makes it even faster.
+
+- Flaky tests can be retried without significant overhead, because Folio will only retry the failures, and not the whole suite.
+
+- Refactoring tests and moving them around is effortless, since isolated tests do not have inter-dependencies.
+
+- You can group tests based on their meaning, instead of their common setup.
+
+**Flexibility**. Folio includes advanced features, adapting to your specific testing needs.
+
+- Leverage TypeScript power with minimal effort.
+
+- Run tests in multiple configurations.
+
+- Annotate tests as skipped/failed based on configuration.
+
+- Generate comprehensive report with your custom test annotations.
+
+- Define multiple test types, for example slow tests or smoke tests, and run them differently.
+
+## Writing a test
+
+Folio follows the traditional BDD style. However, each test in Folio receives an object with Test Arguments. These arguments are isolated from other tests, which gives Folio [numerous advantages](#isolation-and-flexibility).
 
 ```ts
-describe('database', () => {
-  let database;
-  let table;
-
-  beforeAll(async () => {
-    database = await connect();
-  });
-
-  afterAll(async () => {
-    await database.dispose();
-  });
-
-  beforeEach(async ()=> {
-    table = await database.createTable();
-  });
-
-  afterEach(async () => {
-    await database.dropTable(table);
-  });
-
-  it('create user', () => {
-    table.insert();
-    // ...
-  });
-
-  it('update user', () => {
-    table.insert();
-    table.update();
-    // ...
-  });
-
-  it('delete user', () => {
-    table.insert();
-    table.delete();
-    // ...
-  });
+test('insert an entry', async ({ table }) => {
+  await table.insert({ username: 'folio', password: 'testing' });
+  const entry = await table.query({ username: 'folio' });
+  expect(entry.password).toBe('testing');
 });
 ```
 
-#### With fixtures
+In the test above, `table` is a database table created for each test, so multiple tests running in parallel won't step on each other's toes.
 
+Folio uses `expect` library for test assertions.
+
+## Writing a configuration file
+
+Folio requires a configuration file that specifies how to run the tests.
 ```ts
-import { folio } from 'folio';
+// folio.config.ts
 
-const fixtures = folio.extend<{ table: Table }, { database: Database }>();
+import * as folio from 'folio';
 
-fixtures.database.init(async ({}, run) => {
-  const database = await connect();
-  await run(database);
-  await database.dispose();
-}, { scope: 'worker' });
+// Configure Folio to look for tests in this directory, and give each test 20 seconds.
+folio.setConfig({ testDir: __dirname, timeout: 20000 });
 
-fixtures.table.init(async ({ database }, run) => {
-  const table = await database.createTable();
-  await run(table);
-  await database.dropTable(table);
-});
+// Create a new test type. For the easiest setup, you need just one.
+export const test = folio.newTestType();
 
-const { it } = fixtures.build();
+// Run tests of this type, giving them two retries.
+test.runWith({ tag: 'basic', retries: 2 });
+```
 
-it('create user', ({ table }) => {
-  table.insert();
-  // ...
-});
+Now, use the created test type in your tests.
+```ts
+// math.spec.ts
 
-it('update user', ({ table }) => {
-  table.insert();
-  table.update();
-  // ...
-});
+import { test } from './folio.config';
 
-it('delete user', ({ table }) => {
-  table.insert();
-  table.delete();
-  // ...
+test('math works?', () => {
+  test.expect(1 + 1).toBe(42);
 });
 ```
 
-You declare exact fixtures that the test needs and the runner initializes them for each test individually. Tests can use any combinations of the fixtures to tailor precise environment they need. You no longer need to wrap tests in `describe`s that set up environment, everything is declarative and typed.
-
-There are two types of fixtures: `test` and `worker`. Test fixtures are set up for each test and worker fixtures are set up for each process that runs test files.
-
-### Test fixtures
-
-Test fixtures are set up for each test. Consider the following test file:
-
-```ts
-// hello.spec.ts
-import { it, expect } from './hello.folio';
-
-it('hello world', ({ hello, world }) => {
-  expect(`${hello}, ${world}!`).toBe('Hello, World!');
-});
-
-it('hello test', ({ hello, test }) => {
-  expect(`${hello}, ${test}!`).toBe('Hello, Test!');
-});
+You can run tests with Folio [command line](#command-line):
+```sh
+$ npx folio --reporter=dot
+Running 1 test using 1 worker
+××F
+ 1 failed
 ```
 
-It uses fixtures `hello`, `world` and `test` that are set up by the framework for each test run.
+## Creating an environment
 
-Here is how test fixtures are declared and defined:
+Usually, you need some test environment to run the tests. That may be a test database, dev server, mock user data, or anything else the test needs. Folio support creating an environment that is going to be used for multiple tests.
 
-```ts
-// hello.folio.ts
-import { folio as base } from 'folio';
-export { expect } from 'folio';
-
-// Define test fixtures |hello|, |world| and |test|.
-type TestFixtures = {
-  hello: string;
-  world: string;
-  test: string;
-};
-const fixtures = base.extend<TestFixtures>();
-
-fixtures.hello.init(async ({}, run) => {
-  // Set up fixture.
-  const value = 'Hello';
-  // Run the test with the fixture value.
-  await run(value);
-  // Clean up fixture.
-});
-
-fixtures.world.init(async ({}, run) => {
-  await run('World');
-});
-
-fixtures.test.init(async ({}, run) => {
-  await run('Test');
-});
-
-const folio = fixtures.build();
-export const it = folio.it;
-```
-
-Fixtures can use other fixtures.
+Let's see how to add an environment, based on the example from [writing a configuration file](#writing-a-configuration-file) section.
 
 ```ts
-  ...
-  helloWorld: async ({hello, world}, run) => {
-    await run(`${hello}, ${world}!`);
+// folio.config.ts
+
+import * as folio from 'folio';
+
+folio.setConfig({ testDir: __dirname, timeout: 20000 });
+
+// Type declaration specifies that tests receive a table instance.
+export const test = folio.newTestType<{ table: DatabaseTable }>();
+
+class DatabaseEnv {
+  host: string;
+  database: Database;
+  table: DatabaseTable;
+
+  constructor(host: string) {
+    this.host = host;
   }
-  ...
+
+  async beforeAll() {
+    // Connect to a database once, it is expensive.
+    this.database = await connectToTestDatabase(this.host);
+  }
+
+  async beforeEach() {
+    // Create a new table for each test and return it.
+    this.table = await this.database.createTable();
+    return { table: this.table };
+  }
+
+  async afterEach() {
+    // Do not leave extra tables around.
+    await this.table.drop();
+  }
+
+  async afterAll() {
+    await this.database.disconnect();
+  }
+}
+
+// Run our tests in two environments, against a local database and a staging database.
+test.runWith(new DatabaseEnv('localhost:1234'));
+test.runWith(new DatabaseEnv('staging-db.my-company.com:1234'));
 ```
 
-With fixtures, test organization becomes flexible - you can put tests that make sense next to each other based on what they test, not based on the environment they need.
+In this example we see that tests declare the arguments they need, and environment provides the arguments. We can run tests in multiple configurations when needed.
 
-
-### Worker fixtures
-
-Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Folio will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
-
-Here is how the test looks:
-```ts
-// express.spec.ts
-import { it, expect } from './express.folio';
-import fetch from 'node-fetch';
-
-it('fetch 1', async ({ port }) => {
-  const result = await fetch(`http://localhost:${port}/1`);
-  expect(await result.text()).toBe('Hello World 1!');
-});
-
-it('fetch 2', async ({ port }) => {
-  const result = await fetch(`http://localhost:${port}/2`);
-  expect(await result.text()).toBe('Hello World 2!');
-});
-```
-
-And here is how fixtures are declared and defined:
-```ts
-// express.folio.ts
-import { folio as base } from 'folio';
-export { expect } from 'folio';
-import express from 'express';
-import type { Express } from 'express';
-
-// Declare worker fixtures.
-type ExpressWorkerFixtures = {
-  port: number;
-  express: Express;
-};
-const fixtures = base.extend<{}, ExpressWorkerFixtures>();
-
-// |port| fixture has a unique value value of the worker process index.
-fixtures.port.init(async ({ testWorkerIndex }, run) => {
-  await run(3000 + testWorkerIndex);
-}, { scope: 'worker' });
-
-// |express| fixture starts automatically for every worker.
-fixtures.express.init(async ({ port }, run) => {
-  const app = express();
-  app.get('/1', (req, res) => {
-    res.send('Hello World 1!')
-  });
-  app.get('/2', (req, res) => {
-    res.send('Hello World 2!')
-  });
-  let server;
-  console.log('Starting server...');
-  await new Promise(f => {
-    server = app.listen(port, f);
-  });
-  console.log('Server ready');
-  await run(server);
-  console.log('Stopping server...');
-  await new Promise(f => server.close(f));
-  console.log('Server stopped');
-}, { scope: 'worker', auto: true });
-
-const folio = fixtures.build();
-export const it = folio.it;
-```
+Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. By using `beforeAll` and `afterAll` methods, environment can set up expensive resources to be shared between tests in each worker process. Folio will reuse the worker process for as many test files as it can, provided their environments match.
 
 ## Annotations
 
-Unfortunately, tests do not always pass. Folio supports test annotations to deal with failures, flakiness and tests that are not yet ready. Pass an additional callback to annotate a test or a suite.
+Unfortunately, tests do not always pass. Folio supports test annotations to deal with failures, flakiness and tests that are not yet ready.
 
 ```ts
-it('my test', test => {
-  test.skip(!!process.env.SKIP_MY_TESTS, 'Do not run this test when SKIP_MY_TESTS is set');
-  test.slow('This increases test timeout 3x.');
-}, async ({ table }) => {
+test('basic', async ({ table }) => {
+  test.skip(version == 'v2', 'This test crashes the database in v2, better not run it.');
+  // Test goes here.
+});
+
+test('can insert multiple rows', async ({ table }) => {
+  test.fail('Broken test, but we should fix it!');
   // Test goes here.
 });
 ```
 
-### Annotation API
-
-There are multiple annotation methods, each supports an optional condition and description. Respective annotation applies only when the condition is truthy.
-Annotations may depend on the parameters. There could be multiple annotations on the same test, possibly in different configurations. For example, to skip a test in unsupported api version, and mark it slow otherwise:
-
-```ts
-it('my test', (test, { version }) => {
-  test.fixme(version === 'v2', 'This test should be passing, but it crashes the database server v2. Better not run it.');
-  test.slow('The table is very large');
-}, async ({ table }) => {
-  // Test goes here.
-});
-```
+Annotations may be conditional, in which case they only apply when the condition is truthy. Annotations may depend on test arguments. There could be multiple annotations on the same test, possibly in different configurations.
 
 Possible annotations include:
 - `skip` marks the test as irrelevant. Folio does not run such a test. Use this annotation when the test is not applicable in some configuration.
-   ```ts
-   test.skip(version === 'v1', 'Not supported in version 1.');
-   ```
 - `fail` marks the test as failing. Folio will run this test and ensure it does indeed fail. If the test does not fail, Folio will complain.
-   ```ts
-   test.fail('We have a bug.');
-   ```
-- `slow` marks the test as slow, increasing the timeout 3x.
-   ```ts
-   test.slow(version === 'v2', 'Version 2 is slow with sequential updates.');
-   ```
 - `fixme` marks the test as failing. Folio will not run this test, as opposite to the `fail` annotation. Use `fixme` when running the test is slow or crashy.
-   ```ts
-   test.fixme('Crashes the database server. Better not run it. We should fix that.');
-   ```
 
 ### Flaky tests
 
-Folio deals with flaky tests with retries. Pass the maximum number of retries when running the tests:
+Folio deals with flaky tests with retries. Pass the maximum number of retries when running the tests, or set them in the [configuration file](#writing-a-configuration-file).
 ```sh
-npx folio test/ --retries 3
+npx folio --retries=3
 ```
 
-Failing tests will be retried multiple times until they pass, or the maximium number of retries is reached. By default, if the test fails at least once, Folio will report it as "flaky". For example, if the test passes on the second retry, Folio will report something like this:
+Failing tests will be retried multiple times until they pass, or until the maximum number of retries is reached. Folio will report all tests that failed at least once:
 
 ```sh
 Running 1 test using 1 worker
 ××±
 1 flaky
   1) my.test.js:1:1
-    <Error from the first run>
-    Retry #1
-    <Error from the first retry>
 ```
 
-If the test is flaky, the test run will be considered succeeded.
+## Command line
 
-## Built-in fixtures
+Just point Folio to your [configuration file](#writing-a-configuration-file).
+```sh
+$ npx folio --config=my.config.ts
+```
 
-Folio provides a few built-in fixtures with information about tests.
+Run Folio with `--help` to see all command line options.
+```sh
+$ npx folio --help
+```
 
-### testWorkerIndex
+## Snapshots
 
-This is a worker fixture - a unique number assigned to the worker process. Depending on the configuration and failures, Folio might use different number of worker processes to run all the tests. For example, Folio will always start a new worker process after a failing test. To differentiate between workers, use `testWorkerIndex`. Consider an example where we run a new http server per worker process, and use `testWorkerIndex` to produce a unique port number:
+Folio includes the ability to produce and compare snapshots. For that, use `expect().toMatchSnapshot()`. Folio auto-detects the content type, and includes built-in matchers for text, png and jpeg images, and arbitrary binary data.
 
 ```ts
-import { folio as base } from 'folio';
+test('my test', async () => {
+  const image = await produceSomePNG();
+  expect(image).toMatchSnapshot('optional-snapshot-name.png');
+});
+```
+
+Snapshots are stored under `__snapshots__` directory by default, configurable via [command line](#command-line) or [configuration object](#configuration-object).
+
+## Parallelism and sharding
+
+Folio runs tests in parallel by default, using multiple worker processes.
+
+### Workers
+
+Each worker process creates a new environment to run tests. Different environments always run in different workers. By default, Folio reuses the worker as much as it can to make testing faster, but it will create a new worker when retrying tests, after any test failure, to initialize a new environment, or just to speed up test execution if the worker limit is not reached.
+
+The maximum number of worker processes is controlled via [command line](#command-line) or [configuration object](#configuration-object).
+
+Each worker process is assigned a unique sequential index that is accessible through [`workerInfo`](#workerinfo) object.
+
+### Shards
+
+Folio can shard a test suite, so that it can be executed on multiple machines. For that,  pass `--shard=x/y` to the command line. For example, to split the suite into three shards, each running one third of the tests:
+```sh
+$ npx folio --shard=1/3
+$ npx folio --shard=2/3
+$ npx folio --shard=3/3
+```
+
+## Advanced configuration
+
+### Configuration object
+
+Configuration file uses `setConfig` function to provide a global configuration to Folio. It may contain the following properties:
+- `forbidOnly: boolean` - Whether to disallow `test.only` exclusive tests. Useful on CI.
+- `globalTimeout: number` - Total timeout in milliseconds for the whole test run.
+- `grep: string | RegExp | (string | RegExp)[]` - Patterns to filter tests based on their title.
+- `maxFailures: number` - Stop testing after reaching the maximum number of failures.
+- `outputDir: string` - Directory to place any artifacts produced by tests.
+- `quiet: boolean` - Whether to suppress stdout and stderr from the tests.
+- `repeatEach: number` - Each test will be repeated multiple times.
+- `retries: number` - Maximum number of retries.
+- `shard: { total: number, current: number } | null` - [Shard](#shards) information.
+- `snapshotDir: string` - [Snapshots](#snapshots) directory.
+- `testDir: string` - Directory where Folio should search for tests.
+- `testIgnore: string | RegExp | (string | RegExp)[]` - Patterns to ignore test files.
+- `testMatch: string | RegExp | (string | RegExp)[]` - Patterns to match test files.
+- `timeout: number` - Test timeout in milliseconds.
+- `updateSnapshots: boolean` - Whether to update snapshots instead of comparing them.
+- `workers: number` - The maximum number of worker processes.
+
+```ts
+// folio.config.ts
+
+import * as folio from 'folio';
+
+folio.setConfig({
+  // Typically, you'd place folio.config.ts in the tests directory.
+  testDir: __dirname,
+  // 20 seconds per test.
+  timeout: 20000,
+  // Forbid test.only on CI.
+  forbidOnly: !!process.env.CI,
+  // Two retries for each test.
+  retries: 2,
+});
+```
+
+### workerInfo
+
+Depending on the configuration and failures, Folio might use different number of worker processes to run all the tests. For example, Folio will always start a new worker process after a failing test.
+
+Environment and hooks receive `workerInfo` in the `beforeAll` and `afterAll` calls. The following information is accessible from the `workerInfo`:
+- `config` - [Configuration object](#configuration-object).
+- `globalSetupResult` - The value returned by the [global setup function](#global-setup-and-teardown).
+- `workerIndex: number` - A unique sequential index assigned to the worker process.
+
+Consider an example where we run a new http server per worker process, and use `workerIndex` to produce a unique port number:
+
+```ts
 import * as http from 'http';
 
-const fixtures = base.extend<{}, { server: http.Server }>();
+class ServerEnv {
+  server: http.Server;
 
-fixtures.server.init(async ({ testWorkerIndex }, runTest) => {
-  const server = await http.createServer();
-  server.listen(9000 + testWorkerIndex);
-  await new Promise(ready => server.once('listening', ready));
-  await runTest(server);
-  await new Promise(done => server.close(done));
-}, { scope: 'worker' });
+  async beforeAll(workerInfo) {
+    this.server = http.createServer();
+    this.server.listen(9000 + workerInfo.workerIndex);
+    await new Promise(ready => this.server.once('listening', ready));
+  }
 
-export const folio = fixtures.build();
+  async beforeEach() {
+    // Provide the server as a test argument.
+    return { server: this.server };
+  }
+
+  async afterAll() {
+    await new Promise(done => this.server.close(done));
+  }
+}
 ```
 
 ### testInfo
 
-This is a test fixture that contains information about the currently running test. It can be used in any test fixture, for example:
+Environment and hooks receive `testInfo` in the `beforeEach` and `afterEach` calls. It is also available to the test function as a second parameter.
 
-```ts
-import { folio as base } from 'folio';
-import * as sqlite3 from 'sqlite3';
+In addition to everything from the [`workerInfo`](#workerinfo), the following information is accessible before and during the test:
+- `title: string` - Test title.
+- `file: string` - Full path to the test file.
+- `line: number` - Line number of the test declaration.
+- `column: number` - Column number of the test declaration.
+- `fn: Function` - Test body function.
+- `repeatEachIndex: number` - The sequential repeat index.
+- `retry: number` - The sequential number of the test retry (zero means first run).
+- `expectedStatus: 'passed' | 'failed' | 'timedOut'` - Whether this test is expected to pass, fail or timeout.
+- `timeout: number` - Test timeout.
+- `testOptions` - [Test options](#test-options).
+- `annotations` - [Annotations](#annotations) that were added to the test.
+- `data: object` - Any additional data that you'd like to attach to the test, it will appear in the report.
+- `snapshotPathSegment: string` - Relative path, used to locate snapshots for the test.
+- `snapshotPath(...pathSegments: string[])` - Function that returns the full path to a particular snapshot for the test.
+- `outputPath(...pathSegments: string[])` - Function that returns the full path to a particular output artifact for the test.
 
-const fixtures = base.extend<{ db: sqlite3.Database }>();
-
-// Create a database per test.
-fixtures.db.init(async ({ testInfo }, runTest) => {
-  const dbFile = testInfo.outputPath('db.sqlite');
-  let db;
-  await new Promise(ready => {
-    db = new sqlite3.Database(dbFile, ready);
-  });
-  await runTest(db);
-  await new Promise(done => db.close(done));
-});
-
-export const folio = fixtures.build();
-```
-
-The following information is accessible to test fixtures when running the test:
-- `title: string` - test title.
-- `file: string` - full path to the test file.
-- `location: string` - full path, line and column numbers of the test declaration.
-- `fn: Function` - test body funnction.
-- `parameters: object` - parameter values used in this particular test run.
-- `workerIndex: number` - unique number assigned to the worker process, same as `testWorkerIndex` fixture.
-- `repeatEachIndex: number` - the sequential repeat index, when running with `--repeat-each=<number>` option.
-- `retry: number` - the sequential number of the test retry (zero means first run), when running with `--retries=<number>` option.
-- `expectedStatus: 'passed' | 'failed' | 'timedOut'` - whether this test is expected to pass, fail or timeout.
-- `timeout: number` - test timeout. Defaults to `--timeout=<ms>` option, but also affected by `test.slow()` annotation.
-- `relativeArtifactsPath: string` - relative path, used to store snapshots and output for the test.
-- `snapshotPath(...pathSegments: string[])` - function that returns the full path to a particular snapshot for the test.
-- `outputPath(...pathSegments: string[])` - function that returns the full path to a particular output artifact for the test.
-
-The following information is accessible after the test body has finished (e.g. after calling `runTest`):
+The following information is accessible after the test body has finished, in `afterEach`:
 - `duration: number` - test running time in milliseconds.
 - `status: 'passed' | 'failed' | 'timedOut'` - the actual test result.
 - `error` - any error thrown by the test body.
 - `stdout: (string | Buffer)[]` - array of stdout chunks collected during the test run.
 - `stderr: (string | Buffer)[]` - array of stderr chunks collected during the test run.
 
-Here is an example fixture that automatically saves debug logs on the test failure:
+Here is an example test that saves some information:
 ```ts
-import { folio as base } from 'folio';
-import * as debug from 'debug';
-import * as fs from 'fs';
-
-const fixtures = base.extend<{ saveLogsOnFailure: void }>();
-
-fixtures.saveLogsOnFailure.init(async ({ testInfo }, runTest) => {
-  const logs = [];
-  debug.log = (...args) => logs.push(args.map(String).join(''));
-  debug.enable('mycomponent');
-  await runTest();
-  if (testInfo.status !== testInfo.expectedStatus)
-    fs.writeFileSync(testInfo.outputPath('logs.txt'), logs.join('\n'), 'utf8');
-}, { auto: true );
-
-export const folio = fixtures.build();
-```
-
-## Parameters
-
-It is common to run tests in different configurations, for example running web app tests against multiple browsers or testing two different API versions. Folio supports this via parameters: you can define a parameter and start using it in a test or a fixture.
-
-In the example below, we create the `version` parameter, which is used by the `apiUrl` fixture.
-
-```ts
-// api.folio.ts
-import { folio as base } from 'folio';
-export { expect } from 'folio';
-
-// Declare types for new fixture and parameters
-const fixtures = base.extend<{}, { apiUrl: string }, { version: string }>();
-
-// Define version parameter with description and default value
-fixtures.version.initParameter('API version', 'v1');
-
-// Define apiUrl fixture which uses the version parameter
-fixtures.apiUrl.init(async ({ version }, runTest) => {
-  const server = await startServer();
-  await runTest(`http://localhost/api/${version}`);
-  await server.close();
-}, { scope: 'worker' });
-
-const folio = fixtures.build();
-export const it = folio.it;
-```
-
-Your tests can use the `apiUrl` fixture, which depends on the `version` parameter.
-
-```ts
-// api.spec.ts
-import { it, expect } from './api.folio';
-import fetch from 'node-fetch';
-
-it('fetch 1', async ({ apiUrl }) => {
-  const result = await fetch(`${apiUrl}/hello`);
-  expect(await result.text()).toBe('Hello');
+test('my test needs a file', async ({ table }, testInfo) => {
+  // Do something with the table...
+  // ... and then save contents.
+  const filePath = testInfo.outputPath('table.dat');
+  await table.saveTo(filePath);
 });
 ```
 
-### In the command line
+Here is an example environment that automatically saves debug logs when the test fails:
+```ts
+import * as debug from 'debug';
+import * as fs from 'fs';
 
-Given the above example, it is possible to run tests against a specific API version from CLI.
+class LogEnv {
+  async beforeEach() {
+    this.logs = [];
+    debug.log = (...args) => this.logs.push(args.map(String).join(''));
+    debug.enable('mycomponent');
+  }
 
-```sh
-# Run against the default version (v1).
-npx folio tests
-
-# Run against the specified version.
-npx folio tests -p version=v2
-
-# Run against multiple versions.
-npx folio tests -p version=v1 -p version=v2
+  async afterEach(testInfo) {
+    if (testInfo.status !== testInfo.expectedStatus)
+      fs.writeFileSync(testInfo.outputPath('logs.txt'), this.logs.join('\n'), 'utf8');
+  }
+}
 ```
 
-### Generating tests
+### Multiple test types and configurations
 
-You can also generate tests for different values of parameters. This enables you to reuse your tests across different configurations.
+Often times there is a need for different kinds of tests, for example generic tests that use a database table, or some specialized tests that require more elaborate setup. It is also common to run tests in multiple configurations. Folio allows you to configure everything by writing code for maximum flexibility.
 
 ```ts
-// api.folio.ts
-// ...
-const folio = builder.build();
+// folio.config.ts
 
-// Generate three versions of each test that directly or indirectly
-// depends on the |version| parameter.
-folio.generateParametrizedTests('version', ['v1', 'v2', 'v3']);
+import * as folio from 'folio';
+import * as fs from 'fs';
 
-export const it = folio.it;
+// 20 seconds timeout, 3 retries by default.
+folio.setConfig({ testDir: __dirname, timeout: 20000, retries: 3 });
+
+// Define as many test types as you'd like:
+// - Generic test that only needs a string value.
+export const test = folio.newTestType<{ value: string }>();
+// - Slow test for extra-large data sets.
+export const slowTest = folio.newTestType<{ value: string }>();
+// - Smoke tests should not be flaky.
+export const smokeTest = folio.newTestType<{ value: string }>();
+// - Some special tests that require different arguments.
+export const fooTest = folio.newTestType<{ foo: number }>();
+
+// Environment with some test value.
+class MockedEnv {
+  async beforeEach() {
+    return { value: 'some test value' };
+  }
+}
+
+// Another environment that reads from file.
+class FileEnv {
+  constructor() {
+    this.value = fs.readFileSync('data.txt', 'utf8');
+  }
+  async beforeEach() {
+    return { value: this.value };
+  }
+}
+
+// This environment provides foo.
+class FooEnv {
+  async beforeEach() {
+    return { foo: 42 };
+  }
+}
+
+// Now we can run tests in different configurations:
+// - Generics tests with two different environments.
+test.runWith(new MockedEnv());
+test.runWith(new FileEnv());
+// - Increased timeout for slow tests.
+slowTest.runWith(new MockedEnv(), { timeout: 100000 });
+// - Smoke tests without retries.
+//   Adding a tag allows to run just the smoke tests with `npx folio --tag=smoke`.
+smokeTest.runWith(new MockedEnv(), { retries: 0, tag: 'smoke' });
+// - Special foo tests need a different environment.
+fooTest.runWith(new FooEnv());
 ```
 
-Run the generated tests via CLI.
+We can now use our test types to write tests:
+```ts
+// some.spec.ts
 
-```sh
-# Run tests across specified versions.
-npx folio
-```
+import { test, slowTest, smokeTest, fooTest } from './folio.config';
 
-With [annotations](#annotations), you can specify skip criteria that relies on parameter values.
+test('just a test', async ({ value }) => {
+  // This test will be retried.
+  expect(value).toBe('wrong value');
+});
 
-```js
-it('tests new api features', (test, { version }) => {
-  test.skip(version !== 'v3', 'skipped for older api versions');
-}, async ({ apiUrl }) => {
-  // Test function
+slowTest('does a lot', async ({ value }) => {
+  for (let i = 0; i < 100000; i++)
+    expect(value).toBe('some test value');
+});
+
+smokeTest('a smoke test', async ({ value }) => {
+  // This test will not be retried.
+  expect(value).toBe('some test value');
+});
+
+fooTest('a smoke test', async ({ foo }) => {
+  // Note the different test arguments.
+  expect(foo).toBe(42);
 });
 ```
