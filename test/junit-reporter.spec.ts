@@ -93,9 +93,10 @@ it('render flaky', async ({ runInlineTest }) => {
 
 it('render stdout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'a.test.js': `
+    'a.test.ts': `
+      import colors from 'colors/safe';
       test('one', async ({}) => {
-        console.log('Hello world');
+        console.log(colors.yellow('Hello world'));
       });
     `,
   }, { retries: 3, reporter: 'junit' });
@@ -103,6 +104,29 @@ it('render stdout', async ({ runInlineTest }) => {
   const suite = xml['testsuites']['testsuite'][0];
   expect(suite['system-out'].length).toBe(1);
   expect(suite['system-out'][0]).toContain('Hello world');
+  expect(suite['system-out'][0]).not.toContain('u00');
+  expect(result.exitCode).toBe(0);
+});
+
+it('render stdout without ansi escapes', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      export const test = folio.newTestType();
+      test.runWith();
+      folio.setReporters([new folio.reporters.junit({ stripANSIControlSequences: true })]);
+    `,
+    'a.test.ts': `
+      import colors from 'colors/safe';
+      import { test } from './folio.config';
+      test('one', async ({}) => {
+        console.log(colors.yellow('Hello world'));
+      });
+    `,
+  }, { reporter: '' });
+  const xml = parseXML(result.output);
+  const suite = xml['testsuites']['testsuite'][0];
+  expect(suite['system-out'].length).toBe(1);
+  expect(suite['system-out'][0].trim()).toBe('Hello world');
   expect(result.exitCode).toBe(0);
 });
 
