@@ -489,3 +489,117 @@ folio.setConfig({ testDir: __dirname });
 export const test = folio.newTestType();
 test.runWith();
 ```
+
+### Test options
+
+It is common for [test environment](#creating-an-environment) to be configurable, based on various test needs. There are three different ways to configure environment in Folio, depending on the usecase.
+
+#### Creating multiple environment instances
+
+Use this method when you need to run tests in multiple configurations. See [Multiple test types and configurations](#multiple-test-types-and-configurations) for more details.
+
+```ts
+// folio.config.ts
+
+import * as folio from 'folio';
+
+folio.setConfig({ testDir: __dirname });
+
+// This environment provides a "hello".
+class HelloEnv {
+  constructor(name) {
+    this.name = name;
+  }
+
+  async beforeEach() {
+    return { hello: `Hello, ${this.name}!` };
+  }
+}
+
+// Tests expect a "hello" value.
+export const test = folio.newTestType<{ hello: string }>();
+
+// Now, run tests in two configurations.
+test.runWith(new HelloEnv('world'));
+test.runWith(new HelloEnv('test'));
+```
+
+#### Providing function as a test argument
+
+Use this method when you need to alter the environment for some tests.
+
+Define the function provided by environment. In our case, this will be `createHello` function.
+```ts
+// folio.config.ts
+
+import * as folio from 'folio';
+
+folio.setConfig({ testDir: __dirname });
+
+// This environment provides a function "createHello".
+class CreateHelloEnv {
+  async beforeEach() {
+    return { createHello: (name: string) => `Hello, ${name}!` };
+  }
+}
+
+// Tests expect a "createHello" function.
+export const test = folio.newTestType<{ createHello: (name: string) => string }>();
+test.runWith(new CreateHelloEnv());
+```
+
+Now use this function in the test.
+```ts
+// some.spec.ts
+
+import { test } from './folio.config';
+import { expect } from 'folio';
+
+test('my test', ({ createHello }) => {
+  expect(createHello('world')).toBe('Hello, world!');
+});
+```
+
+#### Using testInfo.testOptions
+
+Use this method when you have common configuration that needs to often change between tests.
+
+```ts
+// folio.config.ts
+
+import * as folio from 'folio';
+
+folio.setConfig({ testDir: __dirname });
+
+// This environment provides a "hello".
+class HelloEnv {
+  async beforeEach(testInfo: folio.TestInfo) {
+    // Don't forget to account for missing "name".
+    return { hello: `Hello, ${testInfo.testOptions.name || ''}!` };
+  }
+}
+
+// Tests expect a "hello" value, and can provide a "name" option.
+export const test = folio.newTestType<{ hello: string }, { name: string }>();
+test.runWith(new HelloEnv());
+```
+
+Now use the options in the test.
+```ts
+// some.spec.ts
+
+import { test } from './folio.config';
+import { expect } from 'folio';
+
+const options = { name: 'world' };
+test('my test with options', options, ({ hello }) => {
+  expect(hello).toBe('Hello, world!');
+});
+test('another test, same options', options, ({ hello }) => {
+  expect(hello).toBe('Hello, world!');
+});
+
+test('different options', { name: 'test' }, ({ hello }) => {
+  expect(hello).toBe('Hello, test!');
+});
+```
