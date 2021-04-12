@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from 'folio';
-import { folio } from './fixtures';
-const { it } = folio;
 
-it('should work and remove empty dir', async ({ runInlineTest }) => {
+import { test, expect } from './config';
+
+test('should work and remove empty dir', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my-test.spec.js': `
       test('test 1', async ({}, testInfo) => {
@@ -44,7 +43,7 @@ it('should work and remove empty dir', async ({ runInlineTest }) => {
   expect(result.results[1].retry).toBe(1);
 });
 
-it('should include runWith tag', async ({ runInlineTest }) => {
+test('should include runWith tag', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class Env {

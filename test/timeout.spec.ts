@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should run env afterEach on timeout', async ({ runInlineTest }) => {
+test('should run env afterEach on timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {

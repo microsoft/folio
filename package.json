@@ -1,6 +1,6 @@
 {
   "name": "folio",
-  "version": "0.3.23",
+  "version": "0.4.0",
   "bin": {
     "folio": "./cli.js"
   },
@@ -12,7 +12,7 @@
     "lint": "eslint . --ext js,ts",
     "build": "tsc --build tsconfig.json",
     "watch": "tsc --build tsconfig.json --watch",
-    "test": "folio test/ --test-ignore=assets/**",
+    "test": "folio --config=test/config.ts",
     "prepare": "npm run build",
     "roll-dogfood": "cd dogfood && npm install",
     "prepublishOnly": "rm tsconfig.tsbuildinfo && rm -rf out && npm run build"

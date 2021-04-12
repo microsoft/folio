@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { folio, stripAscii } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
 const tests = {
   'a.spec.ts': `
@@ -36,7 +35,7 @@ const tests = {
   `,
 };
 
-it('should respect shard=1/2', async ({ runInlineTest }) => {
+test('should respect shard=1/2', async ({ runInlineTest }) => {
   const result = await runInlineTest(tests, { shard: '1/2' });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(3);
@@ -46,7 +45,7 @@ it('should respect shard=1/2', async ({ runInlineTest }) => {
   expect(result.output).toContain('test3-done');
 });
 
-it('should respect shard=2/2', async ({ runInlineTest }) => {
+test('should respect shard=2/2', async ({ runInlineTest }) => {
   const result = await runInlineTest(tests, { shard: '2/2' });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);

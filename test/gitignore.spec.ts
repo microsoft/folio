@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should respect .gitignore', async ({runInlineTest}) => {
+test('should respect .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a.spec.js`,
     'a.spec.js': `
@@ -31,7 +30,7 @@ it('should respect .gitignore', async ({runInlineTest}) => {
   expect(result.passed).toBe(1);
 });
 
-it('should respect nested .gitignore', async ({runInlineTest}) => {
+test('should respect nested .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a/.gitignore': `a.spec.js`,
     'a/a.spec.js': `
@@ -45,7 +44,7 @@ it('should respect nested .gitignore', async ({runInlineTest}) => {
   expect(result.passed).toBe(1);
 });
 
-it('should respect enclosing .gitignore', async ({runInlineTest}) => {
+test('should respect enclosing .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a/a.spec.js`,
     'a/a.spec.js': `
@@ -59,7 +58,7 @@ it('should respect enclosing .gitignore', async ({runInlineTest}) => {
   expect(result.passed).toBe(1);
 });
 
-it('should respect enclosing .gitignore', async ({runInlineTest}) => {
+test('should respect enclosing .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a/a.spec.js`,
     'a/a.spec.js': `

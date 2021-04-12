@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { folio } from './fixtures';
-const { it, expect } = folio;
 
-it('env should work', async ({ runInlineTest }) => {
+import { test, expect } from './config';
+
+test('env should work', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
       global.logs = [];
@@ -100,7 +100,7 @@ const multipleEnvs = {
   `,
 };
 
-it('multiple envs and suites should work', async ({ runInlineTest }) => {
+test('multiple envs and suites should work', async ({ runInlineTest }) => {
   const { passed, failed, output } = await runInlineTest(multipleEnvs);
   expect(passed).toBe(4);
   expect(failed).toBe(0);
@@ -109,7 +109,7 @@ it('multiple envs and suites should work', async ({ runInlineTest }) => {
   expect(output).toContain('beforeAll-env3\nbeforeEach-env3\nbarTest1\nafterEach-env3\nbeforeEach-env3\nbarTest2\nafterEach-env3\nafterAll-env3');
 });
 
-it('should filter by tag', async ({ runInlineTest }) => {
+test('should filter by tag', async ({ runInlineTest }) => {
   const { passed, failed, output } = await runInlineTest(multipleEnvs, { tag: ['suite2', 'suite1'] });
   expect(passed).toBe(2);
   expect(failed).toBe(0);
@@ -117,7 +117,7 @@ it('should filter by tag', async ({ runInlineTest }) => {
   expect(output).toContain('beforeAll-env2\nbeforeEach-env2\nfooTest\nafterEach-env2\nafterAll-env2');
 });
 
-it('should teardown env after timeout', async ({ runInlineTest, testInfo }) => {
+test('should teardown env after timeout', async ({ runInlineTest }, testInfo) => {
   const file = testInfo.outputPath('log.txt');
   require('fs').writeFileSync(file, '', 'utf8');
   const result = await runInlineTest({
@@ -146,7 +146,7 @@ it('should teardown env after timeout', async ({ runInlineTest, testInfo }) => {
   expect(content).toContain('afterAll');
 });
 
-it('should initialize env once across files', async ({ runInlineTest }) => {
+test('should initialize env once across files', async ({ runInlineTest }) => {
   const { passed, failed, output } = await runInlineTest({
     'folio.config.js': `
       global.logs = [];
@@ -180,7 +180,7 @@ it('should initialize env once across files', async ({ runInlineTest }) => {
   expect(output).toContain('beforeAll\ntest1\ntest2\nafterAll');
 });
 
-it('multiple envs for a single test type should work', async ({ runInlineTest }) => {
+test('multiple envs for a single test type should work', async ({ runInlineTest }) => {
   const { passed } = await runInlineTest({
     'folio.config.ts': `
       class Env1 {

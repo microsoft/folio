@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio, stripAscii } from './fixtures';
-const { it, expect } = folio;
+import { test, expect, stripAscii } from './config';
 
-it('should handle env afterEach timeout', async ({ runInlineTest }) => {
+test('should handle env afterEach timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
@@ -44,7 +43,7 @@ it('should handle env afterEach timeout', async ({ runInlineTest }) => {
   expect(result.failed).toBe(2);
 });
 
-it('should handle env afterAll timeout', async ({ runInlineTest }) => {
+test('should handle env afterAll timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
@@ -65,7 +64,7 @@ it('should handle env afterAll timeout', async ({ runInlineTest }) => {
   expect(result.output).toContain('Timeout of 500ms');
 });
 
-it('should handle env beforeEach error', async ({ runInlineTest }) => {
+test('should handle env beforeEach error', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
@@ -87,7 +86,7 @@ it('should handle env beforeEach error', async ({ runInlineTest }) => {
   expect(result.output).toContain('Worker failed');
 });
 
-it('should handle env afterAll error', async ({ runInlineTest }) => {
+test('should handle env afterAll error', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
@@ -109,7 +108,7 @@ it('should handle env afterAll error', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-it('should throw when test() is called in config file', async ({ runInlineTest }) => {
+test('should throw when test() is called in config file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.newTestType();
@@ -124,7 +123,7 @@ it('should throw when test() is called in config file', async ({ runInlineTest }
   expect(stripAscii(result.output)).toContain('Test can only be defined in a test file.');
 });
 
-it('should run afterAll from mulitple envs when one throws', async ({ runInlineTest }) => {
+test('should run afterAll from mulitple envs when one throws', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv1 {

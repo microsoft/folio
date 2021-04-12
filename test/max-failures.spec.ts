@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { folio } from './fixtures';
-const { it, expect } = folio;
 
-it('max-failures should work', async ({ runInlineTest }) => {
+import { test, expect } from './config';
+
+test('max-failures should work', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.js': `
       for (let i = 0; i < 10; ++i) {
@@ -38,7 +38,7 @@ it('max-failures should work', async ({ runInlineTest }) => {
   expect(result.output.split('\n').filter(l => l.includes('expect(')).length).toBe(16);
 });
 
-it('-x should work', async ({ runInlineTest }) => {
+test('-x should work', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.js': `
       for (let i = 0; i < 10; ++i) {

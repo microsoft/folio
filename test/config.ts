@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import { folio as base, TestInfo } from 'folio';
+import * as folio from 'folio';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import type { ReportFormat } from '../src/reporters/json';
-export { config } from 'folio';
 
-export type RunResult = {
+type RunResult = {
   exitCode: number,
   output: string,
   passed: number,
@@ -33,7 +32,7 @@ export type RunResult = {
   results: any[],
 };
 
-export type TSCResult = {
+type TSCResult = {
   output: string;
   exitCode: number;
 };
@@ -41,7 +40,7 @@ export type TSCResult = {
 type Files = { [key: string]: string | Buffer };
 type Params = { [key: string]: string | number | boolean | string[] };
 
-async function writeFiles(testInfo: TestInfo, files: Files) {
+async function writeFiles(testInfo: folio.TestInfo, files: Files) {
   const baseDir = testInfo.outputPath();
 
   const headerJS = `
@@ -195,30 +194,51 @@ async function runFolio(baseDir: string, params: any, env: any): Promise<RunResu
   };
 }
 
-type TestState = {
+type TestArgs = {
   writeFiles: (files: Files) => void;
   runInlineTest: (files: Files, params?: Params, env?: any) => Promise<RunResult>;
   runTSC: (files: Files) => Promise<TSCResult>;
 };
 
-const fixtures = base.extend<{}, TestState>();
+class Env implements folio.Env<TestArgs> {
+  private _runResult: RunResult | undefined;
+  private _tscResult: TSCResult | undefined;
 
-fixtures.writeFiles.init(async ({ testInfo }, run) => {
-  await run(async files => {
-    await writeFiles(testInfo, files);
-  });
-});
+  private async _writeFiles(testInfo: folio.TestInfo, files: Files) {
+    return writeFiles(testInfo, files);
+  }
 
-fixtures.runInlineTest.init(async ({ testInfo }, run) => {
-  let result: RunResult;
-  await run(async (files, options = {}, env = {}) => {
-    const baseDir = await writeFiles(testInfo, files);
-    result = await runFolio(baseDir, options, env);
-    return result;
-  });
-  if (testInfo.status !== testInfo.expectedStatus)
-    console.log(result.output);
-});
+  private async _runInlineTest(testInfo: folio.TestInfo, files: Files, options: Params = {}, env: any = {}) {
+    const baseDir = await this._writeFiles(testInfo, files);
+    this._runResult = await runFolio(baseDir, options, env);
+    return this._runResult;
+  }
+
+  private async _runTSC(testInfo: folio.TestInfo, files: Files) {
+    const baseDir = await this._writeFiles(testInfo, { ...files, 'tsconfig.json': JSON.stringify(TSCONFIG) });
+    this._tscResult = await runTSC(baseDir);
+    return this._tscResult;
+  }
+
+  async beforeEach(testInfo: folio.TestInfo) {
+    return {
+      writeFiles: this._writeFiles.bind(this, testInfo),
+      runInlineTest: this._runInlineTest.bind(this, testInfo),
+      runTSC: this._runTSC.bind(this, testInfo),
+    };
+  }
+
+  async afterEach(testInfo: folio.TestInfo) {
+    if (testInfo.status !== testInfo.expectedStatus) {
+      if (this._runResult)
+        console.log(this._runResult.output);
+      if (this._tscResult)
+        console.log(this._tscResult.output);
+    }
+    this._runResult = undefined;
+    this._tscResult = undefined;
+  }
+}
 
 const TSCONFIG = {
   'compilerOptions': {
@@ -236,24 +256,17 @@ const TSCONFIG = {
   ]
 };
 
-fixtures.runTSC.init(async ({ testInfo }, run) => {
-  let result: TSCResult;
-  await run(async files => {
-    const baseDir = await writeFiles(testInfo, { ...files, 'tsconfig.json': JSON.stringify(TSCONFIG) });
-    result = await runTSC(baseDir);
-    return result;
-  });
-  if (testInfo.status !== testInfo.expectedStatus)
-    console.log(result.output);
-});
-
-export const folio = fixtures.build();
-
 const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
 export function stripAscii(str: string): string {
   return str.replace(asciiRegex, '');
 }
 
-export function firstStackFrame(stack: string): string {
-  return stack.split('\n').find(line => line.trim().startsWith('at'));
-}
+folio.setConfig({
+  testDir: __dirname,
+  testIgnore: 'assets/**',
+  timeout: 10000,
+});
+
+export { expect } from 'folio';
+export const test = folio.newTestType<TestArgs>();
+test.runWith(new Env());

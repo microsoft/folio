@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { firstStackFrame, folio, stripAscii } from './fixtures';
-const { it, expect } = folio;
 
-it('hooks should work with env', async ({ runInlineTest }) => {
+import { test, expect } from './config';
+
+test('hooks should work with env', async ({ runInlineTest }) => {
   const { results } = await runInlineTest({
     'folio.config.ts': `
       global.logs = [];
@@ -80,7 +80,7 @@ it('hooks should work with env', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-it('afterEach failure should not prevent other hooks and env teardown', async ({ runInlineTest }) => {
+test('afterEach failure should not prevent other hooks and env teardown', async ({ runInlineTest }) => {
   const report = await runInlineTest({
     'folio.config.ts': `
       global.logs = [];
@@ -116,7 +116,7 @@ it('afterEach failure should not prevent other hooks and env teardown', async ({
   expect(report.results[0].error.message).toContain('afterEach2');
 });
 
-it('beforeEach failure should prevent the test, but not other hooks', async ({ runInlineTest }) => {
+test('beforeEach failure should prevent the test, but not other hooks', async ({ runInlineTest }) => {
   const report = await runInlineTest({
     'a.test.js': `
       test.describe('suite', () => {
@@ -140,7 +140,7 @@ it('beforeEach failure should prevent the test, but not other hooks', async ({ r
   expect(report.results[0].error.message).toContain('beforeEach2');
 });
 
-it('beforeAll should be run once', async ({ runInlineTest }) => {
+test('beforeAll should be run once', async ({ runInlineTest }) => {
   const report = await runInlineTest({
     'a.test.js': `
       test.describe('suite1', () => {
@@ -162,7 +162,7 @@ it('beforeAll should be run once', async ({ runInlineTest }) => {
   expect(report.output).toContain('beforeAll1-1\nbeforeAll2\ntest');
 });
 
-it('beforeEach should be able to skip a test', async ({ runInlineTest }) => {
+test('beforeEach should be able to skip a test', async ({ runInlineTest }) => {
   const { passed, skipped, exitCode } = await runInlineTest({
     'a.test.js': `
       test.beforeEach(async ({}, testInfo) => {

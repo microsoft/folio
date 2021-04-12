@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should create two suites with different options', async ({ runInlineTest }) => {
+test('should create two suites with different options', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       global.logs = [];

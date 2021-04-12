@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should repeat from command line', async ({runInlineTest}) => {
+test('should repeat from command line', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
       test('test', ({}, testInfo) => {
@@ -34,7 +33,7 @@ it('should repeat from command line', async ({runInlineTest}) => {
   expect(result.output).not.toContain('REPEAT 3');
 });
 
-it('should repeat based on config', async ({ runInlineTest }) => {
+test('should repeat based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       exports.test = folio.newTestType();
