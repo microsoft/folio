@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio, stripAscii } from './fixtures';
-const { it, expect } = folio;
+import { test, expect, stripAscii } from './config';
 
-it('should retry failures', async ({ runInlineTest }) => {
+test('should retry failures', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'retry-failures.spec.js': `
       test('flake', async ({}, testInfo) => {
@@ -37,7 +36,7 @@ it('should retry failures', async ({ runInlineTest }) => {
   expect(result.results[1].status).toBe('passed');
 });
 
-it('should retry based on config', async ({ runInlineTest }) => {
+test('should retry based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       folio.setConfig({ retries: 1 });
@@ -60,7 +59,7 @@ it('should retry based on config', async ({ runInlineTest }) => {
   expect(result.results.length).toBe(4);
 });
 
-it('should retry timeout', async ({ runInlineTest }) => {
+test('should retry timeout', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'one-timeout.spec.js': `
       test('timeout', async () => {
@@ -74,7 +73,7 @@ it('should retry timeout', async ({ runInlineTest }) => {
   expect(stripAscii(output).split('\n')[0]).toBe('××T');
 });
 
-it('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
+test('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
   const { exitCode, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
       test('succeeds', () => {
@@ -88,7 +87,7 @@ it('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
   expect(output).toContain('passed unexpectedly');
 });
 
-it('should not retry unexpected pass', async ({ runInlineTest }) => {
+test('should not retry unexpected pass', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
       test('succeeds', () => {
@@ -103,7 +102,7 @@ it('should not retry unexpected pass', async ({ runInlineTest }) => {
   expect(stripAscii(output).split('\n')[0]).toBe('F');
 });
 
-it('should not retry expected failure', async ({ runInlineTest }) => {
+test('should not retry expected failure', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'expected-failure.spec.js': `
       test('fails', () => {
@@ -122,7 +121,7 @@ it('should not retry expected failure', async ({ runInlineTest }) => {
   expect(stripAscii(output).split('\n')[0]).toBe('··');
 });
 
-it('should retry unhandled rejection', async ({ runInlineTest }) => {
+test('should retry unhandled rejection', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'unhandled-rejection.spec.js': `
       test('unhandled rejection', async () => {
@@ -140,7 +139,7 @@ it('should retry unhandled rejection', async ({ runInlineTest }) => {
   expect(result.output).toContain('Unhandled rejection');
 });
 
-it('should retry beforeAll failure', async ({ runInlineTest }) => {
+test('should retry beforeAll failure', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.js': `
       test.beforeAll(async () => {
@@ -157,7 +156,7 @@ it('should retry beforeAll failure', async ({ runInlineTest }) => {
   expect(result.output).toContain('BeforeAll is bugged!');
 });
 
-it('should retry env.beforeAll failure', async ({ runInlineTest }) => {
+test('should retry env.beforeAll failure', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {

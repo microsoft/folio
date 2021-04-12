@@ -15,10 +15,9 @@
  */
 
 import * as fs from 'fs';
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should be able to redefine config', async ({ runInlineTest }) => {
+test('should be able to redefine config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       folio.setConfig({ timeout: 12345 });
@@ -37,7 +36,7 @@ it('should be able to redefine config', async ({ runInlineTest }) => {
   expect(result.passed).toBe(1);
 });
 
-it('should read config from --config', async ({ runInlineTest }) => {
+test('should read config from --config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my.config.ts': `
       import * as path from 'path';
@@ -65,7 +64,7 @@ it('should read config from --config', async ({ runInlineTest }) => {
   expect(result.report.suites[0].file).toBe('b.test.ts');
 });
 
-it('should be able to setReporters', async ({ runInlineTest, testInfo }) => {
+test('should be able to setReporters', async ({ runInlineTest }, testInfo) => {
   const reportFile = testInfo.outputPath('my-report.json');
   const result = await runInlineTest({
     'folio.config.ts': `

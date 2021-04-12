@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-import { expect } from 'folio';
-import { folio } from './fixtures';
-const { it } = folio;
+import { test, expect } from './config';
 
-it('should work directly', async ({ runInlineTest }) => {
+test('should work directly', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('test 1', async ({}, testInfo) => {
@@ -32,7 +30,7 @@ it('should work directly', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should work via env', async ({ runInlineTest }) => {
+test('should work via env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {

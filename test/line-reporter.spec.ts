@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio, stripAscii } from './fixtures';
-const { it, expect } = folio;
+import { test, expect, stripAscii } from './config';
 
-it('render unexpected after retry', async ({ runInlineTest }) => {
+test('render unexpected after retry', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('one', async ({}) => {
@@ -35,7 +34,7 @@ it('render unexpected after retry', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-it('render flaky', async ({ runInlineTest }) => {
+test('render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('one', async ({}, testInfo) => {

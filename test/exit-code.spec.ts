@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import { folio, stripAscii } from './fixtures';
-const { it, expect } = folio;
+import { test, expect, stripAscii } from './config';
 
 function monotonicTime(): number {
   const [seconds, nanoseconds] = process.hrtime();
   return seconds * 1000 + (nanoseconds / 1000000 | 0);
 }
 
-it('should collect stdio', async ({ runInlineTest }) => {
+test('should collect stdio', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'stdio.spec.js': `
       test('stdio', () => {
@@ -40,7 +39,7 @@ it('should collect stdio', async ({ runInlineTest }) => {
   expect(stderr).toEqual([{ text: 'stderr text' }, { buffer: Buffer.from('stderr buffer').toString('base64') }]);
 });
 
-it('should work with not defined errors', async ({runInlineTest}) => {
+test('should work with not defined errors', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'is-not-defined-error.spec.ts': `
       foo();
@@ -50,7 +49,7 @@ it('should work with not defined errors', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(1);
 });
 
-it('should work with typescript', async ({ runInlineTest }) => {
+test('should work with typescript', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'global-foo.js': `
       global.foo = true;
@@ -74,7 +73,7 @@ it('should work with typescript', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should repeat each', async ({ runInlineTest }) => {
+test('should repeat each', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'one-success.spec.js': `
       test('succeeds', () => {
@@ -88,7 +87,7 @@ it('should repeat each', async ({ runInlineTest }) => {
   expect(report.suites[0].specs[0].tests.length).toBe(3);
 });
 
-it('should allow flaky', async ({ runInlineTest }) => {
+test('should allow flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('flake', async ({}, testInfo) => {
@@ -100,7 +99,7 @@ it('should allow flaky', async ({ runInlineTest }) => {
   expect(result.flaky).toBe(1);
 });
 
-it('should fail on unexpected pass', async ({ runInlineTest }) => {
+test('should fail on unexpected pass', async ({ runInlineTest }) => {
   const { exitCode, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
       test('succeeds', () => {
@@ -114,7 +113,7 @@ it('should fail on unexpected pass', async ({ runInlineTest }) => {
   expect(output).toContain('passed unexpectedly');
 });
 
-it('should respect global timeout', async ({ runInlineTest }) => {
+test('should respect global timeout', async ({ runInlineTest }) => {
   const now = monotonicTime();
   const { exitCode, output } = await runInlineTest({
     'one-timeout.spec.js': `
@@ -128,19 +127,19 @@ it('should respect global timeout', async ({ runInlineTest }) => {
   expect(monotonicTime() - now).toBeGreaterThan(2900);
 });
 
-it('should exit with code 1 if the specified folder does not exist', async ({runInlineTest}) => {
+test('should exit with code 1 if the specified folder does not exist', async ({runInlineTest}) => {
   const result = await runInlineTest({}, { 'test-dir': '111111111111.js' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`111111111111.js does not exist`);
 });
 
-it('should exit with code 1 if passed a file name', async ({runInlineTest}) => {
+test('should exit with code 1 if passed a file name', async ({runInlineTest}) => {
   const result = await runInlineTest({'test.spec.js': ''}, { 'test-dir': 'test.spec.js' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`test.spec.js is not a directory`);
 });
 
-it('should exit with code 1 when config is not found', async ({runInlineTest}) => {
+test('should exit with code 1 when config is not found', async ({runInlineTest}) => {
   const result = await runInlineTest({'my.config.js': ''}, { 'config': 'foo.config.js' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`foo.config.js does not exist`);

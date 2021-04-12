@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should consider dynamically set value', async ({ runInlineTest }) => {
+test('should consider dynamically set value', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       folio.setConfig({ timeout: 100 });
@@ -35,7 +34,7 @@ it('should consider dynamically set value', async ({ runInlineTest }) => {
   expect(result.passed).toBe(1);
 });
 
-it('should allow different timeouts', async ({ runInlineTest }) => {
+test('should allow different timeouts', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       folio.setConfig({ timeout: 100 });
@@ -56,7 +55,7 @@ it('should allow different timeouts', async ({ runInlineTest }) => {
   expect(result.output).toContain('timeout:200');
 });
 
-it('should prioritize value set via command line', async ({ runInlineTest }) => {
+test('should prioritize value set via command line', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       folio.setConfig({ timeout: 100 });

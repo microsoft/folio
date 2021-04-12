@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio, stripAscii } from './fixtures';
-const { it, expect } = folio;
+import { test, expect, stripAscii } from './config';
 
-it('handle long test names', async ({ runInlineTest }) => {
+test('handle long test names', async ({ runInlineTest }) => {
   const title = 'title'.repeat(30);
   const result = await runInlineTest({
     'a.test.js': `

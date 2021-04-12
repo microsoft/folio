@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { folio } from './fixtures';
-const { it, expect } = folio;
 
-it('sanity', async ({runTSC}) => {
+import { test, expect } from './config';
+
+test('sanity', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
       test.foo();
@@ -26,7 +26,7 @@ it('sanity', async ({runTSC}) => {
   expect(result.output).toContain(`Property 'foo' does not exist`);
 });
 
-it('basics should work', async ({runTSC}) => {
+test('basics should work', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
       test.describe('suite', () => {
@@ -42,7 +42,7 @@ it('basics should work', async ({runTSC}) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('runWith should check types', async ({runTSC}) => {
+test('runWith should check types', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
       class Env1 {
@@ -84,7 +84,7 @@ it('runWith should check types', async ({runTSC}) => {
   expect(result.output).toContain('folio.config.ts(23');
 });
 
-it('runWith should allow void env', async ({runTSC}) => {
+test('runWith should allow void env', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
       export const test = folio.newTestType();
@@ -110,7 +110,7 @@ it('runWith should allow void env', async ({runTSC}) => {
   expect(result.output).not.toContain('folio.config.ts(10');
 });
 
-it('can pass sync functions everywhere', async ({runTSC}) => {
+test('can pass sync functions everywhere', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
       test.beforeEach(() => {});
@@ -123,7 +123,7 @@ it('can pass sync functions everywhere', async ({runTSC}) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('can return anything from hooks', async ({runTSC}) => {
+test('can return anything from hooks', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
       test.beforeEach(() => '123');

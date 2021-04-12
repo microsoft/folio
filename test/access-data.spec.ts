@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should access error in env', async ({ runInlineTest }) => {
+test('should access error in env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       const { newTestType } = folio;
@@ -43,7 +42,7 @@ it('should access error in env', async ({ runInlineTest }) => {
   expect(data.message).toContain('Object.is equality');
 });
 
-it('should access data in env', async ({ runInlineTest }) => {
+test('should access data in env', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
       const { newTestType } = folio;
@@ -72,7 +71,7 @@ it('should access data in env', async ({ runInlineTest }) => {
   expect(testResult.stderr).toEqual([{ text: 'console.error\n' }]);
 });
 
-it('should report tags in result', async ({ runInlineTest }) => {
+test('should report tags in result', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.newTestType();

@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { folio } from './fixtures';
-const { it, expect } = folio;
 
-it('globalSetup and globalTeardown should work', async ({ runInlineTest }) => {
+import { test, expect } from './config';
+
+test('globalSetup and globalTeardown should work', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
       let value;
@@ -42,7 +42,7 @@ it('globalSetup and globalTeardown should work', async ({ runInlineTest }) => {
   expect(output).toContain('teardown=42');
 });
 
-it('globalTeardown runs after failures', async ({ runInlineTest }) => {
+test('globalTeardown runs after failures', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
       let value;
@@ -68,7 +68,7 @@ it('globalTeardown runs after failures', async ({ runInlineTest }) => {
   expect(output).toContain('teardown=42');
 });
 
-it('globalTeardown does not run when globalSetup times out', async ({ runInlineTest }) => {
+test('globalTeardown does not run when globalSetup times out', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       folio.globalSetup(async () => {

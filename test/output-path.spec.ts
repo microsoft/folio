@@ -16,10 +16,9 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should include repeat token', async ({runInlineTest}) => {
+test('should include repeat token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
       test('test', ({}, testInfo) => {
@@ -34,7 +33,7 @@ it('should include repeat token', async ({runInlineTest}) => {
   expect(result.passed).toBe(3);
 });
 
-it('should include retry token', async ({runInlineTest}) => {
+test('should include retry token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
       test('test', ({}, testInfo) => {
@@ -47,7 +46,7 @@ it('should include retry token', async ({runInlineTest}) => {
   expect(result.flaky).toBe(1);
 });
 
-it('should include tag', async ({runInlineTest}) => {
+test('should include tag', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.newTestType();
@@ -64,7 +63,7 @@ it('should include tag', async ({runInlineTest}) => {
   expect(result.passed).toBe(1);
 });
 
-it('should remove output paths', async ({runInlineTest, testInfo}) => {
+test('should remove output paths', async ({runInlineTest}, testInfo) => {
   const paths: string[] = [];
   const files: string[] = [];
 

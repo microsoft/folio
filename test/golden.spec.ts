@@ -17,10 +17,9 @@
 import colors from 'colors/safe';
 import * as fs from 'fs';
 import * as path from 'path';
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should support golden', async ({runInlineTest}) => {
+test('should support golden', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
     'a.spec.js': `
@@ -32,7 +31,7 @@ it('should support golden', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should fail on wrong golden', async ({runInlineTest}) => {
+test('should fail on wrong golden', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `Line1
 Line2
@@ -64,7 +63,7 @@ Line7`,
   expect(result.output).toContain('Line7');
 });
 
-it('should write missing expectations', async ({runInlineTest, testInfo}) => {
+test('should write missing expectations', async ({runInlineTest}, testInfo) => {
   const result = await runInlineTest({
     'a.spec.js': `
       test('is a test', ({}) => {
@@ -78,7 +77,7 @@ it('should write missing expectations', async ({runInlineTest, testInfo}) => {
   expect(data.toString()).toBe('Hello world');
 });
 
-it('should update expectations', async ({runInlineTest, testInfo}) => {
+test('should update expectations', async ({runInlineTest}, testInfo) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
     'a.spec.js': `
@@ -94,7 +93,7 @@ it('should update expectations', async ({runInlineTest, testInfo}) => {
   expect(data.toString()).toBe('Hello world updated');
 });
 
-it('should match multiple snapshots', async ({runInlineTest}) => {
+test('should match multiple snapshots', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
     '__snapshots__/a/is-a-test/snapshot_1.txt': `Snapshot2`,
@@ -110,7 +109,7 @@ it('should match multiple snapshots', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should use provided name', async ({runInlineTest}) => {
+test('should use provided name', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
     'a.spec.js': `
@@ -122,7 +121,7 @@ it('should use provided name', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should use provided name via options', async ({runInlineTest}) => {
+test('should use provided name via options', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
     'a.spec.js': `
@@ -134,7 +133,7 @@ it('should use provided name via options', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should compare binary', async ({runInlineTest}) => {
+test('should compare binary', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.dat': Buffer.from([1,2,3,4]),
     'a.spec.js': `
@@ -146,7 +145,7 @@ it('should compare binary', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should compare PNG images', async ({runInlineTest}) => {
+test('should compare PNG images', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
@@ -159,7 +158,7 @@ it('should compare PNG images', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should compare different PNG images', async ({runInlineTest}) => {
+test('should compare different PNG images', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
@@ -174,7 +173,7 @@ it('should compare different PNG images', async ({runInlineTest}) => {
   expect(result.output).toContain('snapshot-diff.png');
 });
 
-it('should respect threshold', async ({runInlineTest}) => {
+test('should respect threshold', async ({runInlineTest}) => {
   const expected = fs.readFileSync(path.join(__dirname, 'assets/screenshot-canvas-expected.png'));
   const actual = fs.readFileSync(path.join(__dirname, 'assets/screenshot-canvas-actual.png'));
   const result = await runInlineTest({

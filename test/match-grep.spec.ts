@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
-it('should grep test name', async ({ runInlineTest }) => {
+test('should grep test name', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'match-grep/b.test.ts': `
       test('test A', () => {

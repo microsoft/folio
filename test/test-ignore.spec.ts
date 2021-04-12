@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { folio } from './fixtures';
-const { it, expect } = folio;
+import { test, expect } from './config';
 
 const tests = {
   'a.test.ts': `
@@ -29,19 +28,19 @@ const tests = {
   `
 };
 
-it('should run all three tests', async ({ runInlineTest }) => {
+test('should run all three tests', async ({ runInlineTest }) => {
   const result = await runInlineTest(tests);
   expect(result.passed).toBe(3);
   expect(result.exitCode).toBe(0);
 });
 
-it('should ignore a test', async ({ runInlineTest }) => {
+test('should ignore a test', async ({ runInlineTest }) => {
   const result = await runInlineTest(tests, { 'test-ignore': 'b.test.ts' });
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
 });
 
-it('should ignore a folder', async ({ runInlineTest }) => {
+test('should ignore a folder', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
       test('pass', ({}) => {});
@@ -60,7 +59,7 @@ it('should ignore a folder', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should ignore a node_modules', async ({ runInlineTest }) => {
+test('should ignore a node_modules', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
       test('pass', ({}) => {});
@@ -79,19 +78,19 @@ it('should ignore a node_modules', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('should filter tests', async ({ runInlineTest }) => {
+test('should filter tests', async ({ runInlineTest }) => {
   const result = await runInlineTest(tests, { 'test-ignore': 'c.test.*' });
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
 });
 
-it('should use a different test match', async ({ runInlineTest }) => {
+test('should use a different test match', async ({ runInlineTest }) => {
   const result = await runInlineTest(tests, { 'test-match': '[a|b].test.ts' });
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
 });
 
-it('should use an array for testMatch', async ({ runInlineTest }) => {
+test('should use an array for testMatch', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       folio.setConfig({ testMatch: ['b.test.ts', /^a.*TS$/i] });

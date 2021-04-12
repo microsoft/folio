@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from 'folio';
-import path from 'path';
-import { folio } from './fixtures';
-const { it } = folio;
 
-it('should have relative always-posix paths', async ({ runInlineTest }) => {
+import path from 'path';
+import { test, expect } from './config';
+
+test('should have relative always-posix paths', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('math works!', async ({}) => {

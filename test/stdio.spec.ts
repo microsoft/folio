@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { folio } from './fixtures';
-const { it, expect } = folio;
 
-it('should get top level stdio', async ({runInlineTest}) => {
+import { test, expect } from './config';
+
+test('should get top level stdio', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
       console.log('%% top level stdout');
@@ -37,7 +37,7 @@ it('should get top level stdio', async ({runInlineTest}) => {
   ]);
 });
 
-it('should get stdio from env afterAll', async ({runInlineTest}) => {
+test('should get stdio from env afterAll', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {

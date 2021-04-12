@@ -15,10 +15,9 @@
  */
 
 import colors from 'colors/safe';
-import { folio, stripAscii } from './fixtures';
-const { it, expect } = folio;
+import { test, expect, stripAscii } from './config';
 
-it('render expected', async ({ runInlineTest }) => {
+test('render expected', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('one', async ({}) => {
@@ -30,7 +29,7 @@ it('render expected', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-it('render unexpected', async ({ runInlineTest }) => {
+test('render unexpected', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('one', async ({}) => {
@@ -42,7 +41,7 @@ it('render unexpected', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-it('render unexpected after retry', async ({ runInlineTest }) => {
+test('render unexpected after retry', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('one', async ({}) => {
@@ -56,7 +55,7 @@ it('render unexpected after retry', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-it('render flaky', async ({ runInlineTest }) => {
+test('render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       test('one', async ({}, testInfo) => {
