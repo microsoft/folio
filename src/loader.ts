@@ -26,7 +26,7 @@ type SerializedLoaderData = {
 
 export class Loader {
   globalSetup?: () => any;
-  globalTeardown?: (globalSetupResult: any) => any;
+  globalTeardown?: () => any;
 
   private _mergedConfig: FullConfig;
   private _layeredConfigs: { config: Config, source?: string }[] = [];

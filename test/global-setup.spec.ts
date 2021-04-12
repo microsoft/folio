@@ -19,11 +19,13 @@ const { it, expect } = folio;
 it('globalSetup and globalTeardown should work', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
+      let value;
       folio.globalSetup(async () => {
         await new Promise(f => setTimeout(f, 100));
-        return 42;
+        value = 42;
+        return value;
       });
-      folio.globalTeardown(value => {
+      folio.globalTeardown(() => {
         console.log('teardown=' + value);
       });
       export const test = folio.newTestType();
@@ -43,11 +45,13 @@ it('globalSetup and globalTeardown should work', async ({ runInlineTest }) => {
 it('globalTeardown runs after failures', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
+      let value;
       folio.globalSetup(async () => {
         await new Promise(f => setTimeout(f, 100));
-        return 42;
+        value = 42;
+        return value;
       });
-      folio.globalTeardown(value => {
+      folio.globalTeardown(() => {
         console.log('teardown=' + value);
       });
       export const test = folio.newTestType();
@@ -71,8 +75,8 @@ it('globalTeardown does not run when globalSetup times out', async ({ runInlineT
         await new Promise(f => setTimeout(f, 10000));
         return 42;
       });
-      folio.globalTeardown(value => {
-        console.log('teardown=' + value);
+      folio.globalTeardown(() => {
+        console.log('teardown=');
       });
       export const test = folio.newTestType();
       test.runWith();

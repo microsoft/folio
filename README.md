@@ -461,3 +461,31 @@ fooTest('a smoke test', async ({ foo }) => {
   expect(foo).toBe(42);
 });
 ```
+
+### Global setup and teardown
+
+To set something up once before running all tests, use `globalSetup` hook in the [configuration file](#writing-a-configuration-file). Similarly, use `globalTeardown` to run something once after all the tests. `globalSetup` hook can pass json-serializable data to the tests - it will be available as [`workerInfo.globalSetupResult`](#workerinfo).
+
+```ts
+// folio.config.ts
+
+import * as folio from 'folio';
+import * as app from '../my-app';
+import * as http from 'http';
+
+let server: http.Server;
+
+folio.globalSetup(async () => {
+  server = http.createServer(app);
+  await new Promise(done => server.listen(done));
+  return server.address().port; // Expose port to the tests.
+});
+
+folio.globalTeardown(async () => {
+  await new Promise(done => server.close(done));
+});
+
+folio.setConfig({ testDir: __dirname });
+export const test = folio.newTestType();
+test.runWith();
+```

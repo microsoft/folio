@@ -308,7 +308,7 @@ export class Dispatcher {
       await result;
     }
     if (this._didRunGlobalSetup && this._loader.globalTeardown)
-      await this._loader.globalTeardown(this._globalSetupResult);
+      await this._loader.globalTeardown();
   }
 
   private _reportTestEnd(test: Test, result: TestResult, status: TestStatus) {
