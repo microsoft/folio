@@ -39,7 +39,7 @@ export type RunListDescription = {
 export const configFile: {
   config?: Config,
   globalSetup?: () => any,
-  globalTeardown?: (globalSetupResult: any) => any,
+  globalTeardown?: () => any,
   runLists: RunListDescription[],
   reporters: Reporter[],
 } = { runLists: [], reporters: [] };
@@ -215,7 +215,7 @@ export function globalSetup(globalSetupFunction: () => any) {
   configFile.globalSetup = globalSetupFunction;
 }
 
-export function globalTeardown(globalTeardownFunction: (globalSetupResult: any) => any) {
+export function globalTeardown(globalTeardownFunction: () => any) {
   if (typeof globalTeardownFunction !== 'function')
     throw errorWithCallLocation(`globalTeardown takes a single function argument.`);
   configFile.globalTeardown = globalTeardownFunction;
