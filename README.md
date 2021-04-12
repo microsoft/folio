@@ -206,10 +206,31 @@ Just point Folio to your [configuration file](#writing-a-configuration-file).
 $ npx folio --config=my.config.ts
 ```
 
-Run Folio with `--help` to see all command line options.
-```sh
-$ npx folio --help
-```
+Arguments passed to `npx folio` are treated as a filter for test files. For example, `npx folio my-spec` will only run tests from files with `my-spec` in the name.
+
+Below is a list of command line options:
+- `--config <file>`: Configuration file. Defaults to `folio.config.ts` or `folio.config.js` in the current directory.
+- `--forbid-only`: Whether to disallow `test.only` exclusive tests. Useful on CI. Overrides `config.forbidOnly` option from the configuration file.
+- `--global-timeout <number>`: Total timeout in milliseconds for the whole test run. By default, there is no global timeout. Overrides `config.globalTimeout` option from the configuration file.
+- `--grep <grep>` or `-g <grep>`: Only run tests matching this string (for example `my-test`) or regular expression (for example `/my.*test/i`). Overrides `config.grep` option from the configuration file.
+- `--help`: Display help.
+- `--list`: List all the tests, but do not run them.
+- `--max-failures <N>` or `-x`: Stop after the first `N` test failures. Passing `-x` stops after the first failure. Overrides `config.maxFailures` option from the configuration file.
+- `--output <dir>`: Directory for artifacts produced by tests, defaults to `test-results`. Overrides `config.outputDir` option from the configuration file.
+- `--quiet`: Whether to suppress stdout and stderr from the tests. Overrides `config.quiet` option from the configuration file.
+- `--repeat-each <number>`: Specifies how many times to run each test. Defaults to one. Overrides `config.repeatEach` option from the configuration file.
+- `--reporter <reporter>`. Specify reporter to use, comma-separated, can be some combination of `dot`, `json`, `junit`, `line`, `list` and `null`. See [reporters](#reporters) for more information.
+- `--retries <number>`: The maximum number of retries for each [flaky test](#flaky-tests), defaults to zero (no retries). Overrides `config.retries` option from the configuration file.
+- `--shard <shard>`: [Shard](#shards) tests and execute only selected shard, specified in the form `current/all`, 1-based, for example `3/5`. Overrides `config.shard` option from the configuration file.
+- `--snapshot-dir <dir>`: [Snapshots](#snapshots) directory, relative to tests directory. Defaults to `__snapshots__`. Overrides `config.snapshotDir` option from the configuration file.
+- `--tag <tag...>`: Only run tests tagged with one of the specified tags. Defaults to running all available tags that are defined in the [configuration file](#writing-a-configuration-file).
+- `--test-dir <dir>`: Directory where Folio should search for tests, defaults to current directory. Only files matching `--test-match` are recognized as test files. Overrides `config.testDir` option from the configuration file.
+- `--test-ignore <pattern>`: Pattern used to ignore test files, defaults to `node_modules`. Either a regular expression (for example, `/node_modules/`) or a glob pattern (for example, `**/ignore-dir/*`). Overrides `config.testIgnore` option from the configuration file.
+- `--test-match <pattern>`: Pattern used to find test files, defaults to files ending with `.spec.js`, `.test.js`, `.spec.ts` or `.test.ts`. Either a regular expression (for example, `/my-test-\d+/i`) or a glob pattern (for example, `?(*.)+(spec|test).[jt]s`). Overrides `config.testMatch` option from the configuration file.
+- `--timeout <number>`: Maximum timeout in milliseconds for each test, defaults to 10 seconds. Overrides `config.timeout` option from the configuration file.
+- `--update-snapshots` or `-u`: Whether to update snapshots with actual results instead of comparing them. Use this when snapshot expectations have changed. Overrides `config.updateSnapshots` option from the configuration file.
+- `--workers <workers>` or `-j <workers>`: The maximum number of concurrent worker processes.  Overrides `config.workers` option from the configuration file.
+
 
 ## Snapshots
 
@@ -250,22 +271,22 @@ $ npx folio --shard=3/3
 ### Configuration object
 
 Configuration file uses `setConfig` function to provide a global configuration to Folio. It may contain the following properties:
-- `forbidOnly: boolean` - Whether to disallow `test.only` exclusive tests. Useful on CI.
-- `globalTimeout: number` - Total timeout in milliseconds for the whole test run.
-- `grep: string | RegExp | (string | RegExp)[]` - Patterns to filter tests based on their title.
-- `maxFailures: number` - Stop testing after reaching the maximum number of failures.
-- `outputDir: string` - Directory to place any artifacts produced by tests.
-- `quiet: boolean` - Whether to suppress stdout and stderr from the tests.
-- `repeatEach: number` - Each test will be repeated multiple times.
-- `retries: number` - Maximum number of retries.
-- `shard: { total: number, current: number } | null` - [Shard](#shards) information.
-- `snapshotDir: string` - [Snapshots](#snapshots) directory.
-- `testDir: string` - Directory where Folio should search for tests.
-- `testIgnore: string | RegExp | (string | RegExp)[]` - Patterns to ignore test files.
-- `testMatch: string | RegExp | (string | RegExp)[]` - Patterns to match test files.
-- `timeout: number` - Test timeout in milliseconds.
-- `updateSnapshots: boolean` - Whether to update snapshots instead of comparing them.
-- `workers: number` - The maximum number of worker processes.
+- `forbidOnly: boolean` - Whether to disallow `test.only` exclusive tests. Useful on CI. Overridden by `--forbid-only` command line option.
+- `globalTimeout: number` - Total timeout in milliseconds for the whole test run. Overridden by `--global-timeout` command line option.
+- `grep: string | RegExp | (string | RegExp)[]` - Patterns to filter tests based on their title. Overridden by `--grep` command line option.
+- `maxFailures: number` - Stop testing after reaching the maximum number of failures.  Overridden by `--max-failures` command line option.
+- `outputDir: string` - Directory to place any artifacts produced by tests. Overridden by `--output` command line option.
+- `quiet: boolean` - Whether to suppress stdout and stderr from the tests. Overridden by `--quiet` command line option.
+- `repeatEach: number` - Each test will be repeated multiple times. Overridden by `--repeat-each` command line option.
+- `retries: number` - Maximum number of retries. Overridden by `--retries` command line option.
+- `shard: { total: number, current: number } | null` - [Shard](#shards) information. Overridden by `--shard` command line option.
+- `snapshotDir: string` - [Snapshots](#snapshots) directory, relative to tests directory. Overridden by `--snapshot-dir` command line option.
+- `testDir: string` - Directory where Folio should search for tests. Overridden by `--test-dir` command line option.
+- `testIgnore: string | RegExp | (string | RegExp)[]` - Patterns to ignore test files. Overridden by `--test-ignore` command line option.
+- `testMatch: string | RegExp | (string | RegExp)[]` - Patterns to match test files. Overridden by `--test-match` command line option.
+- `timeout: number` - Test timeout in milliseconds. Overridden by `--timeout` command line option.
+- `updateSnapshots: boolean` - Whether to update snapshots instead of comparing them. Overridden by `--update-snapshots` command line option.
+- `workers: number` - The maximum number of concurrent worker processes. Overridden by `--workers` command line option.
 
 ```ts
 // folio.config.ts
