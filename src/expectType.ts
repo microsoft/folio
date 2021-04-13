@@ -8,11 +8,28 @@
  */
 
 import type expect from 'expect';
+import type { ExpectedAssertionsErrors } from 'expect/build/types';
 
 export declare type AsymmetricMatcher = Record<string, any>;
 
 export declare type Expect = {
   <T = unknown>(actual: T): folio.Matchers<T>;
+
+  // Sourced from node_modules/expect/build/types.d.ts
+  addSnapshotSerializer(arg0: any): void;
+  assertions(arg0: number): void;
+  extend(arg0: any): void;
+  extractExpectedAssertionsErrors: () => ExpectedAssertionsErrors;
+  getState(): expect.MatcherState;
+  hasAssertions(): void;
+  setState(state: Partial<expect.MatcherState>): void;
+  any(expectedObject: any): AsymmetricMatcher;
+  anything(): AsymmetricMatcher;
+  arrayContaining(sample: Array<unknown>): AsymmetricMatcher;
+  objectContaining(sample: Record<string, unknown>): AsymmetricMatcher;
+  stringContaining(expected: string): AsymmetricMatcher;
+  stringMatching(expected: string | RegExp): AsymmetricMatcher;
+
   not: {
     [id: string]: AsymmetricMatcher;
   };

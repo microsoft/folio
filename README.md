@@ -735,3 +735,55 @@ folio.setReporters([
   new folio.reporters.junit({ outputFile: 'results.xml' })
 ]);
 ```
+
+## Expect
+
+### Extend Expect
+
+Folio uses [expect](https://jestjs.io/docs/expect) under the hood which has the functionality to extend it with [custom matchers](https://jestjs.io/docs/expect#expectextendmatchers). See the following example where a custom `toBeWithinRange` function gets added.
+
+
+<details>
+  <summary>example.spec.ts</summary>
+
+```ts
+import { test, expect } from '../folio.config';
+
+expect.extend({
+  toBeWithinRange(received: number, floor: number, ceiling: number) {
+    const pass = received >= floor && received <= ceiling;
+    if (pass) {
+      return {
+        message: () =>
+          `expected ${received} not to be within range ${floor} - ${ceiling}`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () =>
+          `expected ${received} to be within range ${floor} - ${ceiling}`,
+        pass: false,
+      };
+    }
+  },
+})
+
+test('numeric ranges', () => {
+  expect(100).toBeWithinRange(90, 110);
+  expect(101).not.toBeWithinRange(0, 100);
+});
+```
+</details>
+
+<details>
+  <summary>global.d.ts</summary>
+
+```ts
+declare namespace folio {
+  interface Matchers<R> {
+    toBeWithinRange(a: number, b: number): R;
+  }
+}
+```
+
+</details>
