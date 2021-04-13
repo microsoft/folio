@@ -39,8 +39,8 @@ test('should allow different timeouts', async ({ runInlineTest }) => {
     'folio.config.js': `
       folio.setConfig({ timeout: 100 });
       exports.test = folio.newTestType();
-      exports.test.runWith({ timeout: 200 });
-      exports.test.runWith();
+      exports.test.runWith({}, { timeout: 200 });
+      exports.test.runWith({});
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

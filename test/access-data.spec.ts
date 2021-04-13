@@ -75,8 +75,8 @@ test('should report tags in result', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.newTestType();
-      test.runWith({ tag: ['foo', 'bar'] });
-      test.runWith({ tag: 'some tag' });
+      test.runWith({}, { tag: ['foo', 'bar'] });
+      test.runWith(undefined, { tag: 'some tag' });
     `,
     'test-data-visible-in-env.spec.ts': `
       import { test } from './folio.config';

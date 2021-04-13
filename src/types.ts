@@ -127,7 +127,7 @@ interface EnvBeforeEach<TestArgs> {
   beforeEach(testInfo: TestInfo): TestArgs | Promise<TestArgs>;
 }
 interface EnvOptionalBeforeEach<TestArgs> {
-  beforeEach?(testInfo: TestInfo): TestArgs | Promise<TestArgs>;
+  beforeEach?(testInfo: TestInfo): void | TestArgs | Promise<TestArgs>;
 }
 type EnvDetectBeforeEach<TestArgs> = {} extends TestArgs ? EnvOptionalBeforeEach<TestArgs> : EnvBeforeEach<TestArgs>;
 type OptionalEnv<TestArgs> = {} extends TestArgs ? Env<TestArgs> | void : Env<TestArgs>;
