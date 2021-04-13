@@ -60,7 +60,7 @@ export class WorkerRunner extends EventEmitter {
     this._envInitialized = false;
     if (this._runList.env.afterAll) {
       // TODO: separate timeout for afterAll?
-      const result = await raceAgainstDeadline(this._runList.env.afterAll(this._workerInfo), this._deadline());
+      const result = await raceAgainstDeadline(wrapInPromise(this._runList.env.afterAll(this._workerInfo)), this._deadline());
       if (result.timedOut)
         throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
     }
@@ -110,7 +110,7 @@ export class WorkerRunner extends EventEmitter {
 
     if (this._runList.env.beforeAll) {
       // TODO: separate timeout for beforeAll?
-      const result = await raceAgainstDeadline(this._runList.env.beforeAll(this._workerInfo), this._deadline());
+      const result = await raceAgainstDeadline(wrapInPromise(this._runList.env.beforeAll(this._workerInfo)), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
         this._reportDoneAndStop();
@@ -152,7 +152,7 @@ export class WorkerRunner extends EventEmitter {
       if (this._isStopped)
         return;
       // TODO: separate timeout for beforeAll?
-      const result = await raceAgainstDeadline(hook.fn(this._workerInfo), this._deadline());
+      const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerInfo)), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while running beforeAll hook`));
         this._reportDoneAndStop();
@@ -170,7 +170,7 @@ export class WorkerRunner extends EventEmitter {
       if (this._isStopped)
         return;
       // TODO: separate timeout for afterAll?
-      const result = await raceAgainstDeadline(hook.fn(this._workerInfo), this._deadline());
+      const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerInfo)), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while running afterAll hook`));
         this._reportDoneAndStop();
@@ -458,4 +458,8 @@ function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme', arg?: boo
 }
 
 class SkipError extends Error {
+}
+
+async function wrapInPromise(value: any) {
+  return value;
 }

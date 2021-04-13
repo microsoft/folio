@@ -206,3 +206,44 @@ test('multiple envs for a single test type should work', async ({ runInlineTest 
   });
   expect(passed).toBe(1);
 });
+
+test('should run sync env methods and hooks', async ({ runInlineTest }) => {
+  const { passed } = await runInlineTest({
+    'folio.config.ts': `
+      class Env {
+        beforeAll() {
+          this.counter = 0;
+        }
+        beforeEach() {
+          return { counter: this.counter };
+        }
+        afterEach() {
+          this.counter++;
+        }
+        afterAll() {
+        }
+      }
+      export const test = folio.newTestType();
+      test.runWith(new Env());
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      let init = false;
+      test.beforeAll(() => {
+        init = true;
+      });
+      test.afterAll(() => {
+        init = false;
+      });
+      test('test1', async ({counter}) => {
+        expect(counter).toBe(0);
+        expect(init).toBe(true);
+      });
+      test('test2', async ({counter}) => {
+        expect(counter).toBe(1);
+        expect(init).toBe(true);
+      });
+    `,
+  });
+  expect(passed).toBe(2);
+});
