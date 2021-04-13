@@ -624,3 +624,115 @@ test('different options', { name: 'test' }, ({ hello }) => {
   expect(hello).toBe('Hello, test!');
 });
 ```
+
+## Reporters
+
+Folio comes with a few built-in reporters for different needs and ability to provide custom reporters. The easiest way to try out built-in reporters is `--reporter` [command line option](#command-line).
+
+```sh
+$ npx folio --config=config.ts --reporter=list
+```
+
+For more control, you can specify reporters programmatically in the [configuration file](#writing-a-configuration-file).
+
+```ts
+// folio.config.ts
+
+import * as folio from 'folio';
+
+// A long list of tests for the terminal.
+folio.setReporters([ new folio.reporters.list() ]);
+
+if (process.env.CI) {
+  // Entirely different config on CI.
+  // Use very concise "dot" reporter plus a comprehensive json report.
+  folio.setReporters([
+    new folio.reporters.dot(),
+    new folio.reporters.json({ outputFile: 'test-results.json' }),
+  ]);
+}
+```
+
+### Built-in reporters
+
+All built-in reporters show detailed information about failures, and mostly differ in verbosity for successful runs.
+
+#### Line reporter
+
+Line reporter is default. It uses a single line to report last finished test, and prints failures when they occur. Line reporter is useful for large test suites where it shows the progress but does not spam the output by listing all the tests. Use it with `--reporter=line` or `new folio.reporters.line()`.
+
+Here is an example output in the middle of a test run. Failures are reporter inline.
+```sh
+$ npm run test -- --reporter=line
+Running 124 tests using 6 workers
+  1) dot-reporter.spec.ts:20:1 › render expected ===================================================
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+[23/124] gitignore.spec.ts - should respect nested .gitignore
+```
+
+#### List reporter
+
+List reporter is verbose - it prints a line for each test being run. Use it with `--reporter=list` or `new folio.reporters.list()`.
+
+Here is an example output in the middle of a test run. Failures will be listed at the end.
+```sh
+$ npm run test -- --reporter=list
+Running 124 tests using 6 workers
+
+  ✓ should access error in env (438ms)
+  ✓ handle long test names (515ms)
+  x 1) render expected (691ms)
+  ✓ should timeout (932ms)
+    should repeat each:
+  ✓ should respect enclosing .gitignore (569ms)
+    should teardown env after timeout:
+    should respect excluded tests:
+  ✓ should handle env beforeEach error (638ms)
+    should respect enclosing .gitignore:
+```
+
+#### Dot reporter
+
+Dot reporter is very concise - it only produces a single character per successful test run. It is useful on CI where you don't want a lot of output. Use it with `--reporter=dot` or `new folio.reporters.dot()`.
+
+Here is an example output in the middle of a test run. Failures will be listed at the end.
+```sh
+$ npm run test -- --reporter=dot
+Running 124 tests using 6 workers
+······F·············································
+```
+
+#### JSON reporter
+
+JSON reporter produces an object with all information about the test run. It is usually used together with some terminal reporter like `dot` or `line`.
+
+You would usually want to output JSON into a file. When running with `--reporter=json`, use `FOLIO_JSON_OUTPUT_NAME` environment variable:
+```sh
+$ FOLIO_JSON_OUTPUT_NAME=results.json npm run test -- --reporter=json,dot
+```
+With `setReporters` call, pass options to the constructor:
+```ts
+folio.setReporters([
+  new folio.reporters.json({ outputFile: 'results.json' })
+]);
+```
+
+#### JUnit reporter
+
+JUnit reporter produces a JUnit-style xml report. It is usually used together with some terminal reporter like `dot` or `line`.
+
+You would usually want to output into an xml file. When running with `--reporter=junit`, use `FOLIO_JUNIT_OUTPUT_NAME` environment variable:
+```sh
+$ FOLIO_JUNIT_OUTPUT_NAME=results.xml npm run test -- --reporter=junit,line
+```
+With `setReporters` call, pass options to the constructor:
+```ts
+folio.setReporters([
+  new folio.reporters.junit({ outputFile: 'results.xml' })
+]);
+```
