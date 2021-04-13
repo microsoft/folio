@@ -162,16 +162,19 @@ export function formatFailure(config: FullConfig, test: Test, index?: number): s
   return tokens.join('\n');
 }
 
-function formatTestHeader(config: FullConfig, test: Test, indent: string, index?: number): string {
-  const tokens: string[] = [];
+export function formatTestTitle(config: FullConfig, test: Test): string {
   const spec = test.spec;
   let relativePath = path.relative(config.testDir, spec.file) || path.basename(spec.file);
   relativePath += ':' + spec.line + ':' + spec.column;
-  const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
   const tags = test.tags.length ? `[${test.tags.join(',')}] ` : '';
-  const header = `${indent}${index ? index + ') ' : ''}${relativePath} › ${tags}${spec.fullTitle()}${passedUnexpectedlySuffix}`;
-  tokens.push(colors.red(pad(header, '=')));
-  return tokens.join('\n');
+  return `${relativePath} › ${tags}${spec.fullTitle()}`;
+}
+
+function formatTestHeader(config: FullConfig, test: Test, indent: string, index?: number): string {
+  const title = formatTestTitle(config, test);
+  const passedUnexpectedlySuffix = test.results[0].status === 'passed' ? ' -- passed unexpectedly' : '';
+  const header = `${indent}${index ? index + ') ' : ''}${title}${passedUnexpectedlySuffix}`;
+  return colors.red(pad(header, '='));
 }
 
 function formatResult(test: Test, result: TestResult): string {

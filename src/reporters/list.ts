@@ -16,7 +16,7 @@
 
 import colors from 'colors/safe';
 import milliseconds from 'ms';
-import { BaseReporter } from './base';
+import { BaseReporter, formatTestTitle } from './base';
 import { FullConfig, Suite, Test, TestResult } from '../types';
 
 class ListReporter extends BaseReporter {
@@ -32,24 +32,24 @@ class ListReporter extends BaseReporter {
   onTestBegin(test: Test) {
     super.onTestBegin(test);
     if (process.stdout.isTTY)
-      process.stdout.write('    ' + colors.gray(test.spec.fullTitle() + ': ') + '\n');
+      process.stdout.write('    ' + colors.gray(formatTestTitle(this.config, test) + ': ') + '\n');
     this._testRows.set(test, this._lastRow++);
   }
 
   onTestEnd(test: Test, result: TestResult) {
     super.onTestEnd(test, result);
-    const spec = test.spec;
 
     const duration = colors.dim(` (${milliseconds(result.duration)})`);
+    const title = formatTestTitle(this.config, test);
     let text = '';
     if (result.status === 'skipped') {
-      text = colors.green('  - ') + colors.cyan(spec.fullTitle());
+      text = colors.green('  - ') + colors.cyan(title);
     } else {
       const statusMark = result.status === 'passed' ? '  ✓ ' : '  x ';
       if (result.status === test.expectedStatus)
-        text = '\u001b[2K\u001b[0G' + colors.green(statusMark) + colors.gray(spec.fullTitle()) + duration;
+        text = '\u001b[2K\u001b[0G' + colors.green(statusMark) + colors.gray(title) + duration;
       else
-        text = '\u001b[2K\u001b[0G' + colors.red(`${statusMark}${++this._failure}) ` + spec.fullTitle()) + duration;
+        text = '\u001b[2K\u001b[0G' + colors.red(`${statusMark}${++this._failure}) ` + title) + duration;
     }
 
     const testRow = this._testRows.get(test);
