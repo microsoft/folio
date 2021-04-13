@@ -184,18 +184,12 @@ export function newTestTypeImpl(): any {
   test.skip = modifier.bind(null, 'skip');
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
-  test.runWith = (...args: any[]) => {
-    let env = { beforeEach: () => {} };
-    if (typeof args[0] === 'object' && args[0] && (args[0].beforeAll || args[0].beforeEach || args[0].afterAll || args[0].afterEach)) {
-      env = args[0];
-      args = args.slice(1);
-    }
-    const config = args[0] || {};
+  test.runWith = (env: Env<any> | undefined, config: RunWithConfig = {}) => {
     const tag = 'tag' in config ? config.tag : [];
     configFile.runLists.push({
       index: configFile.runLists.length,
       fileSuites,
-      env,
+      env: env || {},
       tags: Array.isArray(tag) ? tag : [tag],
       config,
       testType: test,

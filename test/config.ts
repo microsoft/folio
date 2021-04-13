@@ -265,6 +265,7 @@ folio.setConfig({
   testDir: __dirname,
   testIgnore: 'assets/**',
   timeout: 10000,
+  forbidOnly: !!process.env.CI,
 });
 
 export { expect } from 'folio';

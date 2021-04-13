@@ -26,22 +26,6 @@ test('sanity', async ({runTSC}) => {
   expect(result.output).toContain(`Property 'foo' does not exist`);
 });
 
-test('basics should work', async ({runTSC}) => {
-  const result = await runTSC({
-    'a.spec.ts': `
-      test.describe('suite', () => {
-        test.beforeEach(async () => {});
-        test('my test', async({}, testInfo) => {
-          expect(testInfo.title).toBe('my test');
-          testInfo.data.foo = 'bar';
-          testInfo.annotations[0].type;
-        });
-      });
-    `
-  });
-  expect(result.exitCode).toBe(0);
-});
-
 test('runWith should check types', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
@@ -94,6 +78,9 @@ test('runWith should allow void env', async ({runTSC}) => {
       test.runWith('foo', 'bar');  // error
       test.runWith({ timeout: 100 });  // error
       test.runWith({}, { timeout: 100 });
+      test.runWith(undefined, { timeout: 100 });
+      test.runWith({ beforeEach: () => {} }, { timeout: 100 });
+      test.runWith({ beforeEach: () => { return 42; } }, { timeout: 100 });  // error
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -108,29 +95,7 @@ test('runWith should allow void env', async ({runTSC}) => {
   expect(result.output).toContain('folio.config.ts(8');
   expect(result.output).toContain('folio.config.ts(9');
   expect(result.output).not.toContain('folio.config.ts(10');
-});
-
-test('can pass sync functions everywhere', async ({runTSC}) => {
-  const result = await runTSC({
-    'a.spec.ts': `
-      test.beforeEach(() => {});
-      test.afterEach(() => {});
-      test.beforeAll(() => {});
-      test.afterAll(() => {});
-      test('my test', () => {});
-    `
-  });
-  expect(result.exitCode).toBe(0);
-});
-
-test('can return anything from hooks', async ({runTSC}) => {
-  const result = await runTSC({
-    'a.spec.ts': `
-      test.beforeEach(() => '123');
-      test.afterEach(() => 123);
-      test.beforeAll(() => [123]);
-      test.afterAll(() => ({ a: 123 }));
-    `
-  });
-  expect(result.exitCode).toBe(0);
+  expect(result.output).not.toContain('folio.config.ts(11');
+  expect(result.output).not.toContain('folio.config.ts(12');
+  expect(result.output).not.toContain('folio.config.ts(13');
 });
