@@ -148,3 +148,20 @@ test('should run afterAll from mulitple envs when one throws', async ({ runInlin
   expect(result.output).toContain('Bad env');
   expect(result.output).toContain('env2-afterAll');
 });
+
+test('can only call runWith in config file', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      export const test = folio.newTestType();
+      test.runWith({});
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test.runWith({});
+      test('test', async ({}) => {
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('runWith() can only be called in a configuration file');
+});

@@ -17,7 +17,7 @@
 import { installTransform } from './transform';
 import { Config, FullConfig, Reporter } from './types';
 import { prependErrorMessage } from './util';
-import { configFile, setCurrentFile, RunListDescription } from './spec';
+import { configFile, setCurrentFile, RunListDescription, setLoadingConfigFile } from './spec';
 import { Test } from './test';
 
 type SerializedLoaderData = {
@@ -47,6 +47,7 @@ export class Loader {
   loadConfigFile(file: string) {
     const revertBabelRequire = installTransform();
     try {
+      setLoadingConfigFile(true);
       require(file);
       this.addConfig(configFile.config || {});
       this._layeredConfigs[this._layeredConfigs.length - 1].source = file;
@@ -57,6 +58,7 @@ export class Loader {
       throw new Error(e.message);
     } finally {
       revertBabelRequire();
+      setLoadingConfigFile(false);
     }
   }
 
