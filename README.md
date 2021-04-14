@@ -311,7 +311,6 @@ Depending on the configuration and failures, Folio might use different number of
 
 Environment and hooks receive `workerInfo` in the `beforeAll` and `afterAll` calls. The following information is accessible from the `workerInfo`:
 - `config` - [Configuration object](#configuration-object).
-- `globalSetupResult` - The value returned by the [global setup function](#global-setup-and-teardown).
 - `workerIndex: number` - A unique sequential index assigned to the worker process.
 
 Consider an example where we run a new http server per worker process, and use `workerIndex` to produce a unique port number:
@@ -485,7 +484,7 @@ fooTest('a smoke test', async ({ foo }) => {
 
 ### Global setup and teardown
 
-To set something up once before running all tests, use `globalSetup` hook in the [configuration file](#writing-a-configuration-file). Similarly, use `globalTeardown` to run something once after all the tests. `globalSetup` hook can pass json-serializable data to the tests - it will be available as [`workerInfo.globalSetupResult`](#workerinfo).
+To set something up once before running all tests, use `globalSetup` hook in the [configuration file](#writing-a-configuration-file). Similarly, use `globalTeardown` to run something once after all the tests.
 
 ```ts
 // folio.config.ts
@@ -499,7 +498,7 @@ let server: http.Server;
 folio.globalSetup(async () => {
   server = http.createServer(app);
   await new Promise(done => server.listen(done));
-  return server.address().port; // Expose port to the tests.
+  process.env.SERVER_PORT = String(server.address().port); // Expose port to the tests.
 });
 
 folio.globalTeardown(async () => {

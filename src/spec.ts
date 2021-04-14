@@ -38,11 +38,11 @@ export type RunListDescription = {
 
 export const configFile: {
   config?: Config,
-  globalSetup?: () => any,
-  globalTeardown?: () => any,
+  globalSetups: (() => any)[],
+  globalTeardowns: (() => any)[],
   runLists: RunListDescription[],
   reporters: Reporter[],
-} = { runLists: [], reporters: [] };
+} = { globalSetups: [], globalTeardowns: [], runLists: [], reporters: [] };
 
 let loadingConfigFile = false;
 export function setLoadingConfigFile(loading: boolean) {
@@ -212,14 +212,18 @@ export function setConfig(config: Config) {
 
 export function globalSetup(globalSetupFunction: () => any) {
   if (typeof globalSetupFunction !== 'function')
-    throw errorWithCallLocation(`globalSetup takes a single function argument.`);
-  configFile.globalSetup = globalSetupFunction;
+    throw errorWithCallLocation(`globalSetup() takes a single function argument.`);
+  if (!loadingConfigFile)
+    throw errorWithCallLocation(`globalSetup() can only be called in a configuration file.`);
+  configFile.globalSetups.push(globalSetupFunction);
 }
 
 export function globalTeardown(globalTeardownFunction: () => any) {
   if (typeof globalTeardownFunction !== 'function')
-    throw errorWithCallLocation(`globalTeardown takes a single function argument.`);
-  configFile.globalTeardown = globalTeardownFunction;
+    throw errorWithCallLocation(`globalTeardown() takes a single function argument.`);
+  if (!loadingConfigFile)
+    throw errorWithCallLocation(`globalTeardown() can only be called in a configuration file.`);
+  configFile.globalTeardowns.push(globalTeardownFunction);
 }
 
 export function setReporters(reporters: Reporter[]) {

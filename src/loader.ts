@@ -18,16 +18,12 @@ import { installTransform } from './transform';
 import { Config, FullConfig, Reporter } from './types';
 import { prependErrorMessage } from './util';
 import { configFile, setCurrentFile, RunListDescription, setLoadingConfigFile } from './spec';
-import { Test } from './test';
 
 type SerializedLoaderData = {
   configs: (string | Config)[];
 };
 
 export class Loader {
-  globalSetup?: () => any;
-  globalTeardown?: () => any;
-
   private _mergedConfig: FullConfig;
   private _layeredConfigs: { config: Config, source?: string }[] = [];
 
@@ -51,8 +47,6 @@ export class Loader {
       require(file);
       this.addConfig(configFile.config || {});
       this._layeredConfigs[this._layeredConfigs.length - 1].source = file;
-      this.globalSetup = configFile.globalSetup;
-      this.globalTeardown = configFile.globalTeardown;
     } catch (e) {
       // Drop the stack.
       throw new Error(e.message);
@@ -93,6 +87,14 @@ export class Loader {
 
   reporters(): Reporter[] {
     return configFile.reporters;
+  }
+
+  globalSetups(): (() => any)[] {
+    return configFile.globalSetups;
+  }
+
+  globalTeardowns(): (() => any)[] {
+    return configFile.globalTeardowns;
   }
 
   serialize(): SerializedLoaderData {

@@ -113,8 +113,6 @@ async function runTests(command: any) {
   const testFileFilter: string[] = command.args;
   const allFiles = await collectFiles(testDir);
   const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(loader.config().testMatch), createMatcher(loader.config().testIgnore));
-  for (const file of testFiles)
-    loader.loadTestFile(file);
 
   if (command.reporter && command.reporter.length) {
     const reporterList: string[] = command.reporter.split(',');
@@ -131,14 +129,9 @@ async function runTests(command: any) {
     }));
   }
 
-  const runner = new Runner(loader, command.tag && command.tag.length ? command.tag : undefined);
-
-  if (command.list) {
-    runner.list();
-    return;
-  }
-
-  const result = await runner.run();
+  const runner = new Runner(loader);
+  const tagFilter = command.tag && command.tag.length ? command.tag : undefined;
+  const result = await runner.run(!!command.list, testFiles, tagFilter);
   if (result === 'sigint')
     process.exit(130);
 

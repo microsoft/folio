@@ -102,7 +102,6 @@ export class WorkerRunner extends EventEmitter {
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
       config: { ...this._config },
-      globalSetupResult: this._params.globalSetupResult,
     };
 
     if (this._isStopped)

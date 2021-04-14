@@ -23,10 +23,14 @@ test('globalSetup and globalTeardown should work', async ({ runInlineTest }) => 
       folio.globalSetup(async () => {
         await new Promise(f => setTimeout(f, 100));
         value = 42;
-        return value;
+        process.env.FOO = String(value);
       });
       folio.globalTeardown(() => {
         console.log('teardown=' + value);
+      });
+      // Second global setup.
+      folio.globalSetup(async () => {
+        process.env.BAR = 'baz';
       });
       export const test = folio.newTestType();
       test.runWith();
@@ -34,7 +38,8 @@ test('globalSetup and globalTeardown should work', async ({ runInlineTest }) => 
     'a.test.js': `
       const { test } = require('./folio.config');
       test('should work', async ({}, testInfo) => {
-        expect(testInfo.globalSetupResult).toBe(42);
+        expect(process.env.FOO).toBe('42');
+        expect(process.env.BAR).toBe('baz');
       });
     `,
   });
@@ -49,7 +54,7 @@ test('globalTeardown runs after failures', async ({ runInlineTest }) => {
       folio.globalSetup(async () => {
         await new Promise(f => setTimeout(f, 100));
         value = 42;
-        return value;
+        process.env.FOO = String(value);
       });
       folio.globalTeardown(() => {
         console.log('teardown=' + value);
@@ -60,7 +65,7 @@ test('globalTeardown runs after failures', async ({ runInlineTest }) => {
     'a.test.js': `
       const { test } = require('./folio.config');
       test('should work', async ({}, testInfo) => {
-        expect(testInfo.globalSetupResult).toBe(43);
+        expect(process.env.FOO).toBe('43');
       });
     `,
   });
@@ -88,7 +93,52 @@ test('globalTeardown does not run when globalSetup times out', async ({ runInlin
       });
     `,
   });
-  expect(result.skipped).toBe(1);
+  // We did not collect tests, so everything should be zero.
+  expect(result.skipped).toBe(0);
+  expect(result.passed).toBe(0);
+  expect(result.failed).toBe(0);
   expect(result.output).toContain('Timed out waiting 1s for the entire test run');
   expect(result.output).not.toContain('teardown=');
+});
+
+test('globalSetup should be run before requiring tests', async ({ runInlineTest }) => {
+  const { passed } = await runInlineTest({
+    'folio.config.ts': `
+      folio.globalSetup(async () => {
+        process.env.FOO = JSON.stringify({ foo: 'bar' });
+      });
+      export const test = folio.newTestType();
+      test.runWith();
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      let value = JSON.parse(process.env.FOO);
+      test('should work', async ({}) => {
+        expect(value).toEqual({ foo: 'bar' });
+      });
+    `,
+  });
+  expect(passed).toBe(1);
+});
+
+test('globalSetup should throw in the test file', async ({ runInlineTest }) => {
+  const { output } = await runInlineTest({
+    'a.test.js': `
+      folio.globalSetup(() => {});
+      test('should work', async ({}) => {
+      });
+    `,
+  });
+  expect(output).toContain(`globalSetup() can only be called in a configuration file.`);
+});
+
+test('globalSetup should throw when passed non-function', async ({ runInlineTest }) => {
+  const { output } = await runInlineTest({
+    'a.test.js': `
+      folio.globalSetup(42);
+      test('should work', async ({}) => {
+      });
+    `,
+  });
+  expect(output).toContain(`globalSetup() takes a single function argument.`);
 });

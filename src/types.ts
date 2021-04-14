@@ -61,7 +61,6 @@ export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 export interface WorkerInfo {
   config: FullConfig;
   workerIndex: number;
-  globalSetupResult: any;
 }
 
 export interface TestInfo extends WorkerInfo, TestModifier {

@@ -31,26 +31,31 @@ type RunResult = 'passed' | 'failed' | 'sigint' | 'forbid-only' | 'no-tests';
 export class Runner {
   private _reporter: Reporter;
   private _loader: Loader;
-  private _rootSuite: Suite;
+  private _didBegin = false;
 
-  constructor(loader: Loader, tagFilter?: string[]) {
+  constructor(loader: Loader) {
     this._loader = loader;
     this._reporter = new Multiplexer(loader.reporters());
+  }
+
+  private _loadSuite(testFiles: string[], tagFilter?: string[]): Suite {
+    for (const file of testFiles)
+      this._loader.loadTestFile(file);
 
     // This makes sure we don't generate 1000000 tests if only one spec is focused.
     const filtered = new Set<Suite>();
-    for (const { fileSuites } of loader.runLists()) {
+    for (const { fileSuites } of this._loader.runLists()) {
       for (const fileSuite of fileSuites.values()) {
         if (fileSuite._hasOnly())
           filtered.add(fileSuite);
       }
     }
 
-    this._rootSuite = new Suite('');
-    const grepMatcher = createMatcher(loader.config().grep);
+    const rootSuite = new Suite('');
+    const grepMatcher = createMatcher(this._loader.config().grep);
 
     const nonEmptySuites = new Set<Suite>();
-    for (const runList of loader.runLists()) {
+    for (const runList of this._loader.runLists()) {
       if (tagFilter && !runList.tags.some(tag => tagFilter.includes(tag)))
         continue;
       for (const fileSuite of runList.fileSuites.values()) {
@@ -60,7 +65,7 @@ export class Runner {
         if (!specs.length)
           continue;
         fileSuite._renumber();
-        const config = loader.config(runList);
+        const config = this._loader.config(runList);
         for (const spec of specs) {
           for (let i = 0; i < config.repeatEach; ++i)
             spec._appendTest(runList, i, config.retries);
@@ -69,43 +74,46 @@ export class Runner {
       }
     }
     for (const fileSuite of nonEmptySuites)
-      this._rootSuite._addSuite(fileSuite);
+      rootSuite._addSuite(fileSuite);
 
-    filterOnly(this._rootSuite);
+    filterOnly(rootSuite);
+    return rootSuite;
   }
 
-  list() {
-    this._reporter.onBegin(this._loader.config(), this._rootSuite);
-    this._reporter.onEnd();
-  }
-
-  async run(): Promise<RunResult> {
-    if (this._loader.config().forbidOnly) {
-      const hasOnly = this._rootSuite.findSpec(t => t._only) || this._rootSuite.findSuite(s => s._only);
-      if (hasOnly)
-        return 'forbid-only';
-    }
-
-    const outputDirs = new Set<string>();
-    this._rootSuite.findTest(test => {
-      outputDirs.add(this._loader.config(test._runList).outputDir);
-    });
-    await Promise.all(Array.from(outputDirs).map(outputDir => removeFolderAsync(outputDir).catch(e => {})));
-
-    const total = this._rootSuite.totalTestCount();
-    if (!total)
-      return 'no-tests';
+  async run(list: boolean, testFiles: string[], tagFilter?: string[]): Promise<RunResult> {
     const globalDeadline = this._loader.config().globalTimeout ? this._loader.config().globalTimeout + monotonicTime() : 0;
-    const { result, timedOut } = await raceAgainstDeadline(this._runTests(this._rootSuite), globalDeadline);
+    const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFiles, tagFilter), globalDeadline);
     if (timedOut) {
+      if (!this._didBegin)
+        this._reporter.onBegin(this._loader.config(), new Suite(''));
       this._reporter.onTimeout(this._loader.config().globalTimeout);
       process.exit(1);
     }
     return result;
   }
 
-  private async _runTests(suite: Suite): Promise<RunResult> {
-    const dispatcher = new Dispatcher(this._loader, suite, this._reporter);
+  private async _run(list: boolean, testFiles: string[], tagFilter?: string[]): Promise<RunResult> {
+    for (const globalSetup of this._loader.globalSetups())
+      await globalSetup();
+
+    const rootSuite = this._loadSuite(testFiles, tagFilter);
+
+    if (this._loader.config().forbidOnly) {
+      const hasOnly = rootSuite.findSpec(t => t._only) || rootSuite.findSuite(s => s._only);
+      if (hasOnly)
+        return 'forbid-only';
+    }
+
+    const outputDirs = new Set<string>();
+    rootSuite.findTest(test => {
+      outputDirs.add(this._loader.config(test._runList).outputDir);
+    });
+    await Promise.all(Array.from(outputDirs).map(outputDir => removeFolderAsync(outputDir).catch(e => {})));
+
+    const total = rootSuite.totalTestCount();
+    if (!total)
+      return 'no-tests';
+
     let sigint = false;
     let sigintCallback: () => void;
     const sigIntPromise = new Promise<void>(f => sigintCallback = f);
@@ -115,13 +123,23 @@ export class Runner {
       sigintCallback();
     };
     process.on('SIGINT', sigintHandler);
-    this._reporter.onBegin(this._loader.config(), suite);
-    await Promise.race([dispatcher.run(), sigIntPromise]);
-    await dispatcher.stop();
+
+    this._reporter.onBegin(this._loader.config(), rootSuite);
+    this._didBegin = true;
+    let hasWorkerErrors = false;
+    if (!list) {
+      const dispatcher = new Dispatcher(this._loader, rootSuite, this._reporter);
+      await Promise.race([dispatcher.run(), sigIntPromise]);
+      await dispatcher.stop();
+      hasWorkerErrors = dispatcher.hasWorkerErrors();
+    }
     this._reporter.onEnd();
+
+    for (const globalTeardown of this._loader.globalTeardowns())
+      await globalTeardown();
     if (sigint)
       return 'sigint';
-    return dispatcher.hasWorkerErrors() || suite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
+    return hasWorkerErrors || rootSuite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
   }
 }
 
