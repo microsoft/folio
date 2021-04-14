@@ -44,6 +44,11 @@ export const configFile: {
   reporters: Reporter[],
 } = { runLists: [], reporters: [] };
 
+let loadingConfigFile = false;
+export function setLoadingConfigFile(loading: boolean) {
+  loadingConfigFile = loading;
+}
+
 export function mergeEnvsImpl(envs: any[]): any {
   if (envs.length === 1)
     return envs[0];
@@ -185,6 +190,8 @@ export function newTestTypeImpl(): any {
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
   test.runWith = (env: Env<any> | undefined, config: RunWithConfig = {}) => {
+    if (!loadingConfigFile)
+      throw errorWithCallLocation(`runWith() can only be called in a configuration file.`);
     const tag = 'tag' in config ? config.tag : [];
     configFile.runLists.push({
       index: configFile.runLists.length,
