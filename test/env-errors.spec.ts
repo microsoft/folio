@@ -24,8 +24,8 @@ test('should handle env afterEach timeout', async ({ runInlineTest }) => {
           await new Promise(f => setTimeout(f, 100000));
         }
       }
-      export const test = folio.newTestType();
-      test.runWith(new MyEnv());
+      export const test = folio.test;
+      test.runWith({}, new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -51,8 +51,8 @@ test('should handle env afterAll timeout', async ({ runInlineTest }) => {
           await new Promise(f => setTimeout(f, 100000));
         }
       }
-      export const test = folio.newTestType();
-      test.runWith(new MyEnv());
+      export const test = folio.test;
+      test.runWith({}, new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -72,8 +72,8 @@ test('should handle env beforeEach error', async ({ runInlineTest }) => {
           throw new Error('Worker failed');
         }
       }
-      export const test = folio.newTestType();
-      test.runWith(new MyEnv());
+      export const test = folio.test;
+      test.runWith({}, new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -94,8 +94,8 @@ test('should handle env afterAll error', async ({ runInlineTest }) => {
           throw new Error('Worker failed');
         }
       }
-      export const test = folio.newTestType();
-      test.runWith(new MyEnv());
+      export const test = folio.test;
+      test.runWith({}, new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -111,7 +111,7 @@ test('should handle env afterAll error', async ({ runInlineTest }) => {
 test('should throw when test() is called in config file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test('hey', () => {});
     `,
     'a.test.ts': `
@@ -136,8 +136,8 @@ test('should run afterAll from mulitple envs when one throws', async ({ runInlin
           console.log('env2-afterAll');
         }
       }
-      export const test = folio.newTestType();
-      test.runWith(folio.merge(new MyEnv1(), new MyEnv2()));
+      export const test = folio.test;
+      test.runWith({}, new MyEnv1(), new MyEnv2());
     `,
     'a.test.ts': `
       import { test } from './folio.config';
@@ -152,7 +152,7 @@ test('should run afterAll from mulitple envs when one throws', async ({ runInlin
 test('can only call runWith in config file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith({});
     `,
     'a.test.ts': `

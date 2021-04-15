@@ -40,9 +40,9 @@ test('should retry based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       folio.setConfig({ retries: 1 });
-      exports.test = folio.newTestType();
-      exports.test.runWith({}, { retries: 0, tag: 'no-retries' });
-      exports.test.runWith({}, { retries: 2, tag: 'two-retries' });
+      exports.test = folio.test;
+      exports.test.runWith({ retries: 0, tag: 'no-retries' });
+      exports.test.runWith({ retries: 2, tag: 'two-retries' });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -164,8 +164,8 @@ test('should retry env.beforeAll failure', async ({ runInlineTest }) => {
           throw new Error('env.beforeAll is bugged!');
         }
       }
-      export const test = folio.newTestType();
-      test.runWith(new MyEnv());
+      export const test = folio.test;
+      test.runWith({}, new MyEnv());
     `,
     'a.spec.ts': `
       import { test } from './folio.config';

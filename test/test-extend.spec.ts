@@ -40,9 +40,9 @@ test('test.extend should work', async ({ runInlineTest }) => {
           global.logs.push('afterEach' + this.suffix);
         }
       }
-      export const base = folio.newTestType();
-      base.runWith(new MyEnv('-base1'));
-      base.runWith(new MyEnv('-base2'));
+      export const base = folio.test;
+      base.runWith({}, new MyEnv('-base1'));
+      base.runWith({}, new MyEnv('-base2'));
     `,
     'helper.ts': `
       import { base, MyEnv } from './folio.config';
@@ -140,7 +140,7 @@ test('test.extend should work', async ({ runInlineTest }) => {
 test('test.extend should work with plain object syntax', async ({ runInlineTest }) => {
   const { output, passed } = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.newTestType().extend({
+      export const test = folio.test.extend({
         async beforeEach() {
           this.foo = 'bar';
           return { foo: this.foo };
@@ -165,11 +165,10 @@ test('test.extend should work with plain object syntax', async ({ runInlineTest 
 test('test.declare should for', async ({ runInlineTest }) => {
   const { failed, passed, skipped } = await runInlineTest({
     'folio.config.ts': `
-      const test = folio.newTestType();
-      export const test1 = test.declare();
+      export const test1 = folio.test.declare();
       test1.runWith({});
-      export const test2 = test.declare();
-      test2.runWith({}, { timeout: 100 });
+      export const test2 = folio.test.declare();
+      test2.runWith({ timeout: 100 });
     `,
     'a.test.js': `
       const { test1, test2 } = require('./folio.config');

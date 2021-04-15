@@ -60,20 +60,20 @@ test('can return anything from hooks', async ({runTSC}) => {
 test('test.declare should check types', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
-      export const test = folio.newTestType();
+      export const test = folio.test;
       const x: number = '123';  // To match line numbers easier.
       export const test1 = test.declare<{ foo: string }>();
       export const test2 = test1.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) }; } });
       test.runWith({});
       test1.runWith({});  // error
-      test1.runWith({ beforeEach: () => { return { foo: 'foo' }; }});
-      test1.runWith({ beforeEach: () => { return { foo: 42 }; }});  // error
-      test2.runWith({});  // error
-      test2.runWith({ beforeEach: () => { return { foo: 'foo' }; }});
+      test1.runWith({}, { beforeEach: () => { return { foo: 'foo' }; }});
+      test1.runWith({}, { beforeEach: () => { return { foo: 42 }; }});  // error
+      test2.runWith({}, {});  // error
+      test2.runWith({}, { beforeEach: () => { return { foo: 'foo' }; }});
       export const test3 = test1.declare<{ baz: number }>();
-      test3.runWith({ beforeEach: () => { return { foo: 'foo' }; }});  // error
-      test3.runWith({ beforeEach: ({ baz }) => { return { foo: 'foo', baz: 42 }; }});  // error
-      test3.runWith({ beforeEach: () => { return { foo: 'foo', baz: 42 }; }});
+      test3.runWith({}, { beforeEach: () => { return { foo: 'foo' }; }});  // error
+      test3.runWith({}, { beforeEach: ({ baz }) => { return { foo: 'foo', baz: 42 }; }});  // error
+      test3.runWith({}, { beforeEach: () => { return { foo: 'foo', baz: 42 }; }});
     `,
     'a.spec.ts': `
       import { test, test1, test2, test3 } from './folio.config';

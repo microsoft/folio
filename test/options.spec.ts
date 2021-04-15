@@ -25,8 +25,8 @@ test('should create two suites with different options', async ({ runInlineTest }
           return { foo: testInfo.testOptions.foo || 'foo' };
         }
       }
-      export const test = folio.newTestType();
-      test.runWith(new MyEnv());
+      export const test = folio.test;
+      test.runWith({}, new MyEnv());
     `,
     'a.test.ts': `
       import { test } from './folio.config';

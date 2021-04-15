@@ -115,12 +115,18 @@ export interface TestType<TestArgs, TestOptions, DeclaredTestArgs> extends TestF
 
   expect: Expect;
 
+  extend(): TestType<TestArgs, TestOptions, DeclaredTestArgs>;
   extend<T>(env: Env<T, TestArgs>): TestType<TestArgs & T, TestOptions, DeclaredTestArgs>;
   declare<T>(): TestType<TestArgs & T, TestOptions, DeclaredTestArgs & T>;
+  declareTestOptions<O>(): TestType<TestArgs, TestOptions & O, DeclaredTestArgs>;
 
-  runWith(env: OptionalEnv<DeclaredTestArgs>): void;
-  runWith(env: OptionalEnv<DeclaredTestArgs>, config: RunWithConfig): void;
+  runWith(config: RunWithConfig, env: OptionalEnv<DeclaredTestArgs>): void;
+  runWith<Args1>(config: RunWithConfig, env1: Env<Args1>, env2: Env<Diff<DeclaredTestArgs, Args1>>): void;
+  runWith<Args1, Args2>(config: RunWithConfig, env1: Env<Args1>, env2: Env<Args2>, env3: Env<Diff<DeclaredTestArgs, Args1 & Args2>>): void;
+  runWith<Args1, Args2, Args3>(config: RunWithConfig, env1: Env<Args1>, env2: Env<Args2>, env3: Env<Args3>, env4: Env<Diff<DeclaredTestArgs, Args1 & Args2 & Args3>>): void;
 }
+
+type Diff<A, B> = A extends object ? (B extends object ? Omit<A, keyof B> : never) : never;
 
 export type RunWithConfig = SharedConfig & {
   tag?: string | string[];

@@ -79,10 +79,10 @@ import * as folio from 'folio';
 // Configure Folio to look for tests in this directory, and give each test 20 seconds.
 folio.setConfig({ testDir: __dirname, timeout: 20000 });
 
-// Create a new test type. For the easiest setup, you need just one.
-export const test = folio.newTestType();
+// Create a test type. For the easiest setup, you can use a default one.
+export const test = folio.test;
 
-// Run tests of this type, giving them two retries.
+// Run tests with two retries.
 test.runWith({ tag: 'basic', retries: 2 });
 ```
 
@@ -92,7 +92,7 @@ Now, use the created test type in your tests.
 
 import { test } from './folio.config';
 
-test('math works?', () => {
+test('check the addition', () => {
   test.expect(1 + 1).toBe(42);
 });
 ```
@@ -118,26 +118,19 @@ import * as folio from 'folio';
 
 folio.setConfig({ testDir: __dirname, timeout: 20000 });
 
-// Type declaration specifies that tests receive a table instance.
-export const test = folio.newTestType<{ table: DatabaseTable }>();
-
 class DatabaseEnv {
-  host: string;
   database: Database;
   table: DatabaseTable;
 
-  constructor(host: string) {
-    this.host = host;
-  }
-
   async beforeAll() {
     // Connect to a database once, it is expensive.
-    this.database = await connectToTestDatabase(this.host);
+    this.database = await connectToTestDatabase();
   }
 
   async beforeEach() {
     // Create a new table for each test and return it.
     this.table = await this.database.createTable();
+    // Anything returned from this method is available to the test. In our case, "table".
     return { table: this.table };
   }
 
@@ -151,12 +144,14 @@ class DatabaseEnv {
   }
 }
 
-// Run our tests in two environments, against a local database and a staging database.
-test.runWith(new DatabaseEnv('localhost:1234'));
-test.runWith(new DatabaseEnv('staging-db.my-company.com:1234'));
+// Our test type comes with the database environment, so each test can use a "table" argument.
+export const test = folio.test.extend(new DatabaseEnv());
+
+// Run our tests.
+test.runWith({ tag: 'database' });
 ```
 
-In this example we see that tests declare the arguments they need, and environment provides the arguments. We can run tests in multiple configurations when needed.
+In this example we see that tests use an environment that provides arguments to the test.
 
 Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. By using `beforeAll` and `afterAll` methods, environment can set up expensive resources to be shared between tests in each worker process. Folio will reuse the worker process for as many test files as it can, provided their environments match.
 
@@ -399,6 +394,8 @@ class LogEnv {
 
 Often times there is a need for different kinds of tests, for example generic tests that use a database table, or some specialized tests that require more elaborate setup. It is also common to run tests in multiple configurations. Folio allows you to configure everything by writing code for maximum flexibility.
 
+Instead of using `test.extend()` to add an environment right away, we use `test.declare()` to declare the test arguments and `test.runWith()` to give it the actual environment and configuration.
+
 ```ts
 // folio.config.ts
 
@@ -408,16 +405,6 @@ import * as fs from 'fs';
 // 20 seconds timeout, 3 retries by default.
 folio.setConfig({ testDir: __dirname, timeout: 20000, retries: 3 });
 
-// Define as many test types as you'd like:
-// - Generic test that only needs a string value.
-export const test = folio.newTestType<{ value: string }>();
-// - Slow test for extra-large data sets.
-export const slowTest = folio.newTestType<{ value: string }>();
-// - Smoke tests should not be flaky.
-export const smokeTest = folio.newTestType<{ value: string }>();
-// - Some special tests that require different arguments.
-export const fooTest = folio.newTestType<{ foo: number }>();
-
 // Environment with some test value.
 class MockedEnv {
   async beforeEach() {
@@ -425,7 +412,7 @@ class MockedEnv {
   }
 }
 
-// Another environment that reads from file.
+// Another environment that reads from a file.
 class FileEnv {
   constructor() {
     this.value = fs.readFileSync('data.txt', 'utf8');
@@ -435,24 +422,34 @@ class FileEnv {
   }
 }
 
-// This environment provides foo.
-class FooEnv {
-  async beforeEach() {
+// Our tests need a common string value.
+const valueTest = folio.test.declare<{ value: string }>();
+
+// Now declare as many test types as we'd like.
+
+// Run generic tests with two different environments and no specific configuration.
+export const test = valueTest.declare();
+test.runWith({}, new MockedEnv());
+test.runWith({}, new FileEnv());
+
+// Run slow tests with increased timeout, in a single environment.
+export const slowTest = valueTest.declare();
+slowTest.runWith({ timeout: 100000 }, new MockedEnv());
+
+// Run smoke tests without retries - these must not be flaky.
+// Adding a tag allows to run just the smoke tests with `npx folio --tag=smoke`.
+export const smokeTest = valueTest.declare();
+smokeTest.runWith({ retries: 0, tag: 'smoke' }, new MockedEnv());
+
+// These tests also get a "foo" argument.
+export const fooTest = valueTest.extend({
+  beforeEach() {
     return { foo: 42 };
   }
-}
-
-// Now we can run tests in different configurations:
-// - Generics tests with two different environments.
-test.runWith(new MockedEnv());
-test.runWith(new FileEnv());
-// - Increased timeout for slow tests.
-slowTest.runWith(new MockedEnv(), { timeout: 100000 });
-// - Smoke tests without retries.
-//   Adding a tag allows to run just the smoke tests with `npx folio --tag=smoke`.
-smokeTest.runWith(new MockedEnv(), { retries: 0, tag: 'smoke' });
-// - Special foo tests need a different environment.
-fooTest.runWith(new FooEnv());
+});
+// Although we already added the environment that gives "foo", we still have to provide
+// the "value" declared in valueTest.
+fooTest.runWith({ tag: 'foo' }, new MockedEnv());
 ```
 
 We can now use our test types to write tests:
@@ -537,11 +534,11 @@ class HelloEnv {
 }
 
 // Tests expect a "hello" value.
-export const test = folio.newTestType<{ hello: string }>();
+export const test = folio.test.declare<{ hello: string }>();
 
 // Now, run tests in two configurations.
-test.runWith(new HelloEnv('world'));
-test.runWith(new HelloEnv('test'));
+test.runWith({}, new HelloEnv('world'));
+test.runWith({}, new HelloEnv('test'));
 ```
 
 #### Providing function as a test argument
@@ -563,9 +560,9 @@ class CreateHelloEnv {
   }
 }
 
-// Tests expect a "createHello" function.
-export const test = folio.newTestType<{ createHello: (name: string) => string }>();
-test.runWith(new CreateHelloEnv());
+// Tests get a "createHello" function.
+export const test = folio.test.extend(new CreateHelloEnv());
+test.runWith({});
 ```
 
 Now use this function in the test.
@@ -600,8 +597,10 @@ class HelloEnv {
 }
 
 // Tests expect a "hello" value, and can provide a "name" option.
-export const test = folio.newTestType<{ hello: string }, { name: string }>();
-test.runWith(new HelloEnv());
+export const test = folio.test
+  .declare<{ hello: string }>()
+  .declareTestOptions<{ name: string }>();
+test.runWith({}, new HelloEnv());
 ```
 
 Now use the options in the test.

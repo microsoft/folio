@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-import type { Env, TestType } from './types';
-import { newTestTypeImpl, mergeEnvsImpl } from './spec';
+import type { TestType } from './types';
+import { newTestTypeImpl } from './spec';
 import DotReporter from './reporters/dot';
 import JSONReporter from './reporters/json';
 import JUnitReporter from './reporters/junit';
@@ -26,18 +26,7 @@ import ListReporter from './reporters/list';
 export * from './types';
 export { expect } from './expect';
 export { setConfig, setReporters, globalSetup, globalTeardown } from './spec';
-
-export function newTestType<TestArgs = {}, TestOptions = {}>(): TestType<TestArgs, TestOptions, TestArgs> {
-  return newTestTypeImpl([]);
-}
-
-export function merge<TestArgs>(env: Env<TestArgs>): Env<TestArgs>;
-export function merge<TestArgs1, TestArgs2>(env1: Env<TestArgs1>, env2: Env<TestArgs2>): Env<TestArgs1 & TestArgs2>;
-export function merge<TestArgs1, TestArgs2, TestArgs3>(env1: Env<TestArgs1>, env2: Env<TestArgs2>, env3: Env<TestArgs3>): Env<TestArgs1 & TestArgs2 & TestArgs3>;
-export function merge(...envs: any): Env<any> {
-  return mergeEnvsImpl(envs);
-}
-
+export const test: TestType<{}, {}, {}> = newTestTypeImpl([]);
 export const reporters = {
   dot: DotReporter,
   json: JSONReporter,

@@ -19,14 +19,13 @@ import { test, expect } from './config';
 test('should access error in env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      const { newTestType } = folio;
       class MyEnv {
         async afterEach(testInfo) {
           console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
         }
       }
-      export const test = newTestType();
-      test.runWith(new MyEnv());
+      export const test = folio.test;
+      test.runWith({}, new MyEnv());
     `,
     'test-error-visible-in-env.spec.ts': `
       import { test } from './folio.config';
@@ -45,14 +44,13 @@ test('should access error in env', async ({ runInlineTest }) => {
 test('should access data in env', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
-      const { newTestType } = folio;
       class MyEnv {
         async afterEach(testInfo) {
           testInfo.data['myname'] = 'myvalue';
         }
       }
-      export const test = newTestType();
-      test.runWith(new MyEnv());
+      export const test = folio.test;
+      test.runWith({}, new MyEnv());
     `,
     'test-data-visible-in-env.spec.ts': `
       import { test } from './folio.config';
@@ -74,9 +72,9 @@ test('should access data in env', async ({ runInlineTest }) => {
 test('should report tags in result', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.newTestType();
-      test.runWith({}, { tag: ['foo', 'bar'] });
-      test.runWith(undefined, { tag: 'some tag' });
+      export const test = folio.test;
+      test.runWith({ tag: ['foo', 'bar'] }, {});
+      test.runWith({ tag: 'some tag' }, undefined);
     `,
     'test-data-visible-in-env.spec.ts': `
       import { test } from './folio.config';

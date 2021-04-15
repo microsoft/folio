@@ -23,7 +23,7 @@ import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
 import { Spec, Suite, Test, TestVariation } from './test';
 import { Env, FullConfig, TestInfo, WorkerInfo } from './types';
-import { mergeEnvsImpl, RunListDescription } from './spec';
+import { RunListDescription } from './spec';
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
@@ -112,7 +112,7 @@ export class WorkerRunner extends EventEmitter {
       return;
     }
 
-    this._env = mergeEnvsImpl([this._runList.env, ...envs]);
+    this._env = mergeEnvs([...this._runList.envs, ...envs]);
     if (this._env.beforeAll) {
       // TODO: separate timeout for beforeAll?
       const result = await raceAgainstDeadline(wrapInPromise(this._env.beforeAll(this._workerInfo)), this._deadline());
@@ -484,4 +484,56 @@ class SkipError extends Error {
 
 async function wrapInPromise(value: any) {
   return value;
+}
+
+function mergeEnvs(envs: Env<any>[]): Env<any> {
+  if (envs.length === 1)
+    return envs[0];
+  const forward = [...envs];
+  const backward = [...forward].reverse();
+  return {
+    beforeAll: async (workerInfo: WorkerInfo) => {
+      for (const env of forward) {
+        if (env.beforeAll)
+          await env.beforeAll(workerInfo);
+      }
+    },
+    afterAll: async (workerInfo: WorkerInfo) => {
+      let error: Error | undefined;
+      for (const env of backward) {
+        if (env.afterAll) {
+          try {
+            await env.afterAll(workerInfo);
+          } catch (e) {
+            error = error || e;
+          }
+        }
+      }
+      if (error)
+        throw error;
+    },
+    beforeEach: async (args: any, testInfo: TestInfo) => {
+      for (const env of forward) {
+        if (env.beforeEach) {
+          const r = await env.beforeEach(args, testInfo);
+          args = { ...args, ...r };
+        }
+      }
+      return args;
+    },
+    afterEach: async (testInfo: TestInfo) => {
+      let error: Error | undefined;
+      for (const env of backward) {
+        if (env.afterEach) {
+          try {
+            await env.afterEach(testInfo);
+          } catch (e) {
+            error = error || e;
+          }
+        }
+      }
+      if (error)
+        throw error;
+    },
+  };
 }

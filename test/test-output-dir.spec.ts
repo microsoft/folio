@@ -55,12 +55,12 @@ test('should include runWith tag', async ({ runInlineTest }) => {
           return {};
         }
       }
-      export const test = folio.newTestType();
-      export const test2 = folio.newTestType();
-      test.runWith(new Env('snapshots1'), { tag: 'foo' });
-      test.runWith(new Env('snapshots2'), { tag: 'foo' });
-      test2.runWith(new Env('snapshots1'), { tag: 'foo' });
-      test2.runWith(new Env('snapshots1'), { tag: ['a', 'b'] });
+      export const test = folio.test.extend();
+      export const test2 = folio.test.extend();
+      test.runWith({ tag: 'foo' }, new Env('snapshots1'));
+      test.runWith({ tag: 'foo' }, new Env('snapshots2'));
+      test2.runWith({ tag: 'foo' }, new Env('snapshots1'));
+      test2.runWith({ tag: ['a', 'b'] }, new Env('snapshots1'));
     `,
     'my-test.spec.js': `
       const { test, test2 } = require('./folio.config');

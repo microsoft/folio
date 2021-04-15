@@ -32,8 +32,8 @@ test('globalSetup and globalTeardown should work', async ({ runInlineTest }) => 
       folio.globalSetup(async () => {
         process.env.BAR = 'baz';
       });
-      export const test = folio.newTestType();
-      test.runWith();
+      export const test = folio.test;
+      test.runWith({});
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -59,8 +59,8 @@ test('globalTeardown runs after failures', async ({ runInlineTest }) => {
       folio.globalTeardown(() => {
         console.log('teardown=' + value);
       });
-      export const test = folio.newTestType();
-      test.runWith();
+      export const test = folio.test;
+      test.runWith({}, undefined);
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -83,8 +83,8 @@ test('globalTeardown does not run when globalSetup times out', async ({ runInlin
       folio.globalTeardown(() => {
         console.log('teardown=');
       });
-      export const test = folio.newTestType();
-      test.runWith();
+      export const test = folio.test;
+      test.runWith({});
       folio.setConfig({ globalTimeout: 1000 });
     `,
     'a.test.js': `
@@ -107,8 +107,8 @@ test('globalSetup should be run before requiring tests', async ({ runInlineTest 
       folio.globalSetup(async () => {
         process.env.FOO = JSON.stringify({ foo: 'bar' });
       });
-      export const test = folio.newTestType();
-      test.runWith();
+      export const test = folio.test;
+      test.runWith({});
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
