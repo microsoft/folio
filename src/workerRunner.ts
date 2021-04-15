@@ -17,22 +17,23 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { interpretCondition, monotonicTime, raceAgainstDeadline, serializeError } from './util';
+import { interpretCondition, mergeObjects, monotonicTime, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
 import { Spec, Suite, Test, TestVariation } from './test';
 import { Env, FullConfig, TestInfo, WorkerInfo } from './types';
-import { mergeEnvsImpl, RunListDescription } from './spec';
+import { RunListDescription } from './spec';
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
   private _loader: Loader;
   private _runList: RunListDescription;
-  private _env: Env<any>;
+  private _envRunner: EnvRunner;
   private _outputPathSegment: string;
   private _workerInfo: WorkerInfo;
   private _envInitialized = false;
+  private _workerArgs: any;
 
   private _failedTestId: string | undefined;
   private _fatalError: any | undefined;
@@ -59,12 +60,10 @@ export class WorkerRunner extends EventEmitter {
     if (!this._envInitialized)
       return;
     this._envInitialized = false;
-    if (this._env.afterAll) {
-      // TODO: separate timeout for afterAll?
-      const result = await raceAgainstDeadline(wrapInPromise(this._env.afterAll(this._workerInfo)), this._deadline());
-      if (result.timedOut)
-        throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
-    }
+    // TODO: separate timeout for afterAll?
+    const result = await raceAgainstDeadline(this._envRunner.runAfterAll(this._workerInfo, this._runList.options), this._deadline());
+    if (result.timedOut)
+      throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
   }
 
   unhandledError(error: Error | any) {
@@ -107,19 +106,18 @@ export class WorkerRunner extends EventEmitter {
   }
 
   private async _initEnvIfNeeded(envs: Env<any>[]) {
-    if (this._env) {
+    if (this._envRunner) {
       // We rely on the fact that worker only receives tests with the same env list.
       return;
     }
 
-    this._env = mergeEnvsImpl([this._runList.env, ...envs]);
-    if (this._env.beforeAll) {
-      // TODO: separate timeout for beforeAll?
-      const result = await raceAgainstDeadline(wrapInPromise(this._env.beforeAll(this._workerInfo)), this._deadline());
-      if (result.timedOut) {
-        this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
-        this._reportDoneAndStop();
-      }
+    this._envRunner = new EnvRunner([this._runList.env, ...envs]);
+    // TODO: separate timeout for beforeAll?
+    const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, this._runList.options), this._deadline());
+    this._workerArgs = result.result;
+    if (result.timedOut) {
+      this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
+      this._reportDoneAndStop();
     }
     this._envInitialized = true;
   }
@@ -174,7 +172,7 @@ export class WorkerRunner extends EventEmitter {
       if (this._isStopped)
         return;
       // TODO: separate timeout for beforeAll?
-      const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerInfo)), this._deadline());
+      const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerArgs, this._workerInfo)), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while running beforeAll hook`));
         this._reportDoneAndStop();
@@ -192,7 +190,7 @@ export class WorkerRunner extends EventEmitter {
       if (this._isStopped)
         return;
       // TODO: separate timeout for afterAll?
-      const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerInfo)), this._deadline());
+      const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerArgs, this._workerInfo)), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while running afterAll hook`));
         this._reportDoneAndStop();
@@ -239,6 +237,7 @@ export class WorkerRunner extends EventEmitter {
       data: {},
       snapshotPathSegment: '',
       outputPath: (...pathSegments: string[]): string => {
+        // TODO: remove empty outputPath after test run.
         let suffix = this._outputPathSegment;
         if (testInfo.retry)
           suffix += (suffix ? '-' : '') + 'retry' + testInfo.retry;
@@ -252,7 +251,6 @@ export class WorkerRunner extends EventEmitter {
         const basePath = path.join(config.testDir, config.snapshotDir, relativeTestPath, testInfo.snapshotPathSegment);
         return path.join(basePath, ...pathSegments);
       },
-      testOptions: spec.testOptions,
       skip: (arg?: boolean | string, description?: string) => modifier(testInfo, 'skip', arg, description),
       fixme: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fixme', arg, description),
       fail: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fail', arg, description),
@@ -277,7 +275,14 @@ export class WorkerRunner extends EventEmitter {
 
     const startTime = monotonicTime();
 
-    const testArgsResult = await raceAgainstDeadline(this._runEnvBeforeEach(testInfo), deadline);
+    const parents: Suite[] = [];
+    for (let suite = spec.parent; suite; suite = suite.parent)
+      parents.push(suite);
+    const testOptions = parents.reverse().reduce((options, suite) => {
+      return mergeObjects(options, suite.testOptions);
+    }, {});
+
+    const testArgsResult = await raceAgainstDeadline(this._runEnvBeforeEach(testInfo, testOptions), deadline);
     if (testArgsResult.timedOut && testInfo.status === 'passed')
       testInfo.status = 'timedOut';
     if (this._isStopped)
@@ -294,14 +299,14 @@ export class WorkerRunner extends EventEmitter {
         return;
 
       if (!result.timedOut) {
-        const hooksResult = await raceAgainstDeadline(this._runAfterHooks(test, testInfo, testArgs), deadline);
+        const hooksResult = await raceAgainstDeadline(this._runAfterHooks(test, testInfo, testArgs, testOptions), deadline);
         // Do not overwrite test failure upon hook timeout.
         if (hooksResult.timedOut && testInfo.status === 'passed')
           testInfo.status = 'timedOut';
       } else {
         // A timed-out test gets a full additional timeout to run after hooks.
         const newDeadline = this._deadline();
-        await raceAgainstDeadline(this._runAfterHooks(test, testInfo, testArgs), newDeadline);
+        await raceAgainstDeadline(this._runAfterHooks(test, testInfo, testArgs, testOptions), newDeadline);
       }
     }
     if (this._isStopped)
@@ -323,14 +328,9 @@ export class WorkerRunner extends EventEmitter {
   }
 
   // Returns TestArgs or undefined when env.beforeEach has failed.
-  private async _runEnvBeforeEach(testInfo: TestInfo): Promise<any> {
+  private async _runEnvBeforeEach(testInfo: TestInfo, testOptions: any): Promise<any> {
     try {
-      let testArgs: any = {};
-      if (this._env.beforeEach)
-        testArgs = await this._env.beforeEach({}, testInfo);
-      if (testArgs === undefined)
-        testArgs = {};
-      return testArgs;
+      return await this._envRunner.runBeforeEach(testInfo, testOptions);
     } catch (error) {
       testInfo.status = 'failed';
       testInfo.error = serializeError(error);
@@ -369,7 +369,7 @@ export class WorkerRunner extends EventEmitter {
     }
   }
 
-  private async _runAfterHooks(test: Test, testInfo: TestInfo, testArgs: any) {
+  private async _runAfterHooks(test: Test, testInfo: TestInfo, testArgs: any, testOptions: any) {
     try {
       await this._runHooks(test.spec.parent, 'afterEach', testArgs, testInfo);
     } catch (error) {
@@ -381,8 +381,7 @@ export class WorkerRunner extends EventEmitter {
       }
     }
     try {
-      if (this._env.afterEach)
-        await this._env.afterEach(testInfo);
+      await this._envRunner.runAfterEach(testInfo, testOptions);
     } catch (error) {
       // Do not overwrite test failure error.
       if (testInfo.status === 'passed') {
@@ -484,4 +483,72 @@ class SkipError extends Error {
 
 async function wrapInPromise(value: any) {
   return value;
+}
+
+class EnvRunner {
+  private forward: Env[];
+  private backward: Env[];
+  private workerArgs: any[] = [];
+  private testArgs: any[] = [];
+
+  constructor(envs: Env[]) {
+    this.forward = [...envs];
+    this.backward = [...envs].reverse();
+  }
+
+  async runBeforeAll(workerInfo: WorkerInfo, workerOptions: any) {
+    let args = {};
+    for (const env of this.forward) {
+      if (env.beforeAll) {
+        const r = await env.beforeAll(mergeObjects(workerOptions, args), workerInfo);
+        args = mergeObjects(args, r);
+      }
+      this.workerArgs.push(args);
+    }
+    return args;
+  }
+
+  async runAfterAll(workerInfo: WorkerInfo, workerOptions: any) {
+    let error: Error | undefined;
+    for (const env of this.backward) {
+      const args = this.workerArgs.pop();
+      if (env.afterAll) {
+        try {
+          await env.afterAll(mergeObjects(workerOptions, args), workerInfo);
+        } catch (e) {
+          error = error || e;
+        }
+      }
+    }
+    if (error)
+      throw error;
+  }
+
+  async runBeforeEach(testInfo: TestInfo, testOptions: any) {
+    let args = {};
+    for (const env of this.forward) {
+      if (env.beforeEach) {
+        const r = await env.beforeEach(mergeObjects(testOptions, args), testInfo);
+        args = mergeObjects(args, r);
+      }
+      this.testArgs.push(args);
+    }
+    return args;
+  }
+
+  async runAfterEach(testInfo: TestInfo, testOptions: any) {
+    let error: Error | undefined;
+    for (const env of this.backward) {
+      const args = this.testArgs.pop();
+      if (env.afterEach) {
+        try {
+          await env.afterEach(mergeObjects(testOptions, args), testInfo);
+        } catch (e) {
+          error = error || e;
+        }
+      }
+    }
+    if (error)
+      throw error;
+  }
 }

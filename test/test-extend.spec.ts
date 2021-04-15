@@ -40,7 +40,7 @@ test('test.extend should work', async ({ runInlineTest }) => {
           global.logs.push('afterEach' + this.suffix);
         }
       }
-      export const base = folio.newTestType();
+      export const base = folio.test;
       base.runWith(new MyEnv('-base1'));
       base.runWith(new MyEnv('-base2'));
     `,
@@ -60,15 +60,8 @@ test('test.extend should work', async ({ runInlineTest }) => {
         expect(foo).toBe('bar');
       });
     `,
-    'b.test.js': `
-      const { test1 } = require('./helper');
-      test1('should work', async ({foo}) => {
-        global.logs.push('test3');
-        expect(foo).toBe('bar');
-      });
-    `,
   });
-  expect(passed).toBe(6);
+  expect(passed).toBe(4);
   expect(output).toContain([
     'beforeAll-base1',
     'beforeAll-e1',
@@ -111,28 +104,6 @@ test('test.extend should work', async ({ runInlineTest }) => {
     'afterEach-e2',
     'afterEach-base2',
     'afterAll-e2',
-    'afterAll-base2',
-  ].join('\n'));
-  expect(output).toContain([
-    'beforeAll-base1',
-    'beforeAll-e1',
-    'beforeEach-base1',
-    'beforeEach-e1',
-    'test3',
-    'afterEach-e1',
-    'afterEach-base1',
-    'afterAll-e1',
-    'afterAll-base1',
-  ].join('\n'));
-  expect(output).toContain([
-    'beforeAll-base2',
-    'beforeAll-e1',
-    'beforeEach-base2',
-    'beforeEach-e1',
-    'test3',
-    'afterEach-e1',
-    'afterEach-base2',
-    'afterAll-e1',
     'afterAll-base2',
   ].join('\n'));
 });
@@ -140,16 +111,16 @@ test('test.extend should work', async ({ runInlineTest }) => {
 test('test.extend should work with plain object syntax', async ({ runInlineTest }) => {
   const { output, passed } = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.newTestType().extend({
+      export const test = folio.test.extend({
         async beforeEach() {
           this.foo = 'bar';
           return { foo: this.foo };
         },
-        afterEach(testInfo) {
+        afterEach({}, testInfo) {
           console.log('afterEach=' + this.foo + ';' + testInfo.title);
         },
       });
-      test.runWith({});
+      test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -162,14 +133,13 @@ test('test.extend should work with plain object syntax', async ({ runInlineTest 
   expect(output).toContain('afterEach=bar;test1');
 });
 
-test('test.declare should for', async ({ runInlineTest }) => {
+test('test.declare should fork', async ({ runInlineTest }) => {
   const { failed, passed, skipped } = await runInlineTest({
     'folio.config.ts': `
-      const test = folio.newTestType();
-      export const test1 = test.declare();
-      test1.runWith({});
-      export const test2 = test.declare();
-      test2.runWith({}, { timeout: 100 });
+      export const test1 = folio.test.declare();
+      test1.runWith();
+      export const test2 = folio.test.declare();
+      test2.runWith({ timeout: 100 });
     `,
     'a.test.js': `
       const { test1, test2 } = require('./folio.config');
@@ -184,4 +154,116 @@ test('test.declare should for', async ({ runInlineTest }) => {
   expect(passed).toBe(1);
   expect(failed).toBe(1);
   expect(skipped).toBe(0);
+});
+
+test('test.extend should chain worker and test args', async ({ runInlineTest }) => {
+  const { output, passed } = await runInlineTest({
+    'folio.config.ts': `
+      global.logs = [];
+      export class Env1 {
+        async beforeAll() {
+          global.logs.push('beforeAll1');
+          return { w1: 'w1' };
+        }
+        async afterAll({ w1 }) {
+          global.logs.push('afterAll1-w1=' + w1);
+          console.log(global.logs.join('\\n'));
+        }
+        async beforeEach() {
+          global.logs.push('beforeEach1');
+          return { t1: 't1' };
+        }
+        async afterEach({ t1 }) {
+          global.logs.push('afterEach1-t1=' + t1);
+        }
+      }
+      export class Env2 {
+        async beforeAll({ w1 }) {
+          global.logs.push('beforeAll2-w1=' + w1);
+          return { w2: 'w2' };
+        }
+        async afterAll({ w1, w2 }) {
+          global.logs.push('afterAll2-w1=' + w1 + ',w2=' + w2);
+        }
+        async beforeEach({ t1 }) {
+          global.logs.push('beforeEach2-t1=' + t1);
+          return { t2: 't2' };
+        }
+        async afterEach({ t1, t2 }) {
+          global.logs.push('afterEach2-t1=' + t1 + ',t2=' + t2);
+        }
+      }
+      export class Env3 {
+        async beforeAll({ w1, w2 }) {
+          global.logs.push('beforeAll3-w1=' + w1 + ',w2=' + w2);
+          return { w3: 'w3' };
+        }
+        async afterAll({ w1, w2, w3 }) {
+          global.logs.push('afterAll3-w1=' + w1 + ',w2=' + w2 + ',w3=' + w3);
+        }
+        async beforeEach({ t1, t2}) {
+          global.logs.push('beforeEach3-t1=' + t1 + ',t2=' + t2);
+          return { t3: 't3' };
+        }
+        async afterEach({ t1, t2, t3 }) {
+          global.logs.push('afterEach3-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
+        }
+      }
+      export const test = folio.test.declare().extend(new Env2()).extend(new Env3());
+      test.runWith(new Env1());
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      test('should work', async ({t1, t2, t3}) => {
+        global.logs.push('test-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
+      });
+    `,
+  });
+  expect(passed).toBe(1);
+  expect(output).toContain([
+    'beforeAll1',
+    'beforeAll2-w1=w1',
+    'beforeAll3-w1=w1,w2=w2',
+    'beforeEach1',
+    'beforeEach2-t1=t1',
+    'beforeEach3-t1=t1,t2=t2',
+    'test-t1=t1,t2=t2,t3=t3',
+    'afterEach3-t1=t1,t2=t2,t3=t3',
+    'afterEach2-t1=t1,t2=t2',
+    'afterEach1-t1=t1',
+    'afterAll3-w1=w1,w2=w2,w3=w3',
+    'afterAll2-w1=w1,w2=w2',
+    'afterAll1-w1=w1',
+  ].join('\n'));
+});
+
+test('env.options should work', async ({ runInlineTest }) => {
+  const { exitCode, passed } = await runInlineTest({
+    'folio.config.ts': `
+      export class Env1 {
+        async beforeAll(options) {
+          return { bar: options.foo + '2' };
+        }
+      }
+      export class Env2 {
+        async beforeAll(options) {
+          return { baz: options.foo + options.bar };
+        }
+      }
+      export const test = folio.test.declare().extend(new Env1()).extend(new Env2());
+      test.runWith({ options: { foo: 'foo' } });
+    `,
+    'a.test.js': `
+      const { test } = require('./folio.config');
+      let value;
+      test.beforeAll(({ foo, bar, baz }) => {
+        value = 'foo=' + foo + ';bar=' + bar + ';baz=' + baz;
+      });
+      test('should work', async () => {
+        expect(value).toBe('foo=undefined;bar=foo2;baz=foofoo2');
+      });
+    `,
+  });
+  expect(passed).toBe(1);
+  expect(exitCode).toBe(0);
 });

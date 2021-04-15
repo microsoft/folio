@@ -137,3 +137,14 @@ export function createMatcher(patterns: string | RegExp | (string | RegExp)[]): 
     return false;
   };
 }
+
+export function mergeObjects<A extends object, B extends object>(a: A | undefined | void, b: B | undefined | void): A & B {
+  const result = { ...a };
+  if (!Object.is(b, undefined)) {
+    for (const [name, value] of Object.entries(b as B)) {
+      if (!Object.is(value, undefined))
+        result[name] = value;
+    }
+  }
+  return result as any;
+}

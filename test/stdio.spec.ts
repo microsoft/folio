@@ -48,7 +48,7 @@ test('should get stdio from env afterAll', async ({runInlineTest}) => {
           console.log('\\n%% worker teardown');
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new MyEnv());
     `,
     'a.spec.js': `

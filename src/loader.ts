@@ -16,7 +16,7 @@
 
 import { installTransform } from './transform';
 import { Config, Env, FullConfig, Reporter, TestType } from './types';
-import { prependErrorMessage } from './util';
+import { mergeObjects, prependErrorMessage } from './util';
 import { configFile, setCurrentFile, RunListDescription, setLoadingConfigFile } from './spec';
 import { Suite } from './test';
 
@@ -59,7 +59,7 @@ export class Loader {
 
   addConfig(config: Config) {
     this._layeredConfigs.push({ config });
-    this._mergedConfig = { ...this._mergedConfig, ...config };
+    this._mergedConfig = mergeObjects(this._mergedConfig, config);
   }
 
   loadTestFile(file: string) {
@@ -79,7 +79,7 @@ export class Loader {
   config(runList?: RunListDescription): FullConfig {
     if (!runList)
       return this._mergedConfig;
-    return { ...this._mergedConfig, ...runList.config };
+    return mergeObjects(this._mergedConfig, runList.config);
   }
 
   runLists(): RunListDescription[] {
@@ -91,7 +91,7 @@ export class Loader {
       fileSuites: Map<string, Suite>;
       envs: Env<any>[];
     }>();
-    const visit = (t: TestType<any, any, any>) => {
+    const visit = (t: TestType<any, any, any, any>) => {
       const description = configFile.testTypeDescriptions.get(t)!;
       result.add({ fileSuites: description.fileSuites, envs: description.envs });
       for (const child of description.children)

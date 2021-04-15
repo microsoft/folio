@@ -16,16 +16,16 @@
 
 import { test, expect } from './config';
 
-test('should create two suites with different options', async ({ runInlineTest }) => {
+test('should run tests with different options', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       global.logs = [];
       class MyEnv {
-        async beforeEach(args, testInfo) {
-          return { foo: testInfo.testOptions.foo || 'foo' };
+        async beforeEach(args) {
+          return { foo: args.foo || 'foo' };
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new MyEnv());
     `,
     'a.test.ts': `
@@ -33,11 +33,19 @@ test('should create two suites with different options', async ({ runInlineTest }
       test('test', ({ foo }) => {
         expect(foo).toBe('foo');
       });
-      test('test1', { foo: 'bar' }, ({ foo }) => {
-        expect(foo).toBe('bar');
-      });
-      test('test2', { foo: 'baz' }, ({ foo }) => {
-        expect(foo).toBe('baz');
+
+      test.describe('suite1', () => {
+        test.useOptions({ foo: 'bar' });
+        test('test1', ({ foo }) => {
+          expect(foo).toBe('bar');
+        });
+
+        test.describe('suite2', () => {
+          test.useOptions({ foo: 'baz' });
+          test('test2', ({ foo }) => {
+            expect(foo).toBe('baz');
+          });
+        });
       });
     `
   });

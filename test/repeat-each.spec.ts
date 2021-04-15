@@ -36,9 +36,9 @@ test('should repeat from command line', async ({runInlineTest}) => {
 test('should repeat based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
-      exports.test = folio.newTestType();
-      exports.test.runWith(undefined, { tag: 'no-repeats' });
-      exports.test.runWith({}, { repeatEach: 2, tag: 'two-repeats' });
+      exports.test = folio.test;
+      exports.test.runWith({ tag: 'no-repeats' });
+      exports.test.runWith({ repeatEach: 2, tag: 'two-repeats' });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

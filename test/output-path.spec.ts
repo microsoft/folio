@@ -49,8 +49,8 @@ test('should include retry token', async ({runInlineTest}) => {
 test('should include tag', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.newTestType();
-      test.runWith({}, { tag: 'my-title' });
+      export const test = folio.test;
+      test.runWith({ tag: 'my-title' });
     `,
     'a.spec.js': `
       const { test } = require('./folio.config');
@@ -78,9 +78,9 @@ test('should remove output paths', async ({runInlineTest}, testInfo) => {
 
   const result = await runInlineTest({
     'folio.config.js': `
-      exports.test = folio.newTestType();
-      exports.test.runWith(undefined, { outputDir: ${JSON.stringify(paths[0])} });
-      exports.test.runWith(void 0, { outputDir: ${JSON.stringify(paths[2])} });
+      exports.test = folio.test;
+      exports.test.runWith({ outputDir: ${JSON.stringify(paths[0])} });
+      exports.test.runWith({ outputDir: ${JSON.stringify(paths[2])} });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

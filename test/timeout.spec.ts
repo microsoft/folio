@@ -20,11 +20,11 @@ test('should run env afterEach on timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async afterEach(testInfo) {
+        async afterEach({}, testInfo) {
           console.log('STATUS:' + testInfo.status);
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new MyEnv());
     `,
     'c.spec.ts': `

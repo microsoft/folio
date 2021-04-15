@@ -19,68 +19,81 @@ import { test, expect } from './config';
 test('sanity', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
+      // @ts-expect-error
       test.foo();
     `
   });
-  expect(result.exitCode).not.toBe(0);
-  expect(result.output).toContain(`Property 'foo' does not exist`);
+  expect(result.exitCode).toBe(0);
 });
 
-test('runWith should check types', async ({runTSC}) => {
+test('runWith should check types of options', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
+      export const test = folio.test.extend({
+        optionsType(): { foo: string, bar: number } {
+          return {} as any;
+        },
+        async beforeEach({}, testInfo: folio.TestInfo) {
+          return { a: '42', b: 42 };
+        }
+      });
       class Env1 {
-        async beforeEach(args, testInfo: folio.TestInfo) {
-          return { a: '42' };
+        beforeAll() {
+          return { foo: '42', bar: 42 };
         }
       }
       class Env2 {
-        async beforeEach(args, testInfo: folio.TestInfo) {
-          return { b: 42 };
+        beforeAll() {
+          return { foo: '42' };
         }
       }
-      export const test = folio.newTestType<{ a: string, b: number }>();
-      const x: number = '123';  // To match line numbers easier.
-      test.runWith(new Env1());  // error
-      test.runWith(folio.merge(new Env1(), new Env2()));
-      test.runWith(new Env1(), {});  // error
-      test.runWith(new Env1(), { timeout: 100 });  // error
-      test.runWith(folio.merge(new Env1(), new Env2()), { timeout: 100, tag: ['tag1', 'tag2'] });
-      test.runWith({ timeout: 100 });  // error
-      test.runWith('alias');  // error
-      test.runWith({});  // error
+      test.runWith({ options: { foo: '42', bar: 42 } });
+      test.runWith({ options: { foo: '42', bar: 42 }, timeout: 100 });
+      test.runWith(new Env1());
+      test.runWith(new Env1(), { timeout: 100 });
+      test.runWith(new Env1(), {});
+      // @ts-expect-error
+      test.runWith({ options: { foo: '42', bar: 42 } }, {});
+      // @ts-expect-error
+      test.runWith({ options: { foo: '42' } });
+      // @ts-expect-error
+      test.runWith({ options: { bar: '42' } });
+      // @ts-expect-error
+      test.runWith({ options: { bar: 42 } });
+      // @ts-expect-error
+      test.runWith(new Env2());
+      // @ts-expect-error
+      test.runWith({ options: { foo: 42, bar: 42 } });
+      // @ts-expect-error
+      test.runWith({ beforeAll: async () => { return {}; } });
+      // @ts-expect-error
+      test.runWith(new Env2(), { timeout: 100 });
+      // TODO: next line should not compile.
+      test.runWith({ timeout: 100 });
+      // @ts-expect-error
+      test.runWith('alias');
+      // TODO: next line should not compile.
+      test.runWith({});
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
-      test('my test', async () => {
+      test('my test', async ({ a, b }) => {
+        b += parseInt(a);
       });
     `
   });
-  expect(result.exitCode).not.toBe(0);
-  expect(result.output).toContain(`folio.config.ts(15,13): error TS2322: Type 'string' is not assignable to type 'number'.`);
-  expect(result.output).toContain('folio.config.ts(16');
-  expect(result.output).not.toContain('folio.config.ts(17');
-  expect(result.output).toContain('folio.config.ts(18');
-  expect(result.output).toContain('folio.config.ts(19');
-  expect(result.output).not.toContain('folio.config.ts(20');
-  expect(result.output).toContain('folio.config.ts(21');
-  expect(result.output).toContain('folio.config.ts(22');
-  expect(result.output).toContain('folio.config.ts(23');
+  expect(result.exitCode).toBe(0);
 });
 
 test('runWith should allow void env', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
-      export const test = folio.newTestType();
-      const x: number = '123';  // To match line numbers easier.
-      test.runWith();
-      test.runWith('alias');  // error
-      test.runWith('foo', 'bar');  // error
-      test.runWith({ timeout: 100 });  // error
-      test.runWith({}, { timeout: 100 });
-      test.runWith(undefined, { timeout: 100 });
-      test.runWith({ beforeEach: () => {} }, { timeout: 100 });
-      test.runWith({ beforeEach: () => { return 42; } }, { timeout: 100 });  // error
+      export const test = folio.test;
+      test.runWith({});
+      test.runWith({ timeout: 100 });
+      test.runWith({ timeout: 100 });
+      test.runWith({ beforeEach: () => {} });
+      test.runWith({ beforeEach: () => { return 42; } });
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -88,67 +101,36 @@ test('runWith should allow void env', async ({runTSC}) => {
       });
     `
   });
-  expect(result.exitCode).not.toBe(0);
-  expect(result.output).toContain(`folio.config.ts(5,13): error TS2322: Type 'string' is not assignable to type 'number'.`);
-  expect(result.output).not.toContain('folio.config.ts(6');
-  expect(result.output).toContain('folio.config.ts(7');
-  expect(result.output).toContain('folio.config.ts(8');
-  expect(result.output).toContain('folio.config.ts(9');
-  expect(result.output).not.toContain('folio.config.ts(10');
-  expect(result.output).not.toContain('folio.config.ts(11');
-  expect(result.output).not.toContain('folio.config.ts(12');
-  expect(result.output).not.toContain('folio.config.ts(13');
+  expect(result.exitCode).toBe(0);
 });
 
 test('test.extend should check types', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
-      export const test = folio.newTestType<{ foo: string }>();
+      export const test = folio.test.declare<{ foo: string }>();
       class FooEnv {
         beforeEach() {
           return { foo: '17' };
         }
       }
-      const x: number = '123';  // To match line numbers easier.
       export const test1 = test.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) + 42 }; } });
-      test.runWith({});  // error
-      test1.runWith({});  // error
       test.runWith(new FooEnv());
-      test1.runWith({});  // error
       test1.runWith(new FooEnv());
       export const test2 = test1.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
-      test2.runWith({});  // error
       test2.runWith(new FooEnv());
-      export const test3 = test.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });  // error
+      // @ts-expect-error
+      export const test3 = test.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
     `,
     'a.spec.ts': `
       import { test, test1, test2 } from './folio.config';
-      const x: number = '123';  // To match line numbers easier.
       test('my test', async ({ foo }) => {});
-      test('my test', async ({ bar }) => {});  // error
+      // @ts-expect-error
+      test('my test', async ({ bar }) => {});
       test1('my test', async ({ foo, bar }) => {});
       test2('my test', async ({ foo, bar, baz }) => {});
-      test2('my test', async ({ x }) => {}); // error
+      // @ts-expect-error
+      test2('my test', async ({ x }) => {});
     `
   });
-  expect(result.exitCode).not.toBe(0);
-
-  expect(result.output).toContain(`folio.config.ts(10,13): error TS2322: Type 'string' is not assignable to type 'number'.`);
-  expect(result.output).not.toContain('folio.config.ts(11');
-  expect(result.output).toContain('folio.config.ts(12');
-  expect(result.output).toContain('folio.config.ts(13');
-  expect(result.output).not.toContain('folio.config.ts(14');
-  expect(result.output).toContain('folio.config.ts(15');
-  expect(result.output).not.toContain('folio.config.ts(16');
-  expect(result.output).not.toContain('folio.config.ts(17');
-  expect(result.output).toContain('folio.config.ts(18');
-  expect(result.output).not.toContain('folio.config.ts(19');
-  expect(result.output).toContain('folio.config.ts(20');
-
-  expect(result.output).toContain(`a.spec.ts(6,13): error TS2322: Type 'string' is not assignable to type 'number'.`);
-  expect(result.output).not.toContain('a.spec.ts(7');
-  expect(result.output).toContain('a.spec.ts(8');
-  expect(result.output).not.toContain('a.spec.ts(9');
-  expect(result.output).not.toContain('a.spec.ts(10');
-  expect(result.output).toContain('a.spec.ts(11');
+  expect(result.exitCode).toBe(0);
 });

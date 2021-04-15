@@ -23,8 +23,11 @@ test('env should work', async ({ runInlineTest }) => {
       class MyEnv {
         async beforeAll() {
           global.logs.push('beforeAll');
+          return { x: 1 };
         }
-        async afterAll() {
+        async afterAll({ x }) {
+          if (x !== 1)
+            throw new Error('expected 1');
           global.logs.push('afterAll');
           console.log(global.logs.join('\\n'));
         }
@@ -32,11 +35,13 @@ test('env should work', async ({ runInlineTest }) => {
           global.logs.push('beforeEach');
           return { foo: 'bar' };
         }
-        async afterEach() {
+        async afterEach({ foo }) {
+          if (foo !== 'bar')
+            throw new Error('expected bar');
           global.logs.push('afterEach');
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new MyEnv());
     `,
     'a.test.js': `
@@ -77,8 +82,8 @@ const multipleEnvs = {
         global.logs.push('afterEach' + this.suffix);
       }
     }
-    exports.fooTest = folio.newTestType();
-    exports.barTest = folio.newTestType();
+    exports.fooTest = folio.test.declare();
+    exports.barTest = folio.test.declare();
     exports.fooTest.runWith(new MyEnv('-env1'), { tag: 'suite1' });
     exports.fooTest.runWith(new MyEnv('-env2'), { tag: 'suite2' });
     exports.barTest.runWith(new MyEnv('-env3'), { tag: 'suite3' });
@@ -130,7 +135,7 @@ test('should teardown env after timeout', async ({ runInlineTest }, testInfo) =>
           require('fs').appendFileSync(process.env.TEST_FILE, 'afterEach\\n', 'utf8');
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new MyEnv());
     `,
     'a.spec.ts': `
@@ -159,7 +164,7 @@ test('should initialize env once across files', async ({ runInlineTest }) => {
           console.log(global.logs.join('\\n'));
         }
       }
-      exports.test = folio.newTestType();
+      exports.test = folio.test;
       exports.test.runWith(new MyEnv());
     `,
     'a.test.js': `
@@ -180,33 +185,6 @@ test('should initialize env once across files', async ({ runInlineTest }) => {
   expect(output).toContain('beforeAll\ntest1\ntest2\nafterAll');
 });
 
-test('multiple envs for a single test type should work', async ({ runInlineTest }) => {
-  const { passed } = await runInlineTest({
-    'folio.config.ts': `
-      class Env1 {
-        async beforeEach(args, testInfo) {
-          return { env1: testInfo.title + '-env1' };
-        }
-      }
-      class Env2 {
-        async beforeEach(args, testInfo) {
-          return { env2: testInfo.title + '-env2' };
-        }
-      }
-      export const test = folio.newTestType();
-      test.runWith(folio.merge(new Env1(), new Env2()));
-    `,
-    'a.test.js': `
-      const { test } = require('./folio.config');
-      test('should work', async ({env1, env2}) => {
-        expect(env1).toBe('should work-env1');
-        expect(env2).toBe('should work-env2');
-      });
-    `,
-  });
-  expect(passed).toBe(1);
-});
-
 test('should run sync env methods and hooks', async ({ runInlineTest }) => {
   const { passed } = await runInlineTest({
     'folio.config.ts': `
@@ -223,7 +201,7 @@ test('should run sync env methods and hooks', async ({ runInlineTest }) => {
         afterAll() {
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new Env());
     `,
     'a.test.js': `

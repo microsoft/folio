@@ -38,7 +38,7 @@ test('should work via env', async ({ runInlineTest }) => {
           return { title: testInfo.title };
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new MyEnv());
     `,
     'a.test.js': `
