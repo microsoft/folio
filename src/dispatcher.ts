@@ -43,8 +43,6 @@ export class Dispatcher {
   private _hasWorkerErrors = false;
   private _isStopped = false;
   private _failureCount = 0;
-  private _didRunGlobalSetup = false;
-  _globalSetupResult: any = undefined;
 
   constructor(loader: Loader, suite: Suite, reporter: Reporter) {
     this._loader = loader;
@@ -136,10 +134,6 @@ export class Dispatcher {
   }
 
   async run() {
-    if (this._loader.globalSetup) {
-      this._didRunGlobalSetup = true;
-      this._globalSetupResult = await this._loader.globalSetup();
-    }
     // Loop in case job schedules more jobs
     while (this._queue.length && !this._isStopped)
       await this._dispatchQueue();
@@ -307,8 +301,6 @@ export class Dispatcher {
         worker.stop();
       await result;
     }
-    if (this._didRunGlobalSetup && this._loader.globalTeardown)
-      await this._loader.globalTeardown();
   }
 
   private _reportTestEnd(test: Test, result: TestResult, status: TestStatus) {
@@ -369,7 +361,6 @@ class Worker extends EventEmitter {
       workerIndex: this.index,
       repeatEachIndex: entry.repeatEachIndex,
       runListIndex: entry.runListIndex,
-      globalSetupResult: this.runner._globalSetupResult,
       loader: this.runner._loader.serialize(),
     };
     this.process.send({ method: 'init', params });

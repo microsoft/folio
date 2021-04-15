@@ -264,7 +264,7 @@ export function stripAscii(str: string): string {
 folio.setConfig({
   testDir: __dirname,
   testIgnore: 'assets/**',
-  timeout: 10000,
+  timeout: 20000,
   forbidOnly: !!process.env.CI,
 });
 
