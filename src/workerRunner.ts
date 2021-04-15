@@ -21,14 +21,15 @@ import { interpretCondition, monotonicTime, raceAgainstDeadline, serializeError 
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
-import { Spec, Suite, Test } from './test';
-import { FullConfig, TestInfo, WorkerInfo } from './types';
-import { RunListDescription } from './spec';
+import { Spec, Suite, Test, TestVariation } from './test';
+import { Env, FullConfig, TestInfo, WorkerInfo } from './types';
+import { mergeEnvsImpl, RunListDescription } from './spec';
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
   private _loader: Loader;
   private _runList: RunListDescription;
+  private _env: Env<any>;
   private _outputPathSegment: string;
   private _workerInfo: WorkerInfo;
   private _envInitialized = false;
@@ -58,9 +59,9 @@ export class WorkerRunner extends EventEmitter {
     if (!this._envInitialized)
       return;
     this._envInitialized = false;
-    if (this._runList.env.afterAll) {
+    if (this._env.afterAll) {
       // TODO: separate timeout for afterAll?
-      const result = await raceAgainstDeadline(wrapInPromise(this._runList.env.afterAll(this._workerInfo)), this._deadline());
+      const result = await raceAgainstDeadline(wrapInPromise(this._env.afterAll(this._workerInfo)), this._deadline());
       if (result.timedOut)
         throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
     }
@@ -85,7 +86,7 @@ export class WorkerRunner extends EventEmitter {
     return this._config.timeout ? monotonicTime() + this._config.timeout : 0;
   }
 
-  private async _loadIfNeeded() {
+  private _loadIfNeeded() {
     if (this._loader)
       return;
 
@@ -103,13 +104,18 @@ export class WorkerRunner extends EventEmitter {
       workerIndex: this._params.workerIndex,
       config: { ...this._config },
     };
+  }
 
-    if (this._isStopped)
+  private async _initEnvIfNeeded(envs: Env<any>[]) {
+    if (this._env) {
+      // We rely on the fact that worker only receives tests with the same env list.
       return;
+    }
 
-    if (this._runList.env.beforeAll) {
+    this._env = mergeEnvsImpl([this._runList.env, ...envs]);
+    if (this._env.beforeAll) {
       // TODO: separate timeout for beforeAll?
-      const result = await raceAgainstDeadline(wrapInPromise(this._runList.env.beforeAll(this._workerInfo)), this._deadline());
+      const result = await raceAgainstDeadline(wrapInPromise(this._env.beforeAll(this._workerInfo)), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
         this._reportDoneAndStop();
@@ -123,19 +129,36 @@ export class WorkerRunner extends EventEmitter {
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
 
-    await this._loadIfNeeded();
-    if (this._isStopped)
-      return;
-
+    this._loadIfNeeded();
     this._loader.loadTestFile(this._file);
-    const fileSuite = this._runList.fileSuites.get(this._file);
-    if (fileSuite) {
-      fileSuite._renumber();
+
+    const descriptions = this._loader.descriptionsForRunList(this._runList);
+    for (const description of descriptions) {
+      const fileSuite = description.fileSuites.get(this._file);
+      if (!fileSuite)
+        continue;
+      let hasEntries = false;
       fileSuite.findSpec(spec => {
-        spec._appendTest(this._runList, this._params.repeatEachIndex, this._config.retries);
+        const testVariation: TestVariation = {
+          tags: this._runList.tags,
+          retries: this._config.retries,
+          outputDir: this._config.outputDir,
+          repeatEachIndex: this._params.repeatEachIndex,
+          runListIndex: this._runList.index,
+          workerHash: `does-not-matter`,
+          variationId: `#run-${this._runList.index}#repeat-${this._params.repeatEachIndex}`,
+        };
+        const test = spec._appendTest(testVariation);
+        hasEntries = hasEntries || this._entries.has(test._id);
       });
+      if (!hasEntries)
+        continue;
+      await this._initEnvIfNeeded(description.envs);
       await this._runSuite(fileSuite);
+      if (this._isStopped)
+        return;
     }
+
     if (this._isStopped)
       return;
     this._reportDone();
@@ -303,8 +326,8 @@ export class WorkerRunner extends EventEmitter {
   private async _runEnvBeforeEach(testInfo: TestInfo): Promise<any> {
     try {
       let testArgs: any = {};
-      if (this._runList.env.beforeEach)
-        testArgs = await this._runList.env.beforeEach(testInfo);
+      if (this._env.beforeEach)
+        testArgs = await this._env.beforeEach({}, testInfo);
       if (testArgs === undefined)
         testArgs = {};
       return testArgs;
@@ -358,8 +381,8 @@ export class WorkerRunner extends EventEmitter {
       }
     }
     try {
-      if (this._runList.env.afterEach)
-        await this._runList.env.afterEach(testInfo);
+      if (this._env.afterEach)
+        await this._env.afterEach(testInfo);
     } catch (error) {
       // Do not overwrite test failure error.
       if (testInfo.status === 'passed') {

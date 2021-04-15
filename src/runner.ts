@@ -20,7 +20,7 @@ import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
 import { Reporter } from './types';
 import { createMatcher, monotonicTime, raceAgainstDeadline } from './util';
-import { Suite } from './test';
+import { Suite, TestVariation } from './test';
 import { Loader } from './loader';
 import { Multiplexer } from './reporters/multiplexer';
 
@@ -44,10 +44,12 @@ export class Runner {
 
     // This makes sure we don't generate 1000000 tests if only one spec is focused.
     const filtered = new Set<Suite>();
-    for (const { fileSuites } of this._loader.runLists()) {
-      for (const fileSuite of fileSuites.values()) {
-        if (fileSuite._hasOnly())
-          filtered.add(fileSuite);
+    for (const runList of this._loader.runLists()) {
+      for (const description of this._loader.descriptionsForRunList(runList)) {
+        for (const fileSuite of description.fileSuites.values()) {
+          if (fileSuite._hasOnly())
+            filtered.add(fileSuite);
+        }
       }
     }
 
@@ -55,22 +57,35 @@ export class Runner {
     const grepMatcher = createMatcher(this._loader.config().grep);
 
     const nonEmptySuites = new Set<Suite>();
+    let descriptionIndex = 0;
     for (const runList of this._loader.runLists()) {
       if (tagFilter && !runList.tags.some(tag => tagFilter.includes(tag)))
         continue;
-      for (const fileSuite of runList.fileSuites.values()) {
-        if (filtered.size && !filtered.has(fileSuite))
-          continue;
-        const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
-        if (!specs.length)
-          continue;
-        fileSuite._renumber();
-        const config = this._loader.config(runList);
-        for (const spec of specs) {
-          for (let i = 0; i < config.repeatEach; ++i)
-            spec._appendTest(runList, i, config.retries);
+      for (const description of this._loader.descriptionsForRunList(runList)) {
+        ++descriptionIndex;
+        for (const fileSuite of description.fileSuites.values()) {
+          if (filtered.size && !filtered.has(fileSuite))
+            continue;
+          const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
+          if (!specs.length)
+            continue;
+          const config = this._loader.config(runList);
+          for (const spec of specs) {
+            for (let i = 0; i < config.repeatEach; ++i) {
+              const testVariation: TestVariation = {
+                tags: runList.tags,
+                retries: config.retries,
+                outputDir: config.outputDir,
+                repeatEachIndex: i,
+                runListIndex: runList.index,
+                workerHash: `${descriptionIndex}#repeat-${i}`,
+                variationId: `#run-${runList.index}#repeat-${i}`,
+              };
+              spec._appendTest(testVariation);
+            }
+          }
+          nonEmptySuites.add(fileSuite);
         }
-        nonEmptySuites.add(fileSuite);
       }
     }
     for (const fileSuite of nonEmptySuites)
@@ -106,7 +121,7 @@ export class Runner {
 
     const outputDirs = new Set<string>();
     rootSuite.findTest(test => {
-      outputDirs.add(this._loader.config(test._runList).outputDir);
+      outputDirs.add(test._variation.outputDir);
     });
     await Promise.all(Array.from(outputDirs).map(outputDir => removeFolderAsync(outputDir).catch(e => {})));
 

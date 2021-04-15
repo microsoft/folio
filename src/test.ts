@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { RunListDescription } from './spec';
 import * as types from './types';
 
 class Base {
@@ -25,7 +24,6 @@ class Base {
   parent?: Suite;
 
   _only = false;
-  _ordinal: number;
 
   constructor(title: string, parent?: Suite) {
     this.title = title;
@@ -49,10 +47,12 @@ export class Spec extends Base implements types.Spec {
   fn: Function;
   tests: Test[] = [];
   testOptions: any = {};
+  _ordinalInFile: number;
 
-  constructor(title: string, fn: Function, suite: Suite) {
+  constructor(title: string, fn: Function, suite: Suite, ordinalInFile: number) {
     super(title, suite);
     this.fn = fn;
+    this._ordinalInFile = ordinalInFile;
     suite._addSpec(this);
   }
 
@@ -60,14 +60,12 @@ export class Spec extends Base implements types.Spec {
     return !this.tests.find(r => !r.ok());
   }
 
-  _appendTest(runList: RunListDescription, repeatEachIndex: number, retries: number) {
+  _appendTest(variation: TestVariation) {
     const test = new Test(this);
-    test.tags = runList.tags;
-    test.retries = retries;
-    test._runList = runList;
-    test._workerHash = `${runList.index}#repeat-${repeatEachIndex}`;
-    test._id = `${this._ordinal}@${this.file}::[${test._workerHash}]`;
-    test._repeatEachIndex = repeatEachIndex;
+    test.tags = variation.tags;
+    test.retries = variation.retries;
+    test._variation = variation;
+    test._id = `${this._ordinalInFile}@${this.file}${variation.variationId}`;
     this.tests.push(test);
     return test;
   }
@@ -157,14 +155,6 @@ export class Suite extends Base implements types.Suite {
     return result;
   }
 
-  _renumber() {
-    // All tests are identified with their ordinals.
-    let ordinal = 0;
-    this.findSpec((test: Spec) => {
-      test._ordinal = ordinal++;
-    });
-  }
-
   _hasOnly(): boolean {
     if (this._only)
       return true;
@@ -179,6 +169,16 @@ export class Suite extends Base implements types.Suite {
   }
 }
 
+export type TestVariation = {
+  tags: string[];
+  retries: number;
+  outputDir: string;
+  repeatEachIndex: number;
+  runListIndex: number;
+  workerHash: string;
+  variationId: string;
+};
+
 export class Test implements types.Test {
   spec: Spec;
   results: types.TestResult[] = [];
@@ -191,9 +191,7 @@ export class Test implements types.Test {
   retries = 0;
 
   _id: string;
-  _workerHash: string;
-  _repeatEachIndex: number;
-  _runList: RunListDescription;
+  _variation: TestVariation;
 
   constructor(spec: Spec) {
     this.spec = spec;

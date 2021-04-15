@@ -83,9 +83,9 @@ export class Dispatcher {
 
     if (process.stdout.isTTY) {
       const workers = new Set<string>();
-      suite.findSpec(test => {
-        for (const variant of test.tests)
-          workers.add(test.file + variant._workerHash);
+      suite.findSpec(spec => {
+        for (const test of spec.tests)
+          workers.add(spec.file + test._variation.workerHash);
       });
       console.log();
       const jobs = Math.min(this._loader.config().workers, workers.size);
@@ -98,10 +98,10 @@ export class Dispatcher {
     for (const suite of this._suite.suites) {
       for (const spec of suite._allSpecs()) {
         for (const test of spec.tests) {
-          let entriesByFile = entriesByWorkerHashAndFile.get(test._workerHash);
+          let entriesByFile = entriesByWorkerHashAndFile.get(test._variation.workerHash);
           if (!entriesByFile) {
             entriesByFile = new Map();
-            entriesByWorkerHashAndFile.set(test._workerHash, entriesByFile);
+            entriesByWorkerHashAndFile.set(test._variation.workerHash, entriesByFile);
           }
           let entry = entriesByFile.get(spec.file);
           if (!entry) {
@@ -110,9 +110,9 @@ export class Dispatcher {
                 entries: [],
                 file: spec.file,
               },
-              repeatEachIndex: test._repeatEachIndex,
-              runListIndex: test._runList.index,
-              hash: test._workerHash,
+              repeatEachIndex: test._variation.repeatEachIndex,
+              runListIndex: test._variation.runListIndex,
+              hash: test._variation.workerHash,
             };
             entriesByFile.set(spec.file, entry);
           }
