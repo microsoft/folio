@@ -418,6 +418,8 @@ export const smokeTest = folio.newTestType<{ value: string }>();
 // - Some special tests that require different arguments.
 export const fooTest = folio.newTestType<{ foo: number }>();
 
+export const expect = folio.expect;
+
 // Environment with some test value.
 class MockedEnv {
   async beforeEach() {
@@ -459,7 +461,7 @@ We can now use our test types to write tests:
 ```ts
 // some.spec.ts
 
-import { test, slowTest, smokeTest, fooTest } from './folio.config';
+import { test, expect, slowTest, smokeTest, fooTest } from './folio.config';
 
 test('just a test', async ({ value }) => {
   // This test will be retried.

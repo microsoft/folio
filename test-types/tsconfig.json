@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+      "strict": true,
+      "target": "es2015",
+      "noEmit": true,
+      "moduleResolution": "node",
+      "allowSyntheticDefaultImports": true
+    },
+    "include": [
+      "./**/*"
+    ]
+}

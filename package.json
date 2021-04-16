@@ -13,6 +13,7 @@
     "build": "tsc --build tsconfig.json",
     "watch": "tsc --build tsconfig.json --watch",
     "test": "folio --config=test/config.ts",
+    "test-types": "tsc -p test-types/tsconfig.json",
     "prepare": "npm run build",
     "roll-dogfood": "cd dogfood && npm install",
     "prepublishOnly": "rm tsconfig.tsbuildinfo && rm -rf out && npm run build"

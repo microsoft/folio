@@ -23,7 +23,7 @@ jobs:
       run: npm run build
     - name: lint
       run: npm run lint
-  build:
+  test:
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -43,3 +43,19 @@ jobs:
       run: npm run build
     - name: test
       run: npm run test
+  test-types:
+    timeout-minutes: 30
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-node@v1
+      with:
+        node-version: '10.x'
+    - name: preinstall
+      run: npm run roll-dogfood
+    - name: install
+      run: npm i
+    - name: build
+      run: npm run build
+    - name: test
+      run: npm run test-types
