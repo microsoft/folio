@@ -36,8 +36,13 @@ export declare type Expect = {
 };
 
 declare global {
-  export namespace folio {
+  export namespace jest {
     export interface Matchers<R> extends expect.Matchers<R> {
+
+    }
+  }
+  export namespace folio {
+    export interface Matchers<R> extends jest.Matchers<R> {
       /**
        * If you know how to test something, `.not` lets you test its opposite.
        */

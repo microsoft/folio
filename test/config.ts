@@ -64,7 +64,8 @@ async function writeFiles(testInfo: folio.TestInfo, files: Files) {
   await Promise.all(Object.keys(files).map(async name => {
     const fullName = path.join(baseDir, name);
     await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
-    const header = name.endsWith('ts') ? headerTS : headerJS;
+    const isTypeScriptSourceFile = name.endsWith('ts') && !name.endsWith('d.ts');
+    const header = isTypeScriptSourceFile ? headerTS : headerJS;
     const testHeader = header + `const { expect } = folio;`;
     if (/(spec|test)\.(js|ts)$/.test(name)) {
       let fileHeader = testHeader + '\n';
@@ -73,13 +74,13 @@ async function writeFiles(testInfo: folio.TestInfo, files: Files) {
         let relativePath = path.relative(path.dirname(fullName), configPath);
         if (os.platform() === 'win32')
           relativePath = relativePath.replace(/\\/g, '/');
-        if (name.endsWith('ts'))
+        if (isTypeScriptSourceFile)
           fileHeader = testHeader + `import { test } from './${relativePath}';\n`;
         else
           fileHeader = testHeader + `const { test } = require('./${relativePath}');\n`;
       }
       await fs.promises.writeFile(fullName, fileHeader + files[name]);
-    } else if (/\.(js|ts)$/.test(name)) {
+    } else if (/\.(js|ts)$/.test(name) && !name.endsWith('d.ts')) {
       await fs.promises.writeFile(fullName, header + files[name]);
     } else {
       await fs.promises.writeFile(fullName, files[name]);

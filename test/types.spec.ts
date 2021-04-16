@@ -152,3 +152,97 @@ test('test.extend should check types', async ({runTSC}) => {
   expect(result.output).not.toContain('a.spec.ts(10');
   expect(result.output).toContain('a.spec.ts(11');
 });
+
+test.describe('expect', () => {
+  test('should work with default expect prototype functions', async ({runTSC}) => {
+    const result = await runTSC({
+      'folio.config.ts': `
+        export const test = folio.newTestType();
+      `,
+      'a.spec.ts': `
+        import { test } from './folio.config';
+        const expected = [1, 2, 3, 4, 5, 6];
+        test.expect([4, 1, 6, 7, 3, 5, 2, 5, 4, 6]).toEqual(
+          expect.arrayContaining(expected),
+        );
+      `
+    });
+    expect(result.exitCode).toBe(0);
+  });
+
+  test('should work with default expect matchers', async ({runTSC}) => {
+    const result = await runTSC({
+      'folio.config.ts': `
+        export const test = folio.newTestType();
+      `,
+      'a.spec.ts': `
+        import { test } from './folio.config';
+        test.expect(42).toBe(42);
+      `
+    });
+    expect(result.exitCode).toBe(0);
+  });
+
+  test('should work with jest-community/jest-extended', async ({runTSC}) => {
+    const result = await runTSC({
+      'global.d.ts': `
+        // Extracted example from their typings.
+        // Reference: https://github.com/jest-community/jest-extended/blob/master/types/index.d.ts
+        declare namespace jest {
+          interface Matchers<R> {
+            toBeEmpty(): R;
+          }
+        }
+      `,
+      'a.spec.ts': `
+        test.expect('').toBeEmpty();
+        test.expect('hello').not.toBeEmpty();
+        test.expect([]).toBeEmpty();
+        test.expect(['hello']).not.toBeEmpty();
+        test.expect({}).toBeEmpty();
+        test.expect({ hello: 'world' }).not.toBeEmpty();
+      `
+    });
+    expect(result.exitCode).toBe(0);
+  });
+
+  test('should work with custom folio namespace', async ({runTSC}) => {
+    const result = await runTSC({
+      'global.d.ts': `
+        // Extracted example from their typings.
+        // Reference: https://github.com/jest-community/jest-extended/blob/master/types/index.d.ts
+        declare namespace folio {
+          interface Matchers<R> {
+            toBeEmpty(): R;
+          }
+        }
+      `,
+      'a.spec.ts': `
+        test.expect.extend({
+          toBeWithinRange(received: number, floor: number, ceiling: number) {
+            const pass = received >= floor && received <= ceiling;
+            if (pass) {
+              return {
+                message: () => 'abc',
+                pass: true,
+              };
+            } else {
+              return {
+                message: () => 'abc',
+                pass: false,
+              };
+            }
+          },
+        });
+
+        test.expect('').toBeEmpty();
+        test.expect('hello').not.toBeEmpty();
+        test.expect([]).toBeEmpty();
+        test.expect(['hello']).not.toBeEmpty();
+        test.expect({}).toBeEmpty();
+        test.expect({ hello: 'world' }).not.toBeEmpty();
+      `
+    });
+    expect(result.exitCode).toBe(0);
+  });
+});

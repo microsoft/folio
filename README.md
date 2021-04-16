@@ -785,5 +785,10 @@ declare namespace folio {
   }
 }
 ```
-
 </details>
+
+To import expect matching libraries like [jest-extended](https://github.com/jest-community/jest-extended#installation) you can import it from your `globals.d.ts`:
+
+```ts
+import 'jest-extended';
+```
