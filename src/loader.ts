@@ -15,9 +15,10 @@
  */
 
 import { installTransform } from './transform';
-import { Config, FullConfig, Reporter } from './types';
+import { Config, Env, FullConfig, Reporter, TestType } from './types';
 import { prependErrorMessage } from './util';
 import { configFile, setCurrentFile, RunListDescription, setLoadingConfigFile } from './spec';
+import { Suite } from './test';
 
 type SerializedLoaderData = {
   configs: (string | Config)[];
@@ -83,6 +84,21 @@ export class Loader {
 
   runLists(): RunListDescription[] {
     return configFile.runLists;
+  }
+
+  descriptionsForRunList(runList: RunListDescription) {
+    const result = new Set<{
+      fileSuites: Map<string, Suite>;
+      envs: Env<any>[];
+    }>();
+    const visit = (t: TestType<any, any, any>) => {
+      const description = configFile.testTypeDescriptions.get(t)!;
+      result.add({ fileSuites: description.fileSuites, envs: description.envs });
+      for (const child of description.children)
+        visit(child);
+    };
+    visit(runList.testType);
+    return result;
   }
 
   reporters(): Reporter[] {

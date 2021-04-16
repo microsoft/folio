@@ -102,7 +102,7 @@ interface TestFunction<TestArgs, TestOptions> {
   (name: string, options: TestOptions, fn: (args: TestArgs, testInfo: TestInfo) => any): void;
 }
 
-export interface TestType<TestArgs, TestOptions> extends TestFunction<TestArgs, TestOptions>, TestModifier {
+export interface TestType<TestArgs, TestOptions, DeclaredTestArgs> extends TestFunction<TestArgs, TestOptions>, TestModifier {
   only: TestFunction<TestArgs, TestOptions>;
   describe: SuiteFunction & {
     only: SuiteFunction;
@@ -115,23 +115,26 @@ export interface TestType<TestArgs, TestOptions> extends TestFunction<TestArgs, 
 
   expect: Expect;
 
-  runWith(env: OptionalEnv<TestArgs>): void;
-  runWith(env: OptionalEnv<TestArgs>, config: RunWithConfig): void;
+  extend<T>(env: Env<T, TestArgs>): TestType<TestArgs & T, TestOptions, DeclaredTestArgs>;
+  declare<T>(): TestType<TestArgs & T, TestOptions, DeclaredTestArgs & T>;
+
+  runWith(env: OptionalEnv<DeclaredTestArgs>): void;
+  runWith(env: OptionalEnv<DeclaredTestArgs>, config: RunWithConfig): void;
 }
 
 export type RunWithConfig = SharedConfig & {
   tag?: string | string[];
 };
-interface EnvBeforeEach<TestArgs> {
-  beforeEach(testInfo: TestInfo): TestArgs | Promise<TestArgs>;
+interface EnvBeforeEach<TestArgs, PreviousTestArgs> {
+  beforeEach(args: PreviousTestArgs, testInfo: TestInfo): TestArgs | Promise<TestArgs>;
 }
-interface EnvOptionalBeforeEach<TestArgs> {
-  beforeEach?(testInfo: TestInfo): void | TestArgs | Promise<TestArgs>;
+interface EnvOptionalBeforeEach<TestArgs, PreviousTestArgs> {
+  beforeEach?(args: PreviousTestArgs, testInfo: TestInfo): void | TestArgs | Promise<TestArgs>;
 }
-type EnvDetectBeforeEach<TestArgs> = {} extends TestArgs ? EnvOptionalBeforeEach<TestArgs> : EnvBeforeEach<TestArgs>;
+type EnvDetectBeforeEach<TestArgs, PreviousTestArgs> = {} extends TestArgs ? EnvOptionalBeforeEach<TestArgs, PreviousTestArgs> : EnvBeforeEach<TestArgs, PreviousTestArgs>;
 type OptionalEnv<TestArgs> = {} extends TestArgs ? Env<TestArgs> | void : Env<TestArgs>;
 
-export type Env<TestArgs> = EnvDetectBeforeEach<TestArgs> & {
+export type Env<TestArgs, PreviousTestArgs = {}> = EnvDetectBeforeEach<TestArgs, PreviousTestArgs> & {
   beforeAll?(workerInfo: WorkerInfo): any | Promise<any>;
   afterEach?(testInfo: TestInfo): any | Promise<any>;
   afterAll?(workerInfo: WorkerInfo): any | Promise<any>;

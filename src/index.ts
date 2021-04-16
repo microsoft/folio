@@ -27,8 +27,8 @@ export * from './types';
 export { expect } from './expect';
 export { setConfig, setReporters, globalSetup, globalTeardown } from './spec';
 
-export function newTestType<TestArgs = {}, TestOptions = {}>(): TestType<TestArgs, TestOptions> {
-  return newTestTypeImpl();
+export function newTestType<TestArgs = {}, TestOptions = {}>(): TestType<TestArgs, TestOptions, TestArgs> {
+  return newTestTypeImpl([]);
 }
 
 export function merge<TestArgs>(env: Env<TestArgs>): Env<TestArgs>;

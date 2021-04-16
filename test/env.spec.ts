@@ -184,12 +184,12 @@ test('multiple envs for a single test type should work', async ({ runInlineTest 
   const { passed } = await runInlineTest({
     'folio.config.ts': `
       class Env1 {
-        async beforeEach(testInfo) {
+        async beforeEach(args, testInfo) {
           return { env1: testInfo.title + '-env1' };
         }
       }
       class Env2 {
-        async beforeEach(testInfo) {
+        async beforeEach(args, testInfo) {
           return { env2: testInfo.title + '-env2' };
         }
       }

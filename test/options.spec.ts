@@ -21,7 +21,7 @@ test('should create two suites with different options', async ({ runInlineTest }
     'folio.config.ts': `
       global.logs = [];
       class MyEnv {
-        async beforeEach(testInfo) {
+        async beforeEach(args, testInfo) {
           return { foo: testInfo.testOptions.foo || 'foo' };
         }
       }
