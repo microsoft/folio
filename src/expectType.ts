@@ -16,7 +16,6 @@ export declare type Expect = {
   <T = unknown>(actual: T): folio.Matchers<T>;
 
   // Sourced from node_modules/expect/build/types.d.ts
-  addSnapshotSerializer(arg0: any): void;
   assertions(arg0: number): void;
   extend(arg0: any): void;
   extractExpectedAssertionsErrors: () => ExpectedAssertionsErrors;

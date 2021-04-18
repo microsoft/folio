@@ -25,6 +25,8 @@ A customizable test framework to build your own test frameworks. Foundation for 
 - [Reporters](#reporters)
   - [Built-in reporters](#built-in-reporters)
   - [Reporter API](#reporter-api)
+- [Expect](#expect)
+  - [Add custom matchers using expect.extend](#add-custom-matchers-using-expectextend)
 
 ## Isolation and flexibility
 
@@ -738,35 +740,50 @@ folio.setReporters([
 
 ## Expect
 
-### Extend Expect
+### Add custom matchers using expect.extend
 
 Folio uses [expect](https://jestjs.io/docs/expect) under the hood which has the functionality to extend it with [custom matchers](https://jestjs.io/docs/expect#expectextendmatchers). See the following example where a custom `toBeWithinRange` function gets added.
 
+<details>
+  <summary>folio.config.ts</summary>
+
+```ts
+import * as folio from 'folio';
+
+folio.setConfig({ testDir: __dirname, timeout: 30 * 1000 });
+
+const baseTest = folio.newTestType()
+
+export const test = baseTest.extend({
+  beforeAll: () => {
+    test.expect.extend({
+      toBeWithinRange(received: number, floor: number, ceiling: number) {
+        const pass = received >= floor && received <= ceiling;
+        if (pass) {
+          return {
+            message: () => 'passed',
+            pass: true,
+          };
+        } else {
+          return {
+            message: () => 'failed',
+            pass: false,
+          };
+        }
+      },
+    });
+  }
+});
+
+test.runWith();
+```
+</details>
 
 <details>
   <summary>example.spec.ts</summary>
 
 ```ts
 import { test, expect } from '../folio.config';
-
-expect.extend({
-  toBeWithinRange(received: number, floor: number, ceiling: number) {
-    const pass = received >= floor && received <= ceiling;
-    if (pass) {
-      return {
-        message: () =>
-          `expected ${received} not to be within range ${floor} - ${ceiling}`,
-        pass: true,
-      };
-    } else {
-      return {
-        message: () =>
-          `expected ${received} to be within range ${floor} - ${ceiling}`,
-        pass: false,
-      };
-    }
-  },
-})
 
 test('numeric ranges', () => {
   expect(100).toBeWithinRange(90, 110);
