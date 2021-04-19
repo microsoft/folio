@@ -16,33 +16,29 @@
 
 import { test, expect } from './config';
 
-test('should be able to extend the expect matchers with test.extend>beforeAll', async ({ runInlineTest }) => {
+test('should be able to extend the expect matchers with test.extend in the folio config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       folio.setConfig({ timeout: 30000 });
 
-      const baseTest = folio.newTestType()
+      export const test = folio.newTestType()
 
-      export const test = baseTest.extend({
-        beforeAll: () => {
-          test.expect.extend({
-            toBeWithinRange(received, floor, ceiling) {
-              const pass = received >= floor && received <= ceiling;
-              if (pass) {
-                return {
-                  message: () =>
-                    'passed',
-                  pass: true,
-                };
-              } else {
-                return {
-                  message: () => 'failed',
-                  pass: false,
-                };
-              }
-            },
-          });
-        }
+      folio.expect.extend({
+        toBeWithinRange(received, floor, ceiling) {
+          const pass = received >= floor && received <= ceiling;
+          if (pass) {
+            return {
+              message: () =>
+                'passed',
+              pass: true,
+            };
+          } else {
+            return {
+              message: () => 'failed',
+              pass: false,
+            };
+          }
+        },
       });
 
       test.runWith();

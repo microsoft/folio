@@ -752,28 +752,24 @@ import * as folio from 'folio';
 
 folio.setConfig({ testDir: __dirname, timeout: 30 * 1000 });
 
-const baseTest = folio.newTestType()
-
-export const test = baseTest.extend({
-  beforeAll: () => {
-    test.expect.extend({
-      toBeWithinRange(received: number, floor: number, ceiling: number) {
-        const pass = received >= floor && received <= ceiling;
-        if (pass) {
-          return {
-            message: () => 'passed',
-            pass: true,
-          };
-        } else {
-          return {
-            message: () => 'failed',
-            pass: false,
-          };
-        }
-      },
-    });
-  }
+folio.expect.extend({
+  toBeWithinRange(received: number, floor: number, ceiling: number) {
+    const pass = received >= floor && received <= ceiling;
+    if (pass) {
+      return {
+        message: () => 'passed',
+        pass: true,
+      };
+    } else {
+      return {
+        message: () => 'failed',
+        pass: false,
+      };
+    }
+  },
 });
+
+export const test = folio.newTestType();
 
 test.runWith();
 ```
@@ -783,7 +779,8 @@ test.runWith();
   <summary>example.spec.ts</summary>
 
 ```ts
-import { test, expect } from '../folio.config';
+import { test } from '../folio.config';
+import { expect } from 'folio';
 
 test('numeric ranges', () => {
   expect(100).toBeWithinRange(90, 110);
