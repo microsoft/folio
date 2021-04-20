@@ -28,10 +28,6 @@ export declare type Expect = {
   objectContaining(sample: Record<string, unknown>): AsymmetricMatcher;
   stringContaining(expected: string): AsymmetricMatcher;
   stringMatching(expected: string | RegExp): AsymmetricMatcher;
-
-  not: {
-    [id: string]: AsymmetricMatcher;
-  };
 };
 
 declare global {
