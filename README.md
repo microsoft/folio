@@ -25,6 +25,8 @@ A customizable test framework to build your own test frameworks. Foundation for 
 - [Reporters](#reporters)
   - [Built-in reporters](#built-in-reporters)
   - [Reporter API](#reporter-api)
+- [Expect](#expect)
+  - [Add custom matchers using expect.extend](#add-custom-matchers-using-expectextend)
 
 ## Isolation and flexibility
 
@@ -734,4 +736,73 @@ With `setReporters` call, pass options to the constructor:
 folio.setReporters([
   new folio.reporters.junit({ outputFile: 'results.xml' })
 ]);
+```
+
+## Expect
+
+### Add custom matchers using expect.extend
+
+Folio uses [expect](https://jestjs.io/docs/expect) under the hood which has the functionality to extend it with [custom matchers](https://jestjs.io/docs/expect#expectextendmatchers). See the following example where a custom `toBeWithinRange` function gets added.
+
+<details>
+  <summary>folio.config.ts</summary>
+
+```ts
+import * as folio from 'folio';
+
+folio.setConfig({ testDir: __dirname, timeout: 30 * 1000 });
+
+folio.expect.extend({
+  toBeWithinRange(received: number, floor: number, ceiling: number) {
+    const pass = received >= floor && received <= ceiling;
+    if (pass) {
+      return {
+        message: () => 'passed',
+        pass: true,
+      };
+    } else {
+      return {
+        message: () => 'failed',
+        pass: false,
+      };
+    }
+  },
+});
+
+export const test = folio.newTestType();
+
+test.runWith();
+```
+</details>
+
+<details>
+  <summary>example.spec.ts</summary>
+
+```ts
+import { test } from '../folio.config';
+import { expect } from 'folio';
+
+test('numeric ranges', () => {
+  expect(100).toBeWithinRange(90, 110);
+  expect(101).not.toBeWithinRange(0, 100);
+});
+```
+</details>
+
+<details>
+  <summary>global.d.ts</summary>
+
+```ts
+declare namespace folio {
+  interface Matchers<R> {
+    toBeWithinRange(a: number, b: number): R;
+  }
+}
+```
+</details>
+
+To import expect matching libraries like [jest-extended](https://github.com/jest-community/jest-extended#installation) you can import it from your `globals.d.ts`:
+
+```ts
+import 'jest-extended';
 ```
