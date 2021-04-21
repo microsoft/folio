@@ -127,6 +127,7 @@ export function createMatcher(patterns: string | RegExp | (string | RegExp)[]): 
   return (value: string) => {
     for (const pattern of list) {
       if (pattern instanceof RegExp || Object.prototype.toString.call(pattern) === '[object RegExp]') {
+        (pattern as RegExp).lastIndex = 0;
         if ((pattern as RegExp).test(value))
           return true;
       } else {

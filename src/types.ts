@@ -19,7 +19,7 @@ import type { Expect } from './expectType';
 export interface Config {
   forbidOnly?: boolean;
   globalTimeout?: number;
-  grep?: string | RegExp | (string | RegExp)[];
+  grep?: RegExp | RegExp[];
   maxFailures?: number;
   outputDir?: string;
   repeatEach?: number;
@@ -93,12 +93,12 @@ interface SuiteFunction {
   (name: string, inner: () => void): void;
 }
 
-interface TestFunction<TestArgs, TestOptions> {
+interface TestFunction<TestArgs> {
   (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
 }
 
-export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions> extends TestFunction<TestArgs, TestOptions>, TestModifier {
-  only: TestFunction<TestArgs, TestOptions>;
+export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions> extends TestFunction<TestArgs>, TestModifier {
+  only: TestFunction<TestArgs>;
   describe: SuiteFunction & {
     only: SuiteFunction;
   };

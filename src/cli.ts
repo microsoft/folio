@@ -183,7 +183,7 @@ function addRunnerOptions(program: commander.Command) {
       .version('Version ' + /** @type {any} */ (require)('../package.json').version)
       .option('-c, --config <file>', `Configuration file (default: "folio.config.ts" or "folio.config.js")`)
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
-      .option('-g, --grep <grep>', `Only run tests matching this string or regexp (default: "${defaultConfig.grep}")`)
+      .option('-g, --grep <grep>', `Only run tests matching this regular expression (default: "${defaultConfig.grep}")`)
       .option('--global-timeout <timeout>', `Specify maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)
       .option('-h, --help', `Display help`)
       .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
@@ -212,7 +212,7 @@ function configFromCommand(command: any): Config {
   if (command.globalTimeout)
     config.globalTimeout = parseInt(command.globalTimeout, 10);
   if (command.grep)
-    config.grep = maybeRegExp(command.grep);
+    config.grep = forceRegExp(command.grep);
   if (command.maxFailures || command.x)
     config.maxFailures = command.x ? 1 : parseInt(command.maxFailures, 10);
   if (command.output)
@@ -263,4 +263,11 @@ function maybeRegExp(pattern: string): string | RegExp {
   if (match)
     return new RegExp(match[1], match[2]);
   return pattern;
+}
+
+function forceRegExp(pattern: string): RegExp {
+  const match = pattern.match(/^\/(.*)\/([gi]*)$/);
+  if (match)
+    return new RegExp(match[1], match[2]);
+  return new RegExp(pattern, 'g');
 }
