@@ -23,41 +23,41 @@ test('hooks should work with env', async ({ runInlineTest }) => {
       class MyEnv {
         async beforeAll() {
           global.logs.push('+w');
+          return { w: 17 };
         }
         async afterAll() {
           global.logs.push('-w');
         }
         async beforeEach() {
           global.logs.push('+t');
-          return { w: 17, t: 42 };
+          return { t: 42 };
         }
         async afterEach() {
           global.logs.push('-t');
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new MyEnv());
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
       test.describe('suite', () => {
-        test.beforeAll(async () => {
-          global.logs.push('beforeAll');
+        test.beforeAll(async ({ w }) => {
+          global.logs.push('beforeAll-' + w);
         });
-        test.afterAll(async () => {
-          global.logs.push('afterAll');
-        });
-
-        test.beforeEach(async ({w, t}) => {
-          global.logs.push('beforeEach-' + w + '-' + t);
-        });
-        test.afterEach(async ({w, t}) => {
-          global.logs.push('afterEach-' + w + '-' + t);
+        test.afterAll(async ({ w }) => {
+          global.logs.push('afterAll-' + w);
         });
 
-        test('one', async ({w, t}) => {
+        test.beforeEach(async ({t}) => {
+          global.logs.push('beforeEach-' + t);
+        });
+        test.afterEach(async ({t}) => {
+          global.logs.push('afterEach-' + t);
+        });
+
+        test('one', async ({t}) => {
           global.logs.push('test');
-          expect(w).toBe(17);
           expect(t).toBe(42);
         });
       });
@@ -65,13 +65,13 @@ test('hooks should work with env', async ({ runInlineTest }) => {
       test('two', async () => {
         expect(global.logs).toEqual([
           '+w',
-          'beforeAll',
+          'beforeAll-17',
           '+t',
-          'beforeEach-17-42',
+          'beforeEach-42',
           'test',
-          'afterEach-17-42',
+          'afterEach-42',
           '-t',
-          'afterAll',
+          'afterAll-17',
           '+t',
         ]);
       });
@@ -92,7 +92,7 @@ test('afterEach failure should not prevent other hooks and env teardown', async 
           console.log('-t');
         }
       }
-      export const test = folio.newTestType();
+      export const test = folio.test;
       test.runWith(new MyEnv());
     `,
     'a.test.js': `

@@ -19,10 +19,6 @@ import { test, expect } from './config';
 test('should be able to extend the expect matchers with test.extend in the folio config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      folio.setConfig({ timeout: 30000 });
-
-      export const test = folio.newTestType()
-
       folio.expect.extend({
         toBeWithinRange(received, floor, ceiling) {
           const pass = received >= floor && received <= ceiling;
@@ -40,7 +36,7 @@ test('should be able to extend the expect matchers with test.extend in the folio
           }
         },
       });
-
+      export const test = folio.test;
       test.runWith();
     `,
     'expect-test.spec.ts': `

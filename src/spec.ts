@@ -18,7 +18,7 @@ import { expect } from './expect';
 import { currentTestInfo } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
-import { Config, Env, Reporter, RunWithConfig, TestInfo, TestType, WorkerInfo } from './types';
+import { Config, Env, Reporter, RunWithConfig, TestType } from './types';
 
 Error.stackTraceLimit = 15;
 
@@ -27,7 +27,7 @@ export function setCurrentFile(file?: string) {
   currentFile = file;
 }
 
-type AnyTestType = TestType<any, any, any>;
+type AnyTestType = TestType<any, any, any, any>;
 export type TestTypeDescription = {
   fileSuites: Map<string, Suite>;
   children: Set<AnyTestType>;
@@ -37,8 +37,14 @@ export type RunListDescription = {
   index: number;
   tags: string[];
   env: Env<any>;
-  config: RunWithConfig;
   testType: AnyTestType;
+  options: any;
+  config: {
+    outputDir?: string;
+    repeatEach?: number;
+    retries?: number;
+    timeout?: number;
+  };
 };
 
 export const configFile: {
@@ -56,58 +62,6 @@ export function setLoadingConfigFile(loading: boolean) {
 }
 
 const countByFile = new Map<string, number>();
-
-export function mergeEnvsImpl(envs: Env<any>[]): Env<any> {
-  if (envs.length === 1)
-    return envs[0];
-  const forward = [...envs];
-  const backward = [...forward].reverse();
-  return {
-    beforeAll: async (workerInfo: WorkerInfo) => {
-      for (const env of forward) {
-        if (env.beforeAll)
-          await env.beforeAll(workerInfo);
-      }
-    },
-    afterAll: async (workerInfo: WorkerInfo) => {
-      let error: Error | undefined;
-      for (const env of backward) {
-        if (env.afterAll) {
-          try {
-            await env.afterAll(workerInfo);
-          } catch (e) {
-            error = error || e;
-          }
-        }
-      }
-      if (error)
-        throw error;
-    },
-    beforeEach: async (args: any, testInfo: TestInfo) => {
-      for (const env of forward) {
-        if (env.beforeEach) {
-          const r = await env.beforeEach(args, testInfo);
-          args = { ...args, ...r };
-        }
-      }
-      return args;
-    },
-    afterEach: async (testInfo: TestInfo) => {
-      let error: Error | undefined;
-      for (const env of backward) {
-        if (env.afterEach) {
-          try {
-            await env.afterEach(testInfo);
-          } catch (e) {
-            error = error || e;
-          }
-        }
-      }
-      if (error)
-        throw error;
-    },
-  };
-}
 
 export function newTestTypeImpl(envs: Env<any>[]): any {
   const fileSuites = new Map<string, Suite>();
@@ -131,15 +85,10 @@ export function newTestTypeImpl(envs: Env<any>[]): any {
     return location;
   }
 
-  function spec(type: 'default' | 'only', title: string, options: Function | any, fn?: Function) {
+  function spec(type: 'default' | 'only', title: string, fn: Function) {
     if (!currentFile)
       throw errorWithCallLocation(`Test can only be defined in a test file.`);
     const location = ensureSuiteForCurrentLocation();
-
-    if (typeof fn !== 'function') {
-      fn = options;
-      options = {};
-    }
 
     const ordinalInFile = countByFile.get(location.file) || 0;
     countByFile.set(location.file, ordinalInFile + 1);
@@ -148,7 +97,6 @@ export function newTestTypeImpl(envs: Env<any>[]): any {
     spec.file = location.file;
     spec.line = location.line;
     spec.column = location.column;
-    spec.testOptions = options;
 
     if (type === 'only')
       spec._only = true;
@@ -205,8 +153,14 @@ export function newTestTypeImpl(envs: Env<any>[]): any {
   test.skip = modifier.bind(null, 'skip');
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
-  test.extend = (env: Env<any>) => {
-    const newTestType = newTestTypeImpl([...envs, env]);
+  test.useOptions = (options: any) => {
+    if (!currentFile)
+      throw errorWithCallLocation(`useOptions() can only be called in a test file.`);
+    ensureSuiteForCurrentLocation();
+    suites[0].testOptions = options;
+  };
+  test.extend = (env?: Env<any>) => {
+    const newTestType = newTestTypeImpl(env ? [...envs, env] : envs);
     description.children.add(newTestType);
     return newTestType;
   };
@@ -215,15 +169,23 @@ export function newTestTypeImpl(envs: Env<any>[]): any {
     description.children.add(newTestType);
     return newTestType;
   };
-  test.runWith = (env: Env<any> | undefined, config: RunWithConfig = {}) => {
+  test.runWith = (env?: Env<any> & RunWithConfig<any>, config?: RunWithConfig<any>) => {
     if (!loadingConfigFile)
       throw errorWithCallLocation(`runWith() can only be called in a configuration file.`);
+    env = env || {};
+    config = config || env;
     const tag = 'tag' in config ? config.tag : [];
     configFile.runLists.push({
       index: configFile.runLists.length,
-      env: env || {},
+      env,
       tags: Array.isArray(tag) ? tag : [tag],
-      config,
+      options: config.options,
+      config: {
+        timeout: config.timeout,
+        repeatEach: config.repeatEach,
+        retries: config.retries,
+        outputDir: config.outputDir,
+      },
       testType: test,
     });
   };

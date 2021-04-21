@@ -46,7 +46,6 @@ class Base {
 export class Spec extends Base implements types.Spec {
   fn: Function;
   tests: Test[] = [];
-  testOptions: any = {};
   _ordinalInFile: number;
 
   constructor(title: string, fn: Function, suite: Suite, ordinalInFile: number) {
@@ -74,6 +73,7 @@ export class Spec extends Base implements types.Spec {
 export class Suite extends Base implements types.Suite {
   suites: Suite[] = [];
   specs: Spec[] = [];
+  testOptions: any;
   _entries: (Suite | Spec)[] = [];
   _hooks: { type: string, fn: Function } [] = [];
   _annotations: { type: 'skip' | 'fixme' | 'fail', description?: string }[] = [];

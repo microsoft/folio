@@ -16,24 +16,21 @@
 
 import type { Expect } from './expectType';
 
-interface SharedConfig {
-  timeout?: number;
-  retries?: number;
-  repeatEach?: number;
-  outputDir?: string;
-}
-
-export interface Config extends SharedConfig {
+export interface Config {
   forbidOnly?: boolean;
   globalTimeout?: number;
   grep?: string | RegExp | (string | RegExp)[];
   maxFailures?: number;
+  outputDir?: string;
+  repeatEach?: number;
+  retries?: number;
   quiet?: boolean;
   shard?: { total: number, current: number } | null;
   snapshotDir?: string;
   testDir?: string;
   testIgnore?: string | RegExp | (string | RegExp)[];
   testMatch?: string | RegExp | (string | RegExp)[];
+  timeout?: number;
   updateSnapshots?: boolean;
   workers?: number;
 }
@@ -75,7 +72,6 @@ export interface TestInfo extends WorkerInfo, TestModifier {
   expectedStatus: TestStatus;
   timeout: number;
   annotations: { type: string, description?: string }[];
-  testOptions: any;  // TODO: support tag in testOptions.
   repeatEachIndex: number;
   retry: number;
 
@@ -99,10 +95,9 @@ interface SuiteFunction {
 
 interface TestFunction<TestArgs, TestOptions> {
   (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
-  (name: string, options: TestOptions, fn: (args: TestArgs, testInfo: TestInfo) => any): void;
 }
 
-export interface TestType<TestArgs, TestOptions, DeclaredTestArgs> extends TestFunction<TestArgs, TestOptions>, TestModifier {
+export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions> extends TestFunction<TestArgs, TestOptions>, TestModifier {
   only: TestFunction<TestArgs, TestOptions>;
   describe: SuiteFunction & {
     only: SuiteFunction;
@@ -110,34 +105,50 @@ export interface TestType<TestArgs, TestOptions, DeclaredTestArgs> extends TestF
 
   beforeEach(inner: (args: TestArgs, testInfo: TestInfo) => Promise<any> | any): void;
   afterEach(inner: (args: TestArgs, testInfo: TestInfo) => Promise<any> | any): void;
-  beforeAll(inner: (workerInfo: WorkerInfo) => Promise<any> | any): void;
-  afterAll(inner: (workerInfo: WorkerInfo) => Promise<any> | any): void;
+  beforeAll(inner: (args: WorkerArgs, workerInfo: WorkerInfo) => Promise<any> | any): void;
+  afterAll(inner: (args: WorkerArgs, workerInfo: WorkerInfo) => Promise<any> | any): void;
+  useOptions(options: TestOptions): void;
 
   expect: Expect;
 
-  extend<T>(env: Env<T, TestArgs>): TestType<TestArgs & T, TestOptions, DeclaredTestArgs>;
-  declare<T>(): TestType<TestArgs & T, TestOptions, DeclaredTestArgs & T>;
+  extend(): TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions>;
+  extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestType<TestArgs & T, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO>;
+  // TODO: use Declared{Test,Worker}Args so that runWith also implements T and W.
+  declare<T = {}, W = {}>(): TestType<TestArgs & T, WorkerArgs & W, TestOptions, WorkerOptions>;
 
-  runWith(env: OptionalEnv<DeclaredTestArgs>): void;
-  runWith(env: OptionalEnv<DeclaredTestArgs>, config: RunWithConfig): void;
+  runWith(envAndConfig: EnvAndConfig<TestOptions, WorkerOptions>): void;
+  runWith(env: Env<TestOptions, WorkerOptions>, config: RunWithConfig<WorkerOptions>): void;
 }
 
-export type RunWithConfig = SharedConfig & {
+export type RunWithConfig<WorkerArgs> = {
+  options?: WorkerArgs;
+  outputDir?: string;
+  repeatEach?: number;
+  retries?: number;
   tag?: string | string[];
+  timeout?: number;
 };
-interface EnvBeforeEach<TestArgs, PreviousTestArgs> {
-  beforeEach(args: PreviousTestArgs, testInfo: TestInfo): TestArgs | Promise<TestArgs>;
-}
-interface EnvOptionalBeforeEach<TestArgs, PreviousTestArgs> {
-  beforeEach?(args: PreviousTestArgs, testInfo: TestInfo): void | TestArgs | Promise<TestArgs>;
-}
-type EnvDetectBeforeEach<TestArgs, PreviousTestArgs> = {} extends TestArgs ? EnvOptionalBeforeEach<TestArgs, PreviousTestArgs> : EnvBeforeEach<TestArgs, PreviousTestArgs>;
-type OptionalEnv<TestArgs> = {} extends TestArgs ? Env<TestArgs> | void : Env<TestArgs>;
 
-export type Env<TestArgs, PreviousTestArgs = {}> = EnvDetectBeforeEach<TestArgs, PreviousTestArgs> & {
-  beforeAll?(workerInfo: WorkerInfo): any | Promise<any>;
-  afterEach?(testInfo: TestInfo): any | Promise<any>;
-  afterAll?(workerInfo: WorkerInfo): any | Promise<any>;
+type EnvAndConfig<TestArgs, WorkerArgs> =
+  {} extends TestArgs
+  ? ({} extends WorkerArgs
+    ? Env<TestArgs, WorkerArgs> & RunWithConfig<WorkerArgs> | void
+    : Env<TestArgs, WorkerArgs> & RunWithConfig<WorkerArgs>)
+  : Env<TestArgs, WorkerArgs> & RunWithConfig<WorkerArgs>;
+type MaybePromise<T> = T | Promise<T>;
+type MaybeVoid<T> = {} extends T ? (T | void) : T;
+type RemovePromise<T> = T extends Promise<infer R> ? R : T;
+
+export interface Env<TestArgs = {}, WorkerArgs = {}, TestOptions = {}, WorkerOptions = {}, PreviousTestArgs = {}, PreviousWorkerArgs = {}> {
+  // For type inference.
+  testOptionsType?(): TestOptions;
+  optionsType?(): WorkerOptions;
+
+  // Implementation.
+  beforeEach?(args: PreviousTestArgs & TestOptions, testInfo: TestInfo): MaybePromise<MaybeVoid<TestArgs>>;
+  beforeAll?(args: PreviousWorkerArgs & WorkerOptions, workerInfo: WorkerInfo): MaybePromise<MaybeVoid<WorkerArgs>>;
+  afterEach?(args: this['beforeEach'] extends undefined ? TestArgs : RemovePromise<ReturnType<Exclude<this['beforeEach'], undefined>>>, testInfo: TestInfo): MaybePromise<any>;
+  afterAll?(args: this['beforeAll'] extends undefined ? WorkerArgs : RemovePromise<ReturnType<Exclude<this['beforeAll'], undefined>>>, workerInfo: WorkerInfo): MaybePromise<any>;
 }
 
 // ---------- Reporters API -----------

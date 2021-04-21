@@ -55,8 +55,8 @@ test('should include runWith tag', async ({ runInlineTest }) => {
           return {};
         }
       }
-      export const test = folio.newTestType();
-      export const test2 = folio.newTestType();
+      export const test = folio.test.extend();
+      export const test2 = folio.test.extend();
       test.runWith(new Env('snapshots1'), { tag: 'foo' });
       test.runWith(new Env('snapshots2'), { tag: 'foo' });
       test2.runWith(new Env('snapshots1'), { tag: 'foo' });
