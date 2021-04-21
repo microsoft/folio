@@ -211,7 +211,7 @@ Below is a list of command line options:
 - `--config <file>`: Configuration file. Defaults to `folio.config.ts` or `folio.config.js` in the current directory.
 - `--forbid-only`: Whether to disallow `test.only` exclusive tests. Useful on CI. Overrides `config.forbidOnly` option from the configuration file.
 - `--global-timeout <number>`: Total timeout in milliseconds for the whole test run. By default, there is no global timeout. Overrides `config.globalTimeout` option from the configuration file.
-- `--grep <grep>` or `-g <grep>`: Only run tests matching this string (for example `my-test`) or regular expression (for example `/my.*test/i`). Overrides `config.grep` option from the configuration file.
+- `--grep <grep>` or `-g <grep>`: Only run tests matching this regular expression, for example `/my.*test/i` or `my-test`. Overrides `config.grep` option from the configuration file.
 - `--help`: Display help.
 - `--list`: List all the tests, but do not run them.
 - `--max-failures <N>` or `-x`: Stop after the first `N` test failures. Passing `-x` stops after the first failure. Overrides `config.maxFailures` option from the configuration file.
@@ -272,7 +272,7 @@ $ npx folio --shard=3/3
 Configuration file uses `setConfig` function to provide a global configuration to Folio. It may contain the following properties:
 - `forbidOnly: boolean` - Whether to disallow `test.only` exclusive tests. Useful on CI. Overridden by `--forbid-only` command line option.
 - `globalTimeout: number` - Total timeout in milliseconds for the whole test run. Overridden by `--global-timeout` command line option.
-- `grep: string | RegExp | (string | RegExp)[]` - Patterns to filter tests based on their title. Overridden by `--grep` command line option.
+- `grep: RegExp | RegExp[]` - Patterns to filter tests based on their title. Overridden by `--grep` command line option.
 - `maxFailures: number` - Stop testing after reaching the maximum number of failures.  Overridden by `--max-failures` command line option.
 - `outputDir: string` - Directory to place any artifacts produced by tests. Overridden by `--output` command line option.
 - `quiet: boolean` - Whether to suppress stdout and stderr from the tests. Overridden by `--quiet` command line option.

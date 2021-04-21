@@ -279,7 +279,7 @@ export class WorkerRunner extends EventEmitter {
     for (let suite = spec.parent; suite; suite = suite.parent)
       parents.push(suite);
     const testOptions = parents.reverse().reduce((options, suite) => {
-      return mergeObjects(options, suite.testOptions);
+      return mergeObjects(options, suite._testOptions);
     }, {});
 
     const testArgsResult = await raceAgainstDeadline(this._runEnvBeforeEach(testInfo, testOptions), deadline);

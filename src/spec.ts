@@ -157,7 +157,7 @@ export function newTestTypeImpl(envs: Env<any>[]): any {
     if (!currentFile)
       throw errorWithCallLocation(`useOptions() can only be called in a test file.`);
     ensureSuiteForCurrentLocation();
-    suites[0].testOptions = options;
+    suites[0]._testOptions = options;
   };
   test.extend = (env?: Env<any>) => {
     const newTestType = newTestTypeImpl(env ? [...envs, env] : envs);
