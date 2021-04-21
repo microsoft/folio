@@ -24,20 +24,20 @@ test('test.extend should work', async ({ runInlineTest }) => {
         constructor(suffix) {
           this.suffix = suffix;
         }
-        async beforeAll() {
-          global.logs.push('beforeAll' + this.suffix);
+        async setupWorker() {
+          global.logs.push('setupWorker' + this.suffix);
         }
-        async afterAll() {
-          global.logs.push('afterAll' + this.suffix);
+        async teardownWorker() {
+          global.logs.push('teardownWorker' + this.suffix);
           if (this.suffix.includes('base'))
             console.log(global.logs.join('\\n'));
         }
-        async beforeEach() {
-          global.logs.push('beforeEach' + this.suffix);
+        async setupTest() {
+          global.logs.push('setupTest' + this.suffix);
           return { foo: 'bar' };
         }
-        async afterEach() {
-          global.logs.push('afterEach' + this.suffix);
+        async teardownTest() {
+          global.logs.push('teardownTest' + this.suffix);
         }
       }
       export const base = folio.test;
@@ -63,48 +63,48 @@ test('test.extend should work', async ({ runInlineTest }) => {
   });
   expect(passed).toBe(4);
   expect(output).toContain([
-    'beforeAll-base1',
-    'beforeAll-e1',
-    'beforeEach-base1',
-    'beforeEach-e1',
+    'setupWorker-base1',
+    'setupWorker-e1',
+    'setupTest-base1',
+    'setupTest-e1',
     'test1',
-    'afterEach-e1',
-    'afterEach-base1',
-    'afterAll-e1',
-    'afterAll-base1',
+    'teardownTest-e1',
+    'teardownTest-base1',
+    'teardownWorker-e1',
+    'teardownWorker-base1',
   ].join('\n'));
   expect(output).toContain([
-    'beforeAll-base1',
-    'beforeAll-e2',
-    'beforeEach-base1',
-    'beforeEach-e2',
+    'setupWorker-base1',
+    'setupWorker-e2',
+    'setupTest-base1',
+    'setupTest-e2',
     'test2',
-    'afterEach-e2',
-    'afterEach-base1',
-    'afterAll-e2',
-    'afterAll-base1',
+    'teardownTest-e2',
+    'teardownTest-base1',
+    'teardownWorker-e2',
+    'teardownWorker-base1',
   ].join('\n'));
   expect(output).toContain([
-    'beforeAll-base2',
-    'beforeAll-e1',
-    'beforeEach-base2',
-    'beforeEach-e1',
+    'setupWorker-base2',
+    'setupWorker-e1',
+    'setupTest-base2',
+    'setupTest-e1',
     'test1',
-    'afterEach-e1',
-    'afterEach-base2',
-    'afterAll-e1',
-    'afterAll-base2',
+    'teardownTest-e1',
+    'teardownTest-base2',
+    'teardownWorker-e1',
+    'teardownWorker-base2',
   ].join('\n'));
   expect(output).toContain([
-    'beforeAll-base2',
-    'beforeAll-e2',
-    'beforeEach-base2',
-    'beforeEach-e2',
+    'setupWorker-base2',
+    'setupWorker-e2',
+    'setupTest-base2',
+    'setupTest-e2',
     'test2',
-    'afterEach-e2',
-    'afterEach-base2',
-    'afterAll-e2',
-    'afterAll-base2',
+    'teardownTest-e2',
+    'teardownTest-base2',
+    'teardownWorker-e2',
+    'teardownWorker-base2',
   ].join('\n'));
 });
 
@@ -112,12 +112,12 @@ test('test.extend should work with plain object syntax', async ({ runInlineTest 
   const { output, passed } = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.test.extend({
-        async beforeEach() {
+        async setupTest() {
           this.foo = 'bar';
           return { foo: this.foo };
         },
-        afterEach({}, testInfo) {
-          console.log('afterEach=' + this.foo + ';' + testInfo.title);
+        teardownTest({}, testInfo) {
+          console.log('teardownTest=' + this.foo + ';' + testInfo.title);
         },
       });
       test.runWith();
@@ -130,7 +130,7 @@ test('test.extend should work with plain object syntax', async ({ runInlineTest 
     `,
   });
   expect(passed).toBe(1);
-  expect(output).toContain('afterEach=bar;test1');
+  expect(output).toContain('teardownTest=bar;test1');
 });
 
 test('test.declare should fork', async ({ runInlineTest }) => {
@@ -161,52 +161,52 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
     'folio.config.ts': `
       global.logs = [];
       export class Env1 {
-        async beforeAll() {
-          global.logs.push('beforeAll1');
+        async setupWorker() {
+          global.logs.push('setupWorker1');
           return { w1: 'w1' };
         }
-        async afterAll({ w1 }) {
-          global.logs.push('afterAll1-w1=' + w1);
+        async teardownWorker({ w1 }) {
+          global.logs.push('teardownWorker1-w1=' + w1);
           console.log(global.logs.join('\\n'));
         }
-        async beforeEach() {
-          global.logs.push('beforeEach1');
+        async setupTest() {
+          global.logs.push('setupTest1');
           return { t1: 't1' };
         }
-        async afterEach({ t1 }) {
-          global.logs.push('afterEach1-t1=' + t1);
+        async teardownTest({ t1 }) {
+          global.logs.push('teardownTest1-t1=' + t1);
         }
       }
       export class Env2 {
-        async beforeAll({ w1 }) {
-          global.logs.push('beforeAll2-w1=' + w1);
+        async setupWorker({ w1 }) {
+          global.logs.push('setupWorker2-w1=' + w1);
           return { w2: 'w2' };
         }
-        async afterAll({ w1, w2 }) {
-          global.logs.push('afterAll2-w1=' + w1 + ',w2=' + w2);
+        async teardownWorker({ w1, w2 }) {
+          global.logs.push('teardownWorker2-w1=' + w1 + ',w2=' + w2);
         }
-        async beforeEach({ t1 }) {
-          global.logs.push('beforeEach2-t1=' + t1);
+        async setupTest({ t1 }) {
+          global.logs.push('setupTest2-t1=' + t1);
           return { t2: 't2' };
         }
-        async afterEach({ t1, t2 }) {
-          global.logs.push('afterEach2-t1=' + t1 + ',t2=' + t2);
+        async teardownTest({ t1, t2 }) {
+          global.logs.push('teardownTest2-t1=' + t1 + ',t2=' + t2);
         }
       }
       export class Env3 {
-        async beforeAll({ w1, w2 }) {
-          global.logs.push('beforeAll3-w1=' + w1 + ',w2=' + w2);
+        async setupWorker({ w1, w2 }) {
+          global.logs.push('setupWorker3-w1=' + w1 + ',w2=' + w2);
           return { w3: 'w3' };
         }
-        async afterAll({ w1, w2, w3 }) {
-          global.logs.push('afterAll3-w1=' + w1 + ',w2=' + w2 + ',w3=' + w3);
+        async teardownWorker({ w1, w2, w3 }) {
+          global.logs.push('teardownWorker3-w1=' + w1 + ',w2=' + w2 + ',w3=' + w3);
         }
-        async beforeEach({ t1, t2}) {
-          global.logs.push('beforeEach3-t1=' + t1 + ',t2=' + t2);
+        async setupTest({ t1, t2}) {
+          global.logs.push('setupTest3-t1=' + t1 + ',t2=' + t2);
           return { t3: 't3' };
         }
-        async afterEach({ t1, t2, t3 }) {
-          global.logs.push('afterEach3-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
+        async teardownTest({ t1, t2, t3 }) {
+          global.logs.push('teardownTest3-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
         }
       }
       export const test = folio.test.declare().extend(new Env2()).extend(new Env3());
@@ -221,19 +221,19 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
   });
   expect(passed).toBe(1);
   expect(output).toContain([
-    'beforeAll1',
-    'beforeAll2-w1=w1',
-    'beforeAll3-w1=w1,w2=w2',
-    'beforeEach1',
-    'beforeEach2-t1=t1',
-    'beforeEach3-t1=t1,t2=t2',
+    'setupWorker1',
+    'setupWorker2-w1=w1',
+    'setupWorker3-w1=w1,w2=w2',
+    'setupTest1',
+    'setupTest2-t1=t1',
+    'setupTest3-t1=t1,t2=t2',
     'test-t1=t1,t2=t2,t3=t3',
-    'afterEach3-t1=t1,t2=t2,t3=t3',
-    'afterEach2-t1=t1,t2=t2',
-    'afterEach1-t1=t1',
-    'afterAll3-w1=w1,w2=w2,w3=w3',
-    'afterAll2-w1=w1,w2=w2',
-    'afterAll1-w1=w1',
+    'teardownTest3-t1=t1,t2=t2,t3=t3',
+    'teardownTest2-t1=t1,t2=t2',
+    'teardownTest1-t1=t1',
+    'teardownWorker3-w1=w1,w2=w2,w3=w3',
+    'teardownWorker2-w1=w1,w2=w2',
+    'teardownWorker1-w1=w1',
   ].join('\n'));
 });
 
@@ -241,12 +241,12 @@ test('env.options should work', async ({ runInlineTest }) => {
   const { exitCode, passed } = await runInlineTest({
     'folio.config.ts': `
       export class Env1 {
-        async beforeAll(options) {
+        async setupWorker(options) {
           return { bar: options.foo + '2' };
         }
       }
       export class Env2 {
-        async beforeAll(options) {
+        async setupWorker(options) {
           return { baz: options.foo + options.bar };
         }
       }

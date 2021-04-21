@@ -16,11 +16,11 @@
 
 import { test, expect } from './config';
 
-test('should run env afterEach on timeout', async ({ runInlineTest }) => {
+test('should run teardownTest on timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async afterEach({}, testInfo) {
+        async teardownTest({}, testInfo) {
           console.log('STATUS:' + testInfo.status);
         }
       }

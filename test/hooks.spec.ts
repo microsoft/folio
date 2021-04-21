@@ -21,18 +21,18 @@ test('hooks should work with env', async ({ runInlineTest }) => {
     'folio.config.ts': `
       global.logs = [];
       class MyEnv {
-        async beforeAll() {
+        async setupWorker() {
           global.logs.push('+w');
           return { w: 17 };
         }
-        async afterAll() {
+        async teardownWorker() {
           global.logs.push('-w');
         }
-        async beforeEach() {
+        async setupTest() {
           global.logs.push('+t');
           return { t: 42 };
         }
-        async afterEach() {
+        async teardownTest() {
           global.logs.push('-t');
         }
       }
@@ -85,10 +85,10 @@ test('afterEach failure should not prevent other hooks and env teardown', async 
     'folio.config.ts': `
       global.logs = [];
       class MyEnv {
-        async beforeEach() {
+        async setupTest() {
           console.log('+t');
         }
-        async afterEach() {
+        async teardownTest() {
           console.log('-t');
         }
       }
