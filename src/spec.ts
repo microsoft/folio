@@ -153,6 +153,13 @@ export function newTestTypeImpl(envs: Env<any>[]): any {
   test.skip = modifier.bind(null, 'skip');
   test.fixme = modifier.bind(null, 'fixme');
   test.fail = modifier.bind(null, 'fail');
+  test.slow = modifier.bind(null, 'slow');
+  test.setTimeout = (timeout: number) => {
+    const testInfo = currentTestInfo();
+    if (!testInfo)
+      throw new Error(`test.setTimeout() can only be called inside the test`);
+    testInfo.setTimeout(timeout);
+  };
   test.useOptions = (options: any) => {
     if (!currentFile)
       throw errorWithCallLocation(`useOptions() can only be called in a test file.`);

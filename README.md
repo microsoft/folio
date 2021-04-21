@@ -19,6 +19,7 @@ Folio is **available in preview** and is under active development. Breaking chan
   - [Shards](#shards)
 - [Advanced configuration](#advanced-configuration)
   - [Configuration object](#configuration-object)
+  - [Changing the timeout](#changing-the-timeout)
   - [workerInfo](#workerinfo)
   - [testInfo](#testinfo)
   - [Multiple test types and configurations](#multiple-test-types-and-configurations)
@@ -181,6 +182,7 @@ Possible annotations include:
 - `skip` marks the test as irrelevant. Folio does not run such a test. Use this annotation when the test is not applicable in some configuration.
 - `fail` marks the test as failing. Folio will run this test and ensure it does indeed fail. If the test does not fail, Folio will complain.
 - `fixme` marks the test as failing. Folio will not run this test, as opposite to the `fail` annotation. Use `fixme` when running the test is slow or crashy.
+- `slow` marks the test as slow and triples the test timeout.
 
 ### Flaky tests
 
@@ -303,6 +305,41 @@ folio.setConfig({
   retries: 2,
 });
 ```
+
+### Changing the timeout
+
+There are a few ways to change the test timeout - the amount of time in milliseconds per each test. Passing a zero timeout in any of these disables the timeout.
+
+- Using [`setConfig`](#configuration-object) and passing a `timeout` property.
+```js
+setConfing({
+  testDir: __dirname,
+  // Each test gets 5 seconds.
+  timeout: 5000,
+});
+```
+
+- Using `--timeout` [command line](#command-line) option.
+```sh
+# Disable timeout for all tests, e.g. for debugging.
+$ npx folio --config=config.ts --timeout=0
+```
+
+- Calling `test.setTimeout(milliseconds)` from the test itself.
+```js
+test('my test', async () => {
+  // Give this test 5 seconds.
+  test.setTimeout(5000);
+});
+```
+
+- Calling `test.slow()` to triple the timeout.
+```js
+test('my test', async () => {
+  test.slow('this dataset is too large');
+});
+```
+
 
 ### workerInfo
 

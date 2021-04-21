@@ -96,7 +96,7 @@ export class Runner {
   }
 
   async run(list: boolean, testFiles: string[], tagFilter?: string[]): Promise<RunResult> {
-    const globalDeadline = this._loader.config().globalTimeout ? this._loader.config().globalTimeout + monotonicTime() : 0;
+    const globalDeadline = this._loader.config().globalTimeout ? this._loader.config().globalTimeout + monotonicTime() : undefined;
     const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFiles, tagFilter), globalDeadline);
     if (timedOut) {
       if (!this._didBegin)

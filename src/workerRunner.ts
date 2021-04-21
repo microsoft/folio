@@ -17,7 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { interpretCondition, mergeObjects, monotonicTime, raceAgainstDeadline, serializeError } from './util';
+import { interpretCondition, mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
@@ -40,8 +40,7 @@ export class WorkerRunner extends EventEmitter {
   private _entries: Map<string, TestEntry>;
   private _remaining: Map<string, TestEntry>;
   private _isStopped: any;
-  _testId: string | null;
-  private _testInfo: TestInfo | null = null;
+  _currentTest: { testId: string, testInfo: TestInfo } | null = null;
   private _file: string;
   private _config: FullConfig;
 
@@ -52,8 +51,7 @@ export class WorkerRunner extends EventEmitter {
 
   stop() {
     this._isStopped = true;
-    this._testId = null;
-    this._setCurrentTestInfo(null);
+    this._setCurrentTest(null);
   }
 
   async cleanup() {
@@ -69,11 +67,11 @@ export class WorkerRunner extends EventEmitter {
   unhandledError(error: Error | any) {
     if (this._isStopped)
       return;
-    if (this._testInfo) {
-      this._testInfo.status = 'failed';
-      this._testInfo.error = serializeError(error);
-      this._failedTestId = this._testId;
-      this.emit('testEnd', buildTestEndPayload(this._testId, this._testInfo));
+    if (this._currentTest) {
+      this._currentTest.testInfo.status = 'failed';
+      this._currentTest.testInfo.error = serializeError(error);
+      this._failedTestId = this._currentTest.testId;
+      this.emit('testEnd', buildTestEndPayload(this._currentTest.testId, this._currentTest.testInfo));
     } else {
       // No current test - fatal error.
       this._fatalError = serializeError(error);
@@ -82,7 +80,7 @@ export class WorkerRunner extends EventEmitter {
   }
 
   private _deadline() {
-    return this._config.timeout ? monotonicTime() + this._config.timeout : 0;
+    return this._config.timeout ? monotonicTime() + this._config.timeout : undefined;
   }
 
   private _loadIfNeeded() {
@@ -202,22 +200,19 @@ export class WorkerRunner extends EventEmitter {
     if (this._isStopped)
       return;
     const test = spec.tests[0];
-    if (!this._entries.has(test._id))
+    const entry = this._entries.get(test._id);
+    if (!entry)
       return;
-    const { retry } = this._entries.get(test._id);
-    // TODO: support some of test.slow(), test.setTimeout(), describe.slow() and describe.setTimeout()
-    const deadline = this._deadline();
     this._remaining.delete(test._id);
 
-    const testId = test._id;
-    this._testId = testId;
+    const startTime = monotonicTime();
+    let deadlineRunner: DeadlineRunner<any> | undefined;
 
     const config = this._workerInfo.config;
-
     const relativePath = path.relative(config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
     const sanitizedTitle = spec.title.replace(/[^\w\d]+/g, '-');
     const relativeTestPath = path.join(relativePath, sanitizedTitle);
-
+    const testId = test._id;
     const testInfo: TestInfo = {
       ...this._workerInfo,
       title: spec.title,
@@ -226,7 +221,7 @@ export class WorkerRunner extends EventEmitter {
       column: spec.column,
       fn: spec.fn,
       repeatEachIndex: this._params.repeatEachIndex,
-      retry,
+      retry: entry.retry,
       expectedStatus: 'passed',
       annotations: [],
       duration: 0,
@@ -254,8 +249,17 @@ export class WorkerRunner extends EventEmitter {
       skip: (arg?: boolean | string, description?: string) => modifier(testInfo, 'skip', arg, description),
       fixme: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fixme', arg, description),
       fail: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fail', arg, description),
+      slow: (arg?: boolean | string, description?: string) => modifier(testInfo, 'slow', arg, description),
+      setTimeout: (timeout: number) => {
+        testInfo.timeout = timeout;
+        if (deadlineRunner)
+          deadlineRunner.setDeadline(deadline());
+      },
     };
-    this._setCurrentTestInfo(testInfo);
+    this._setCurrentTest({ testInfo, testId });
+    const deadline = () => {
+      return testInfo.timeout ? startTime + testInfo.timeout : undefined;
+    };
 
     // Preprocess suite annotations.
     for (let parent = spec.parent; parent; parent = parent.parent)
@@ -264,6 +268,8 @@ export class WorkerRunner extends EventEmitter {
       testInfo.expectedStatus = 'skipped';
     else if (testInfo.annotations.some(a => a.type === 'fail'))
       testInfo.expectedStatus = 'failed';
+    if (testInfo.annotations.some(a => a.type === 'slow'))
+      testInfo.setTimeout(testInfo.timeout * 3);
 
     this.emit('testBegin', buildTestBeginPayload(testId, testInfo));
 
@@ -273,8 +279,6 @@ export class WorkerRunner extends EventEmitter {
       return;
     }
 
-    const startTime = monotonicTime();
-
     const parents: Suite[] = [];
     for (let suite = spec.parent; suite; suite = suite.parent)
       parents.push(suite);
@@ -282,7 +286,8 @@ export class WorkerRunner extends EventEmitter {
       return mergeObjects(options, suite._testOptions);
     }, {});
 
-    const testArgsResult = await raceAgainstDeadline(this._runEnvBeforeEach(testInfo, testOptions), deadline);
+    deadlineRunner = new DeadlineRunner(this._runEnvBeforeEach(testInfo, testOptions), deadline());
+    const testArgsResult = await deadlineRunner.result;
     if (testArgsResult.timedOut && testInfo.status === 'passed')
       testInfo.status = 'timedOut';
     if (this._isStopped)
@@ -291,7 +296,8 @@ export class WorkerRunner extends EventEmitter {
     const testArgs = testArgsResult.result;
     // Do not run test/teardown if we failed to initialize.
     if (testArgs !== undefined) {
-      const result = await raceAgainstDeadline(this._runTestWithBeforeHooks(test, testInfo, testArgs), deadline);
+      deadlineRunner = new DeadlineRunner(this._runTestWithBeforeHooks(test, testInfo, testArgs), deadline());
+      const result = await deadlineRunner.result;
       // Do not overwrite test failure upon hook timeout.
       if (result.timedOut && testInfo.status === 'passed')
         testInfo.status = 'timedOut';
@@ -299,14 +305,17 @@ export class WorkerRunner extends EventEmitter {
         return;
 
       if (!result.timedOut) {
-        const hooksResult = await raceAgainstDeadline(this._runAfterHooks(test, testInfo, testArgs, testOptions), deadline);
+        deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo, testArgs, testOptions), deadline());
+        deadlineRunner.setDeadline(deadline());
+        const hooksResult = await deadlineRunner.result;
         // Do not overwrite test failure upon hook timeout.
         if (hooksResult.timedOut && testInfo.status === 'passed')
           testInfo.status = 'timedOut';
       } else {
         // A timed-out test gets a full additional timeout to run after hooks.
         const newDeadline = this._deadline();
-        await raceAgainstDeadline(this._runAfterHooks(test, testInfo, testArgs, testOptions), newDeadline);
+        deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo, testArgs, testOptions), newDeadline);
+        await deadlineRunner.result;
       }
     }
     if (this._isStopped)
@@ -315,16 +324,15 @@ export class WorkerRunner extends EventEmitter {
     testInfo.duration = monotonicTime() - startTime;
     this.emit('testEnd', buildTestEndPayload(testId, testInfo));
     if (testInfo.status !== 'passed') {
-      this._failedTestId = this._testId;
+      this._failedTestId = testId;
       this._reportDoneAndStop();
     }
-    this._setCurrentTestInfo(null);
-    this._testId = null;
+    this._setCurrentTest(null);
   }
 
-  private _setCurrentTestInfo(testInfo: TestInfo | null) {
-    this._testInfo = testInfo;
-    setCurrentTestInfo(testInfo);
+  private _setCurrentTest(currentTest: { testId: string, testInfo: TestInfo} | null) {
+    this._currentTest = currentTest;
+    setCurrentTestInfo(currentTest ? currentTest.testInfo : null);
   }
 
   // Returns TestArgs or undefined when env.beforeEach has failed.
@@ -464,12 +472,14 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
   };
 }
 
-function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme', arg?: boolean | string, description?: string) {
+function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string, description?: string) {
   const processed = interpretCondition(arg, description);
   if (!processed.condition)
     return;
   testInfo.annotations.push({ type, description: processed.description });
-  if (type === 'skip' || type === 'fixme') {
+  if (type === 'slow') {
+    testInfo.setTimeout(testInfo.timeout * 3);
+  } else if (type === 'skip' || type === 'fixme') {
     testInfo.expectedStatus = 'skipped';
     throw new SkipError(processed.description);
   } else if (type === 'fail') {
