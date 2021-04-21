@@ -392,6 +392,7 @@ In addition to everything from the [`workerInfo`](#workerinfo), the following in
 - `data: object` - Any additional data that you'd like to attach to the test, it will appear in the report.
 - `snapshotPathSegment: string` - Relative path, used to locate snapshots for the test.
 - `snapshotPath(...pathSegments: string[])` - Function that returns the full path to a particular snapshot for the test.
+- `outputDir: string` - Absolute path to the output directory for this test run.
 - `outputPath(...pathSegments: string[])` - Function that returns the full path to a particular output artifact for the test.
 
 The following information is accessible after the test body has finished, in `afterEach`:

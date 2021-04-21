@@ -21,12 +21,14 @@ test('should work and remove empty dir', async ({ runInlineTest }) => {
     'my-test.spec.js': `
       test('test 1', async ({}, testInfo) => {
         if (testInfo.retry) {
+          expect(testInfo.outputDir).toContain(require('path').join('my-test', 'test-1', 'retry1'));
           expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'retry1', 'foo', 'bar'));
         } else {
+          expect(testInfo.outputDir).toContain(require('path').join('my-test', 'test-1'));
           expect(testInfo.outputPath()).toContain(require('path').join('my-test', 'test-1'));
           expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'foo', 'bar'));
         }
-        expect(require('fs').existsSync(testInfo.outputPath())).toBe(true);
+        expect(require('fs').existsSync(testInfo.outputDir)).toBe(true);
         if (testInfo.retry !== 1)
           throw new Error('Give me a retry');
       });

@@ -92,6 +92,7 @@ export interface TestInfo extends WorkerInfo, TestModifier {
 
   // Paths
   snapshotPathSegment: string;
+  outputDir: string;
   snapshotPath: (...pathSegments: string[]) => string;
   outputPath: (...pathSegments: string[]) => string;
 }

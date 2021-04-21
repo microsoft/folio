@@ -213,6 +213,14 @@ export class WorkerRunner extends EventEmitter {
     const sanitizedTitle = spec.title.replace(/[^\w\d]+/g, '-');
     const relativeTestPath = path.join(relativePath, sanitizedTitle);
     const testId = test._id;
+    const baseOutputDir = (() => {
+      let suffix = this._outputPathSegment;
+      if (entry.retry)
+        suffix += (suffix ? '-' : '') + 'retry' + entry.retry;
+      if (this._params.repeatEachIndex)
+        suffix += (suffix ? '-' : '') + 'repeat' + this._params.repeatEachIndex;
+      return path.join(config.outputDir, relativeTestPath, suffix);
+    })();
     const testInfo: TestInfo = {
       ...this._workerInfo,
       title: spec.title,
@@ -231,16 +239,10 @@ export class WorkerRunner extends EventEmitter {
       timeout: this._config.timeout,
       data: {},
       snapshotPathSegment: '',
+      outputDir: baseOutputDir,
       outputPath: (...pathSegments: string[]): string => {
-        // TODO: remove empty outputPath after test run.
-        let suffix = this._outputPathSegment;
-        if (testInfo.retry)
-          suffix += (suffix ? '-' : '') + 'retry' + testInfo.retry;
-        if (testInfo.repeatEachIndex)
-          suffix += (suffix ? '-' : '') + 'repeat' + testInfo.repeatEachIndex;
-        const basePath = path.join(config.outputDir, relativeTestPath, suffix);
-        fs.mkdirSync(basePath, { recursive: true });
-        return path.join(basePath, ...pathSegments);
+        fs.mkdirSync(baseOutputDir, { recursive: true });
+        return path.join(baseOutputDir, ...pathSegments);
       },
       snapshotPath: (...pathSegments: string[]): string => {
         const basePath = path.join(config.testDir, config.snapshotDir, relativeTestPath, testInfo.snapshotPathSegment);
