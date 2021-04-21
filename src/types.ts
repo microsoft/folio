@@ -51,6 +51,13 @@ interface TestModifier {
   fail(condition: boolean): void;
   fail(description: string): void;
   fail(condition: boolean, description: string): void;
+
+  slow(): void;
+  slow(condition: boolean): void;
+  slow(description: string): void;
+  slow(condition: boolean, description: string): void;
+
+  setTimeout(timeout: number): void;
 }
 
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';

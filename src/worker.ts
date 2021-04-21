@@ -32,7 +32,7 @@ global.console = new Console({
 
 process.stdout.write = chunk => {
   const outPayload: TestOutputPayload = {
-    testId: workerRunner ? workerRunner._testId : undefined,
+    testId: workerRunner?._currentTest?.testId,
     ...chunkToParams(chunk)
   };
   sendMessageToParent('stdOut', outPayload);
@@ -42,7 +42,7 @@ process.stdout.write = chunk => {
 if (!process.env.PW_RUNNER_DEBUG) {
   process.stderr.write = chunk => {
     const outPayload: TestOutputPayload = {
-      testId: workerRunner ? workerRunner._testId : undefined,
+      testId: workerRunner?._currentTest?.testId,
       ...chunkToParams(chunk)
     };
     sendMessageToParent('stdErr', outPayload);

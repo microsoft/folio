@@ -24,38 +24,54 @@ const FOLIO_DIRS = [__dirname, path.join(__dirname, '..', 'src')];
 const cwd = process.cwd();
 const stackUtils = new StackUtils({ cwd });
 
-export async function raceAgainstDeadline<T>(promise: Promise<T>, deadline: number): Promise<{ result?: T, timedOut?: boolean }> {
-  if (!deadline)
-    return { result: await promise };
+export class DeadlineRunner<T> {
+  private _timer: NodeJS.Timer | undefined;
+  private _done = false;
+  private _fulfill: (t: { result?: T, timedOut?: boolean }) => void;
+  private _reject: (error: any) => void;
 
-  const timeout = deadline - monotonicTime();
-  if (timeout <= 0)
-    return { timedOut: true };
+  readonly result: Promise<{ result?: T, timedOut?: boolean }>;
 
-  let timer: NodeJS.Timer;
-  let done = false;
-  let fulfill: (t: { result?: T, timedOut?: boolean }) => void;
-  let reject: (e: Error) => void;
-  const result = new Promise((f, r) => {
-    fulfill = f;
-    reject = r;
-  });
-  setTimeout(() => {
-    done = true;
-    fulfill({ timedOut: true });
-  }, timeout);
-  promise.then(result => {
-    clearTimeout(timer);
-    if (!done) {
-      done = true;
-      fulfill({ result });
+  constructor(promise: Promise<T>, deadline: number | undefined) {
+    this.result = new Promise((f, r) => {
+      this._fulfill = f;
+      this._reject = r;
+    });
+    promise.then(result => {
+      this._finish({ result });
+    }).catch(e => {
+      this._finish(undefined, e);
+    });
+    this.setDeadline(deadline);
+  }
+
+  private _finish(success?: { result?: T, timedOut?: boolean }, error?: any) {
+    if (this._done)
+      return;
+    this.setDeadline(undefined);
+    if (success)
+      this._fulfill(success);
+    else
+      this._reject(error);
+  }
+
+  setDeadline(deadline: number | undefined) {
+    if (this._timer) {
+      clearTimeout(this._timer);
+      this._timer = undefined;
     }
-  }).catch(e => {
-    clearTimeout(timer);
-    if (!done)
-      reject(e);
-  });
-  return result;
+    if (deadline === undefined)
+      return;
+    const timeout = deadline - monotonicTime();
+    if (timeout <= 0)
+      this._finish({ timedOut: true });
+    else
+      this._timer = setTimeout(() => this._finish({ timedOut: true }), timeout);
+  }
+}
+
+export async function raceAgainstDeadline<T>(promise: Promise<T>, deadline: number | undefined): Promise<{ result?: T, timedOut?: boolean }> {
+  return (new DeadlineRunner(promise, deadline)).result;
 }
 
 export function serializeError(error: Error | any): TestError {

@@ -38,3 +38,74 @@ test('should run env afterEach on timeout', async ({ runInlineTest }) => {
   expect(result.failed).toBe(1);
   expect(result.output).toContain('STATUS:timedOut');
 });
+
+test('should respect test.setTimeout', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+      test('fails', async ({}) => {
+        await new Promise(f => setTimeout(f, 1500));
+      });
+      test('passes', async ({}) => {
+        await new Promise(f => setTimeout(f, 500));
+        test.setTimeout(2000);
+        await new Promise(f => setTimeout(f, 1000));
+      });
+
+      test.describe('suite', () => {
+        test.beforeEach(() => {
+          test.setTimeout(2000);
+        });
+        test('passes2', async ({}, testInfo) => {
+          expect(testInfo.timeout).toBe(2000);
+          await new Promise(f => setTimeout(f, 1500));
+        });
+      });
+    `
+  }, { timeout: 1000 });
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.passed).toBe(2);
+  expect(result.output).toContain('Timeout of 1000ms exceeded');
+});
+
+test('should timeout when calling test.setTimeout too late', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+      test('fails', async ({}) => {
+        await new Promise(f => setTimeout(f, 500));
+        test.setTimeout(100);
+        await new Promise(f => setTimeout(f, 1));
+      });
+    `
+  }, { timeout: 1000 });
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.passed).toBe(0);
+  expect(result.output).toContain('Timeout of 100ms exceeded');
+});
+
+test('should respect test.slow', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+      test('fails', async ({}) => {
+        await new Promise(f => setTimeout(f, 1500));
+      });
+      test('passes', async ({}) => {
+        test.slow();
+        await new Promise(f => setTimeout(f, 1500));
+      });
+
+      test.describe('suite', () => {
+        test.slow();
+        test('passes2', async ({}, testInfo) => {
+          expect(testInfo.timeout).toBe(3000);
+          await new Promise(f => setTimeout(f, 1500));
+        });
+      });
+    `
+  }, { timeout: 1000 });
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.passed).toBe(2);
+  expect(result.output).toContain('Timeout of 1000ms exceeded');
+});
