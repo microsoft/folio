@@ -173,12 +173,12 @@ type XMLEntry = {
 function serializeXML(entry: XMLEntry, tokens: string[], stripANSIControlSequences: boolean) {
   const attrs: string[] = [];
   for (const name of Object.keys(entry.attributes || {}))
-    attrs.push(`${name}="${escape(String(entry.attributes[name]), stripANSIControlSequences)}"`);
+    attrs.push(`${name}="${escape(String(entry.attributes[name]), stripANSIControlSequences, false)}"`);
   tokens.push(`<${entry.name}${attrs.length ? ' ' : ''}${attrs.join(' ')}>`);
   for (const child of entry.children || [])
     serializeXML(child, tokens, stripANSIControlSequences);
   if (entry.text)
-    tokens.push(escape(entry.text, stripANSIControlSequences));
+    tokens.push(escape(entry.text, stripANSIControlSequences, true));
   tokens.push(`</${entry.name}>`);
 }
 
@@ -186,13 +186,13 @@ function serializeXML(entry: XMLEntry, tokens: string[], stripANSIControlSequenc
 const discouragedXMLCharacters = /[\u0001-\u0008\u000b-\u000c\u000e-\u001f\u007f-\u0084\u0086-\u009f]/g;
 const ansiControlSequence = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
 
-function escape(text: string, stripANSIControlSequences: boolean): string {
+function escape(text: string, stripANSIControlSequences: boolean, isCharacterData: boolean): string {
   if (stripANSIControlSequences)
     text = text.replace(ansiControlSequence, '');
-  text = text.replace(/"/g, '&quot;');
-  text = text.replace(/&/g, '&amp;');
-  text = text.replace(/</g, '&lt;');
-  text = text.replace(/>/g, '&gt;');
+  const escapeRe = isCharacterData ? /[&<]/g : /[&"<>]/g;
+  text = text.replace(escapeRe, c => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' }[c]));
+  if (isCharacterData)
+    text = text.replace(/]]>/g, ']]&gt;');
   text = text.replace(discouragedXMLCharacters, '');
   return text;
 }

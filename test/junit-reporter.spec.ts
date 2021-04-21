@@ -96,15 +96,17 @@ test('render stdout', async ({ runInlineTest }) => {
       import colors from 'colors/safe';
       test('one', async ({}) => {
         console.log(colors.yellow('Hello world'));
+        test.expect("abc").toBe('abcd');
       });
     `,
-  }, { retries: 3, reporter: 'junit' });
+  }, { reporter: 'junit' });
   const xml = parseXML(result.output);
   const suite = xml['testsuites']['testsuite'][0];
   expect(suite['system-out'].length).toBe(1);
   expect(suite['system-out'][0]).toContain('Hello world');
   expect(suite['system-out'][0]).not.toContain('u00');
-  expect(result.exitCode).toBe(0);
+  expect(suite['testcase'][0]['failure'][0]['_']).toContain(`>  8 |         test.expect("abc").toBe('abcd');`);
+  expect(result.exitCode).toBe(1);
 });
 
 test('render stdout without ansi escapes', async ({ runInlineTest }) => {
