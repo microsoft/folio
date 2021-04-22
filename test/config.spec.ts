@@ -15,6 +15,7 @@
  */
 
 import * as fs from 'fs';
+import * as path from 'path';
 import { test, expect } from './config';
 
 test('should be able to redefine config', async ({ runInlineTest }) => {
@@ -57,6 +58,30 @@ test('should read config from --config', async ({ runInlineTest }) => {
       });
     `,
   }, { config: 'my.config.ts' });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+  expect(result.report.suites.length).toBe(1);
+  expect(result.report.suites[0].file).toBe('b.test.ts');
+});
+
+test('should default testDir to the config file', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'dir/my.config.ts': `
+      export const test = folio.test;
+      test.runWith();
+    `,
+    'a.test.ts': `
+      import { test } from './dir/my.config';
+      test('ignored', async ({}) => {
+      });
+    `,
+    'dir/b.test.ts': `
+      import { test } from './my.config';
+      test('run', async ({}) => {
+      });
+    `,
+  }, { config: path.join('dir', 'my.config.ts') });
 
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
