@@ -165,3 +165,77 @@ test('can only call runWith in config file', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('runWith() can only be called in a configuration file');
 });
+
+test('should not run afterAll when did not run beforeAll', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      class MyEnv1 {
+        async beforeAll() {
+          console.log('beforeAll-1');
+          await new Promise(() => {});
+        }
+        async afterAll() {
+          console.log('afterAll-1');
+        }
+      }
+      class MyEnv2 {
+        async beforeAll() {
+          console.log('beforeAll-2');
+        }
+        async afterAll() {
+          console.log('afterAll-2');
+        }
+      }
+      export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
+      test.runWith();
+      folio.setConfig({ timeout: 1000 });
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('test', async ({}) => {
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('beforeAll-1');
+  expect(result.output).not.toContain('afterAll-1');
+  expect(result.output).not.toContain('beforeAll-2');
+  expect(result.output).not.toContain('afterAll-2');
+});
+
+test('should not run afterEach when did not run beforeEach', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      class MyEnv1 {
+        async beforeEach() {
+          console.log('beforeEach-1');
+          await new Promise(() => {});
+        }
+        async afterEach() {
+          console.log('afterEach-1');
+        }
+      }
+      class MyEnv2 {
+        async beforeEach() {
+          console.log('beforeEach-2');
+        }
+        async afterEach() {
+          console.log('afterEach-2');
+        }
+      }
+      export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
+      test.runWith();
+      folio.setConfig({ timeout: 1000 });
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('test', async ({}) => {
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('beforeEach-1');
+  expect(result.output).not.toContain('afterEach-1');
+  expect(result.output).not.toContain('beforeEach-2');
+  expect(result.output).not.toContain('afterEach-2');
+});

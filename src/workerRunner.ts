@@ -52,6 +52,8 @@ export class WorkerRunner extends EventEmitter {
   stop() {
     this._isStopped = true;
     this._setCurrentTest(null);
+    if (this._envRunner)
+      this._envRunner.stop();
   }
 
   async cleanup() {
@@ -498,19 +500,24 @@ async function wrapInPromise(value: any) {
 }
 
 class EnvRunner {
-  private forward: Env[];
-  private backward: Env[];
+  private envs: Env[];
   private workerArgs: any[] = [];
   private testArgs: any[] = [];
+  private _isStopped = false;
 
   constructor(envs: Env[]) {
-    this.forward = [...envs];
-    this.backward = [...envs].reverse();
+    this.envs = [...envs];
+  }
+
+  stop() {
+    this._isStopped = true;
   }
 
   async runBeforeAll(workerInfo: WorkerInfo, workerOptions: any) {
     let args = {};
-    for (const env of this.forward) {
+    for (const env of this.envs) {
+      if (this._isStopped)
+        break;
       if (env.beforeAll) {
         const r = await env.beforeAll(mergeObjects(workerOptions, args), workerInfo);
         args = mergeObjects(args, r);
@@ -522,8 +529,10 @@ class EnvRunner {
 
   async runAfterAll(workerInfo: WorkerInfo, workerOptions: any) {
     let error: Error | undefined;
-    for (const env of this.backward) {
+    const count = this.workerArgs.length;
+    for (let index = count - 1; index >= 0; index--) {
       const args = this.workerArgs.pop();
+      const env = this.envs[index];
       if (env.afterAll) {
         try {
           await env.afterAll(mergeObjects(workerOptions, args), workerInfo);
@@ -538,7 +547,9 @@ class EnvRunner {
 
   async runBeforeEach(testInfo: TestInfo, testOptions: any) {
     let args = {};
-    for (const env of this.forward) {
+    for (const env of this.envs) {
+      if (this._isStopped)
+        break;
       if (env.beforeEach) {
         const r = await env.beforeEach(mergeObjects(testOptions, args), testInfo);
         args = mergeObjects(args, r);
@@ -550,7 +561,9 @@ class EnvRunner {
 
   async runAfterEach(testInfo: TestInfo, testOptions: any) {
     let error: Error | undefined;
-    for (const env of this.backward) {
+    const count = this.testArgs.length;
+    for (let index = count - 1; index >= 0; index--) {
+      const env = this.envs[index];
       const args = this.testArgs.pop();
       if (env.afterEach) {
         try {
