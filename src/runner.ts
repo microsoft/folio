@@ -139,6 +139,18 @@ export class Runner {
     };
     process.on('SIGINT', sigintHandler);
 
+    if (process.stdout.isTTY) {
+      const workers = new Set();
+      rootSuite.findTest(test => {
+        workers.add(test.spec.file + test._variation.workerHash);
+      });
+      console.log();
+      const jobs = Math.min(this._loader.config().workers, workers.size);
+      const shard = this._loader.config().shard;
+      const shardDetails = shard ? `, shard ${shard.current + 1} of ${shard.total}` : '';
+      console.log(`Running ${total} test${total > 1 ? 's' : ''} using ${jobs} worker${jobs > 1 ? 's' : ''}${shardDetails}`);
+    }
+
     this._reporter.onBegin(this._loader.config(), rootSuite);
     this._didBegin = true;
     let hasWorkerErrors = false;

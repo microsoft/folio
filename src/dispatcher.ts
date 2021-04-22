@@ -59,15 +59,12 @@ export class Dispatcher {
     this._queue = this._filesSortedByWorkerHash();
 
     // Shard tests.
-    let total = this._suite.totalTestCount();
-    let shardDetails = '';
-
     const shard = this._loader.config().shard;
     if (shard) {
+      let total = this._suite.totalTestCount();
       const shardSize = Math.ceil(total / shard.total);
       const from = shardSize * shard.current;
       const to = shardSize * (shard.current + 1);
-      shardDetails = `, shard ${shard.current + 1} of ${shard.total}`;
       let current = 0;
       total = 0;
       const filteredQueue: DispatcherEntry[] = [];
@@ -79,17 +76,6 @@ export class Dispatcher {
         current += entry.runPayload.entries.length;
       }
       this._queue = filteredQueue;
-    }
-
-    if (process.stdout.isTTY) {
-      const workers = new Set<string>();
-      suite.findSpec(spec => {
-        for (const test of spec.tests)
-          workers.add(spec.file + test._variation.workerHash);
-      });
-      console.log();
-      const jobs = Math.min(this._loader.config().workers, workers.size);
-      console.log(`Running ${total} test${total > 1 ? 's' : ''} using ${jobs} worker${jobs > 1 ? 's' : ''}${shardDetails}`);
     }
   }
 
