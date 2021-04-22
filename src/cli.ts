@@ -87,6 +87,7 @@ async function runTests(command: any) {
   function loadConfig(configName: string) {
     const configFile = path.resolve(process.cwd(), configName);
     if (fs.existsSync(configFile)) {
+      loader.addConfig({ testDir: path.dirname(configFile) });
       loader.loadConfigFile(configFile);
       return true;
     }
