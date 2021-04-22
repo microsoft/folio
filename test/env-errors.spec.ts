@@ -16,11 +16,11 @@
 
 import { test, expect, stripAscii } from './config';
 
-test('should handle env afterEach timeout', async ({ runInlineTest }) => {
+test('should handle teardownTest timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async afterEach() {
+        async teardownTest() {
           await new Promise(f => setTimeout(f, 100000));
         }
       }
@@ -43,11 +43,11 @@ test('should handle env afterEach timeout', async ({ runInlineTest }) => {
   expect(result.failed).toBe(2);
 });
 
-test('should handle env afterAll timeout', async ({ runInlineTest }) => {
+test('should handle teardownWorker timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async afterAll() {
+        async teardownWorker() {
           await new Promise(f => setTimeout(f, 100000));
         }
       }
@@ -64,11 +64,11 @@ test('should handle env afterAll timeout', async ({ runInlineTest }) => {
   expect(result.output).toContain('Timeout of 500ms');
 });
 
-test('should handle env beforeEach error', async ({ runInlineTest }) => {
+test('should handle env setupTest error', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async beforeEach() {
+        async setupTest() {
           throw new Error('Worker failed');
         }
       }
@@ -86,11 +86,11 @@ test('should handle env beforeEach error', async ({ runInlineTest }) => {
   expect(result.output).toContain('Worker failed');
 });
 
-test('should handle env afterAll error', async ({ runInlineTest }) => {
+test('should handle teardownWorker error', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async afterAll() {
+        async teardownWorker() {
           throw new Error('Worker failed');
         }
       }
@@ -123,17 +123,17 @@ test('should throw when test() is called in config file', async ({ runInlineTest
   expect(stripAscii(result.output)).toContain('Test can only be defined in a test file.');
 });
 
-test('should run afterAll from mulitple envs when one throws', async ({ runInlineTest }) => {
+test('should run teardownWorker from mulitple envs when one throws', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv1 {
-        async afterAll() {
+        async teardownWorker() {
           throw new Error('Bad env');
         }
       }
       class MyEnv2 {
-        async afterAll() {
-          console.log('env2-afterAll');
+        async teardownWorker() {
+          console.log('env2-teardownWorker');
         }
       }
       export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
@@ -146,7 +146,7 @@ test('should run afterAll from mulitple envs when one throws', async ({ runInlin
     `,
   });
   expect(result.output).toContain('Bad env');
-  expect(result.output).toContain('env2-afterAll');
+  expect(result.output).toContain('env2-teardownWorker');
 });
 
 test('can only call runWith in config file', async ({ runInlineTest }) => {

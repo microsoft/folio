@@ -34,7 +34,7 @@ test('should work via env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async beforeEach(args, testInfo) {
+        async setupTest(args, testInfo) {
           return { title: testInfo.title };
         }
       }

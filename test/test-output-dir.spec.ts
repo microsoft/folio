@@ -52,7 +52,7 @@ test('should include runWith tag', async ({ runInlineTest }) => {
         constructor(snapshotPathSegment) {
           this._snapshotPathSegment = snapshotPathSegment;
         }
-        async beforeEach(args, testInfo) {
+        async setupTest(args, testInfo) {
           testInfo.snapshotPathSegment = this._snapshotPathSegment;
           return {};
         }

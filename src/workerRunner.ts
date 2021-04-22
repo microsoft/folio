@@ -58,10 +58,10 @@ export class WorkerRunner extends EventEmitter {
     if (!this._envInitialized)
       return;
     this._envInitialized = false;
-    // TODO: separate timeout for afterAll?
-    const result = await raceAgainstDeadline(this._envRunner.runAfterAll(this._workerInfo, this._runList.options), this._deadline());
+    // TODO: separate timeout for teardownWorker?
+    const result = await raceAgainstDeadline(this._envRunner.runTeardownWorker(this._workerInfo, this._runList.options), this._deadline());
     if (result.timedOut)
-      throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
+      throw new Error(`Timeout of ${this._config.timeout}ms exceeded during teardownWorker()`);
   }
 
   unhandledError(error: Error | any) {
@@ -110,11 +110,11 @@ export class WorkerRunner extends EventEmitter {
     }
 
     this._envRunner = new EnvRunner([this._runList.env, ...envs]);
-    // TODO: separate timeout for beforeAll?
-    const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, this._runList.options), this._deadline());
+    // TODO: separate timeout for setupWorker?
+    const result = await raceAgainstDeadline(this._envRunner.runSetupWorker(this._workerInfo, this._runList.options), this._deadline());
     this._workerArgs = result.result;
     if (result.timedOut) {
-      this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
+      this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded during setupWorker()`));
       this._reportDoneAndStop();
     }
     this._envInitialized = true;
@@ -288,7 +288,7 @@ export class WorkerRunner extends EventEmitter {
       return mergeObjects(options, suite._testOptions);
     }, {});
 
-    deadlineRunner = new DeadlineRunner(this._runEnvBeforeEach(testInfo, testOptions), deadline());
+    deadlineRunner = new DeadlineRunner(this._runSetupTest(testInfo, testOptions), deadline());
     const testArgsResult = await deadlineRunner.result;
     if (testArgsResult.timedOut && testInfo.status === 'passed')
       testInfo.status = 'timedOut';
@@ -337,10 +337,10 @@ export class WorkerRunner extends EventEmitter {
     setCurrentTestInfo(currentTest ? currentTest.testInfo : null);
   }
 
-  // Returns TestArgs or undefined when env.beforeEach has failed.
-  private async _runEnvBeforeEach(testInfo: TestInfo, testOptions: any): Promise<any> {
+  // Returns TestArgs or undefined when setupTest has failed.
+  private async _runSetupTest(testInfo: TestInfo, testOptions: any): Promise<any> {
     try {
-      return await this._envRunner.runBeforeEach(testInfo, testOptions);
+      return await this._envRunner.runSetupTest(testInfo, testOptions);
     } catch (error) {
       testInfo.status = 'failed';
       testInfo.error = serializeError(error);
@@ -359,10 +359,10 @@ export class WorkerRunner extends EventEmitter {
         testInfo.status = 'failed';
         testInfo.error = serializeError(error);
       }
-      // Continue running afterEach hooks even after the failure.
+      // Continue running hooks even after the failure.
     }
 
-    // Do not run the test when beforeEach hook fails.
+    // Do not run the test when any beforeEach hook fails.
     if (this._isStopped || testInfo.status === 'failed' || testInfo.status === 'skipped')
       return;
 
@@ -391,7 +391,7 @@ export class WorkerRunner extends EventEmitter {
       }
     }
     try {
-      await this._envRunner.runAfterEach(testInfo, testOptions);
+      await this._envRunner.runTeardownTest(testInfo, testOptions);
     } catch (error) {
       // Do not overwrite test failure error.
       if (testInfo.status === 'passed') {
@@ -508,11 +508,11 @@ class EnvRunner {
     this.backward = [...envs].reverse();
   }
 
-  async runBeforeAll(workerInfo: WorkerInfo, workerOptions: any) {
+  async runSetupWorker(workerInfo: WorkerInfo, workerOptions: any) {
     let args = {};
     for (const env of this.forward) {
-      if (env.beforeAll) {
-        const r = await env.beforeAll(mergeObjects(workerOptions, args), workerInfo);
+      if (env.setupWorker) {
+        const r = await env.setupWorker(mergeObjects(workerOptions, args), workerInfo);
         args = mergeObjects(args, r);
       }
       this.workerArgs.push(args);
@@ -520,13 +520,13 @@ class EnvRunner {
     return args;
   }
 
-  async runAfterAll(workerInfo: WorkerInfo, workerOptions: any) {
+  async runTeardownWorker(workerInfo: WorkerInfo, workerOptions: any) {
     let error: Error | undefined;
     for (const env of this.backward) {
       const args = this.workerArgs.pop();
-      if (env.afterAll) {
+      if (env.teardownWorker) {
         try {
-          await env.afterAll(mergeObjects(workerOptions, args), workerInfo);
+          await env.teardownWorker(mergeObjects(workerOptions, args), workerInfo);
         } catch (e) {
           error = error || e;
         }
@@ -536,11 +536,11 @@ class EnvRunner {
       throw error;
   }
 
-  async runBeforeEach(testInfo: TestInfo, testOptions: any) {
+  async runSetupTest(testInfo: TestInfo, testOptions: any) {
     let args = {};
     for (const env of this.forward) {
-      if (env.beforeEach) {
-        const r = await env.beforeEach(mergeObjects(testOptions, args), testInfo);
+      if (env.setupTest) {
+        const r = await env.setupTest(mergeObjects(testOptions, args), testInfo);
         args = mergeObjects(args, r);
       }
       this.testArgs.push(args);
@@ -548,13 +548,13 @@ class EnvRunner {
     return args;
   }
 
-  async runAfterEach(testInfo: TestInfo, testOptions: any) {
+  async runTeardownTest(testInfo: TestInfo, testOptions: any) {
     let error: Error | undefined;
     for (const env of this.backward) {
       const args = this.testArgs.pop();
-      if (env.afterEach) {
+      if (env.teardownTest) {
         try {
-          await env.afterEach(mergeObjects(testOptions, args), testInfo);
+          await env.teardownTest(mergeObjects(testOptions, args), testInfo);
         } catch (e) {
           error = error || e;
         }

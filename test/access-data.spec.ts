@@ -20,7 +20,7 @@ test('should access error in env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async afterEach({}, testInfo) {
+        async teardownTest({}, testInfo) {
           console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
         }
       }
@@ -45,7 +45,7 @@ test('should access data in env', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async afterEach({}, testInfo) {
+        async teardownTest({}, testInfo) {
           testInfo.data['myname'] = 'myvalue';
         }
       }
