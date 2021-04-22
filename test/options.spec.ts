@@ -21,7 +21,7 @@ test('should run tests with different options', async ({ runInlineTest }) => {
     'folio.config.ts': `
       global.logs = [];
       class MyEnv {
-        async setupTest(args) {
+        async beforeEach(args) {
           return { foo: args.foo || 'foo' };
         }
       }

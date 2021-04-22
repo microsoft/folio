@@ -156,12 +156,12 @@ test('should retry beforeAll failure', async ({ runInlineTest }) => {
   expect(result.output).toContain('BeforeAll is bugged!');
 });
 
-test('should retry setupWorker failure', async ({ runInlineTest }) => {
+test('should retry env.beforeAll failure', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async setupWorker() {
-          throw new Error('setupWorker is bugged!');
+        async beforeAll() {
+          throw new Error('env.beforeAll is bugged!');
         }
       }
       export const test = folio.test;
@@ -177,5 +177,5 @@ test('should retry setupWorker failure', async ({ runInlineTest }) => {
   expect(result.passed).toBe(0);
   expect(result.failed).toBe(1);
   expect(stripAscii(result.output).split('\n')[0]).toBe('××F');
-  expect(result.output).toContain('setupWorker is bugged!');
+  expect(result.output).toContain('env.beforeAll is bugged!');
 });
