@@ -19,11 +19,11 @@ import { test, expect } from './config';
 test('should get top level stdio', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
-      console.log('%% top level stdout');
-      console.error('%% top level stderr');
+      console.log('\\n%% top level stdout');
+      console.error('\\n%% top level stderr');
       test('is a test', () => {
-        console.log('%% stdout in a test');
-        console.error('%% stderr in a test');
+        console.log('\\n%% stdout in a test');
+        console.error('\\n%% stderr in a test');
       });
     `
   });

@@ -176,3 +176,23 @@ test('beforeEach should be able to skip a test', async ({ runInlineTest }) => {
   expect(passed).toBe(1);
   expect(skipped).toBe(1);
 });
+
+test('beforeAll from a helper file should throw', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'my-test.ts': `
+      export const test = folio.test;
+      test.beforeAll(() => {});
+    `,
+    'folio.config.ts': `
+      import { test } from './my-test';
+      test.runWith();
+    `,
+    'a.test.ts': `
+      import { test } from './my-test';
+      test('should work', async () => {
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('Hook can only be defined in a test file');
+});
