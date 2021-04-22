@@ -150,13 +150,13 @@ type RemovePromise<T> = T extends Promise<infer R> ? R : T;
 export interface Env<TestArgs = {}, WorkerArgs = {}, TestOptions = {}, WorkerOptions = {}, PreviousTestArgs = {}, PreviousWorkerArgs = {}> {
   // For type inference.
   testOptionsType?(): TestOptions;
-  workerOptionsType?(): WorkerOptions;
+  optionsType?(): WorkerOptions;
 
   // Implementation.
-  setupWorker?(args: PreviousWorkerArgs & WorkerOptions, workerInfo: WorkerInfo): MaybePromise<MaybeVoid<WorkerArgs>>;
-  teardownWorker?(args: this['setupWorker'] extends undefined ? WorkerArgs : RemovePromise<ReturnType<Exclude<this['setupWorker'], undefined>>>, workerInfo: WorkerInfo): MaybePromise<any>;
-  setupTest?(args: PreviousTestArgs & TestOptions, testInfo: TestInfo): MaybePromise<MaybeVoid<TestArgs>>;
-  teardownTest?(args: this['setupTest'] extends undefined ? TestArgs : RemovePromise<ReturnType<Exclude<this['setupTest'], undefined>>>, testInfo: TestInfo): MaybePromise<any>;
+  beforeEach?(args: PreviousTestArgs & TestOptions, testInfo: TestInfo): MaybePromise<MaybeVoid<TestArgs>>;
+  beforeAll?(args: PreviousWorkerArgs & WorkerOptions, workerInfo: WorkerInfo): MaybePromise<MaybeVoid<WorkerArgs>>;
+  afterEach?(args: this['beforeEach'] extends undefined ? TestArgs : RemovePromise<ReturnType<Exclude<this['beforeEach'], undefined>>>, testInfo: TestInfo): MaybePromise<any>;
+  afterAll?(args: this['beforeAll'] extends undefined ? WorkerArgs : RemovePromise<ReturnType<Exclude<this['beforeAll'], undefined>>>, workerInfo: WorkerInfo): MaybePromise<any>;
 }
 
 // ---------- Reporters API -----------

@@ -62,7 +62,7 @@ test('test.declare should check types', async ({runTSC}) => {
     'folio.config.ts': `
       export const test = folio.test;
       export const test1 = test.declare<{ foo: string }>();
-      export const test2 = test1.extend({ setupTest: ({ foo }) => { return { bar: parseInt(foo) }; } });
+      export const test2 = test1.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) }; } });
       test.runWith({});
       test1.runWith({});
       test2.runWith({});

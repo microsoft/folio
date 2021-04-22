@@ -30,20 +30,20 @@ test('runWith should check types of options', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
       export const test = folio.test.extend({
-        workerOptionsType(): { foo: string, bar: number } {
+        optionsType(): { foo: string, bar: number } {
           return {} as any;
         },
-        async setupTest({}, testInfo: folio.TestInfo) {
+        async beforeEach({}, testInfo: folio.TestInfo) {
           return { a: '42', b: 42 };
         }
       });
       class Env1 {
-        setupWorker() {
+        beforeAll() {
           return { foo: '42', bar: 42 };
         }
       }
       class Env2 {
-        setupWorker() {
+        beforeAll() {
           return { foo: '42' };
         }
       }
@@ -65,7 +65,7 @@ test('runWith should check types of options', async ({runTSC}) => {
       // @ts-expect-error
       test.runWith({ options: { foo: 42, bar: 42 } });
       // @ts-expect-error
-      test.runWith({ setupWorker: async () => { return {}; } });
+      test.runWith({ beforeAll: async () => { return {}; } });
       // @ts-expect-error
       test.runWith(new Env2(), { timeout: 100 });
       // TODO: next line should not compile.
@@ -92,8 +92,8 @@ test('runWith should allow void env', async ({runTSC}) => {
       test.runWith({});
       test.runWith({ timeout: 100 });
       test.runWith({ timeout: 100 });
-      test.runWith({ setupTest: () => {} });
-      test.runWith({ setupTest: () => { return 42; } });
+      test.runWith({ beforeEach: () => {} });
+      test.runWith({ beforeEach: () => { return 42; } });
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -109,17 +109,17 @@ test('test.extend should check types', async ({runTSC}) => {
     'folio.config.ts': `
       export const test = folio.test.declare<{ foo: string }>();
       class FooEnv {
-        setupTest() {
+        beforeEach() {
           return { foo: '17' };
         }
       }
-      export const test1 = test.extend({ setupTest: ({ foo }) => { return { bar: parseInt(foo) + 42 }; } });
+      export const test1 = test.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) + 42 }; } });
       test.runWith(new FooEnv());
       test1.runWith(new FooEnv());
-      export const test2 = test1.extend({ setupTest: ({ bar }) => { return { baz: bar - 5 }; } });
+      export const test2 = test1.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
       test2.runWith(new FooEnv());
       // @ts-expect-error
-      export const test3 = test.extend({ setupTest: ({ bar }) => { return { baz: bar - 5 }; } });
+      export const test3 = test.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
     `,
     'a.spec.ts': `
       import { test, test1, test2 } from './folio.config';

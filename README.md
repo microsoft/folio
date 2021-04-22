@@ -127,24 +127,24 @@ class DatabaseEnv {
   database: Database;
   table: DatabaseTable;
 
-  async setupWorker() {
-    // Connect to a database once per worker, it is expensive.
+  async beforeAll() {
+    // Connect to a database once, it is expensive.
     this.database = await connectToTestDatabase();
   }
 
-  async setupTest() {
+  async beforeEach() {
     // Create a new table for each test and return it.
     this.table = await this.database.createTable();
     // Anything returned from this method is available to the test. In our case, "table".
     return { table: this.table };
   }
 
-  async teardownTest() {
+  async afterEach() {
     // Do not leave extra tables around.
     await this.table.drop();
   }
 
-  async teardownWorker() {
+  async afterAll() {
     await this.database.disconnect();
   }
 }
@@ -158,7 +158,7 @@ test.runWith({ tag: 'database' });
 
 In this example we see that tests use an environment that provides arguments to the test.
 
-Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. By using `setupWorker` and `teardownWorker` methods, environment can set up expensive resources to be shared between tests in each worker process. Folio will reuse the worker process for as many test files as it can, provided their environments match.
+Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. By using `beforeAll` and `afterAll` methods, environment can set up expensive resources to be shared between tests in each worker process. Folio will reuse the worker process for as many test files as it can, provided their environments match.
 
 ## Annotations
 
@@ -345,7 +345,7 @@ test('my test', async () => {
 
 Depending on the configuration and failures, Folio might use different number of worker processes to run all the tests. For example, Folio will always start a new worker process after a failing test.
 
-`workerInfo` object is available as a second parameter in `beforeAll` hooks, `afterAll` hooks, `setupWorker` and `teardownWorker` environment methods. The following information is accessible from the `workerInfo`:
+Environment and hooks receive `workerInfo` in the `beforeAll` and `afterAll` calls. The following information is accessible from the `workerInfo`:
 - `config` - [Configuration object](#configuration-object).
 - `workerIndex: number` - A unique sequential index assigned to the worker process.
 
@@ -357,18 +357,18 @@ import * as http from 'http';
 class ServerEnv {
   server: http.Server;
 
-  async setupWorker(workerInfo) {
+  async beforeAll(workerInfo) {
     this.server = http.createServer();
     this.server.listen(9000 + workerInfo.workerIndex);
     await new Promise(ready => this.server.once('listening', ready));
   }
 
-  async setupTest() {
+  async beforeEach() {
     // Provide the server as a test argument.
     return { server: this.server };
   }
 
-  async teardownWorker() {
+  async afterAll() {
     await new Promise(done => this.server.close(done));
   }
 }
@@ -376,7 +376,7 @@ class ServerEnv {
 
 ### testInfo
 
-`testInfo` object is available as a second parameter in test functions, `beforeEach` hooks, `afterEach` hooks, `setupTest` and `teardownTest` environment methods.
+Environment and hooks receive `testInfo` in the `beforeEach` and `afterEach` calls. It is also available to the test function as a second parameter.
 
 In addition to everything from the [`workerInfo`](#workerinfo), the following information is accessible before and during the test:
 - `title: string` - Test title.
@@ -418,13 +418,13 @@ import * as debug from 'debug';
 import * as fs from 'fs';
 
 class LogEnv {
-  async setupTest() {
+  async beforeEach() {
     this.logs = [];
     debug.log = (...args) => this.logs.push(args.map(String).join(''));
     debug.enable('mycomponent');
   }
 
-  async teardownTest(testInfo) {
+  async afterEach(testInfo) {
     if (testInfo.status !== testInfo.expectedStatus)
       fs.writeFileSync(testInfo.outputPath('logs.txt'), this.logs.join('\n'), 'utf8');
   }
@@ -448,7 +448,7 @@ folio.setConfig({ testDir: __dirname, timeout: 20000, retries: 3 });
 
 // Environment with some test value.
 class MockedEnv {
-  async setupTest() {
+  async beforeEach() {
     return { value: 'some test value' };
   }
 }
@@ -458,7 +458,7 @@ class FileEnv {
   constructor() {
     this.value = fs.readFileSync('data.txt', 'utf8');
   }
-  async setupTest() {
+  async beforeEach() {
     return { value: this.value };
   }
 }
@@ -484,7 +484,7 @@ smokeTest.runWith(new MockedEnv(), { retries: 0, tag: 'smoke' });
 
 // These tests also get a "foo" argument.
 export const fooTest = valueTest.extend({
-  setupTest() {
+  beforeEach() {
     return { foo: 42 };
   }
 });
@@ -569,7 +569,7 @@ class HelloEnv {
     this.name = name;
   }
 
-  async setupTest() {
+  async beforeEach() {
     return { hello: `Hello, ${this.name}!` };
   }
 }
@@ -596,7 +596,7 @@ folio.setConfig({ testDir: __dirname });
 
 // This environment provides a function "createHello".
 class CreateHelloEnv {
-  async setupTest() {
+  async beforeEach() {
     return { createHello: (name: string) => `Hello, ${name}!` };
   }
 }
@@ -636,8 +636,8 @@ class HelloEnv {
     return {} as any;  // It does not matter what you return from here.
   }
 
-  // Use TestOptions in setupTest.
-  async setupTest({ name }, testInfo: folio.TestInfo) {
+  // Use TestOptions in beforeEach.
+  async beforeEach({ name }, testInfo: folio.TestInfo) {
     // Don't forget to account for missing "name".
     return { hello: `Hello, ${name || ''}!` };
   }

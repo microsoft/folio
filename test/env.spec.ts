@@ -21,24 +21,24 @@ test('env should work', async ({ runInlineTest }) => {
     'folio.config.ts': `
       global.logs = [];
       class MyEnv {
-        async setupWorker() {
-          global.logs.push('setupWorker');
+        async beforeAll() {
+          global.logs.push('beforeAll');
           return { x: 1 };
         }
-        async teardownWorker({ x }) {
+        async afterAll({ x }) {
           if (x !== 1)
             throw new Error('expected 1');
-          global.logs.push('teardownWorker');
+          global.logs.push('afterAll');
           console.log(global.logs.join('\\n'));
         }
-        async setupTest() {
-          global.logs.push('setupTest');
+        async beforeEach() {
+          global.logs.push('beforeEach');
           return { foo: 'bar' };
         }
-        async teardownTest({ foo }) {
+        async afterEach({ foo }) {
           if (foo !== 'bar')
             throw new Error('expected bar');
-          global.logs.push('teardownTest');
+          global.logs.push('afterEach');
         }
       }
       export const test = folio.test;
@@ -57,7 +57,7 @@ test('env should work', async ({ runInlineTest }) => {
     `,
   });
   expect(results[0].status).toBe('passed');
-  expect(output).toContain('setupWorker\nsetupTest\ntest1\nteardownTest\nsetupTest\ntest2\nteardownTest\nteardownWorker');
+  expect(output).toContain('beforeAll\nbeforeEach\ntest1\nafterEach\nbeforeEach\ntest2\nafterEach\nafterAll');
 });
 
 const multipleEnvs = {
@@ -67,19 +67,19 @@ const multipleEnvs = {
       constructor(suffix) {
         this.suffix = suffix;
       }
-      async setupWorker() {
-        global.logs.push('setupWorker' + this.suffix);
+      async beforeAll() {
+        global.logs.push('beforeAll' + this.suffix);
       }
-      async teardownWorker() {
-        global.logs.push('teardownWorker' + this.suffix);
+      async afterAll() {
+        global.logs.push('afterAll' + this.suffix);
         console.log(global.logs.join('\\n'));
       }
-      async setupTest() {
-        global.logs.push('setupTest' + this.suffix);
+      async beforeEach() {
+        global.logs.push('beforeEach' + this.suffix);
         return { foo: 'bar' };
       }
-      async teardownTest() {
-        global.logs.push('teardownTest' + this.suffix);
+      async afterEach() {
+        global.logs.push('afterEach' + this.suffix);
       }
     }
     exports.fooTest = folio.test.declare();
@@ -109,17 +109,17 @@ test('multiple envs and suites should work', async ({ runInlineTest }) => {
   const { passed, failed, output } = await runInlineTest(multipleEnvs);
   expect(passed).toBe(4);
   expect(failed).toBe(0);
-  expect(output).toContain('setupWorker-env1\nsetupTest-env1\nfooTest\nteardownTest-env1\nteardownWorker-env1');
-  expect(output).toContain('setupWorker-env2\nsetupTest-env2\nfooTest\nteardownTest-env2\nteardownWorker-env2');
-  expect(output).toContain('setupWorker-env3\nsetupTest-env3\nbarTest1\nteardownTest-env3\nsetupTest-env3\nbarTest2\nteardownTest-env3\nteardownWorker-env3');
+  expect(output).toContain('beforeAll-env1\nbeforeEach-env1\nfooTest\nafterEach-env1\nafterAll-env1');
+  expect(output).toContain('beforeAll-env2\nbeforeEach-env2\nfooTest\nafterEach-env2\nafterAll-env2');
+  expect(output).toContain('beforeAll-env3\nbeforeEach-env3\nbarTest1\nafterEach-env3\nbeforeEach-env3\nbarTest2\nafterEach-env3\nafterAll-env3');
 });
 
 test('should filter by tag', async ({ runInlineTest }) => {
   const { passed, failed, output } = await runInlineTest(multipleEnvs, { tag: ['suite2', 'suite1'] });
   expect(passed).toBe(2);
   expect(failed).toBe(0);
-  expect(output).toContain('setupWorker-env1\nsetupTest-env1\nfooTest\nteardownTest-env1\nteardownWorker-env1');
-  expect(output).toContain('setupWorker-env2\nsetupTest-env2\nfooTest\nteardownTest-env2\nteardownWorker-env2');
+  expect(output).toContain('beforeAll-env1\nbeforeEach-env1\nfooTest\nafterEach-env1\nafterAll-env1');
+  expect(output).toContain('beforeAll-env2\nbeforeEach-env2\nfooTest\nafterEach-env2\nafterAll-env2');
 });
 
 test('should teardown env after timeout', async ({ runInlineTest }, testInfo) => {
@@ -128,11 +128,11 @@ test('should teardown env after timeout', async ({ runInlineTest }, testInfo) =>
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async teardownWorker() {
-          require('fs').appendFileSync(process.env.TEST_FILE, 'teardownWorker\\n', 'utf8');
+        async afterAll() {
+          require('fs').appendFileSync(process.env.TEST_FILE, 'afterAll\\n', 'utf8');
         }
-        async teardownTest() {
-          require('fs').appendFileSync(process.env.TEST_FILE, 'teardownTest\\n', 'utf8');
+        async afterEach() {
+          require('fs').appendFileSync(process.env.TEST_FILE, 'afterEach\\n', 'utf8');
         }
       }
       export const test = folio.test;
@@ -147,8 +147,8 @@ test('should teardown env after timeout', async ({ runInlineTest }, testInfo) =>
   }, { timeout: 1000 }, { TEST_FILE: file });
   expect(result.results[0].status).toBe('timedOut');
   const content = require('fs').readFileSync(file, 'utf8');
-  expect(content).toContain('teardownTest');
-  expect(content).toContain('teardownWorker');
+  expect(content).toContain('afterEach');
+  expect(content).toContain('afterAll');
 });
 
 test('should initialize env once across files', async ({ runInlineTest }) => {
@@ -156,11 +156,11 @@ test('should initialize env once across files', async ({ runInlineTest }) => {
     'folio.config.js': `
       global.logs = [];
       class MyEnv {
-        async setupWorker() {
-          global.logs.push('setupWorker');
+        async beforeAll() {
+          global.logs.push('beforeAll');
         }
-        async teardownWorker() {
-          global.logs.push('teardownWorker');
+        async afterAll() {
+          global.logs.push('afterAll');
           console.log(global.logs.join('\\n'));
         }
       }
@@ -182,23 +182,23 @@ test('should initialize env once across files', async ({ runInlineTest }) => {
   }, { workers: 1 });
   expect(passed).toBe(2);
   expect(failed).toBe(0);
-  expect(output).toContain('setupWorker\ntest1\ntest2\nteardownWorker');
+  expect(output).toContain('beforeAll\ntest1\ntest2\nafterAll');
 });
 
 test('should run sync env methods and hooks', async ({ runInlineTest }) => {
   const { passed } = await runInlineTest({
     'folio.config.ts': `
       class Env {
-        setupWorker() {
+        beforeAll() {
           this.counter = 0;
         }
-        setupTest() {
+        beforeEach() {
           return { counter: this.counter };
         }
-        teardownTest() {
+        afterEach() {
           this.counter++;
         }
-        teardownWorker() {
+        afterAll() {
         }
       }
       export const test = folio.test;

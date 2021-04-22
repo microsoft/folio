@@ -37,14 +37,14 @@ test('should get top level stdio', async ({runInlineTest}) => {
   ]);
 });
 
-test('should get stdio from teardownWorker', async ({runInlineTest}) => {
+test('should get stdio from env afterAll', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       class MyEnv {
-        async setupWorker() {
+        async beforeAll() {
           console.log('\\n%% worker setup');
         }
-        async teardownWorker() {
+        async afterAll() {
           console.log('\\n%% worker teardown');
         }
       }
