@@ -90,14 +90,32 @@ export class Loader {
     const result = new Set<{
       fileSuites: Map<string, Suite>;
       envs: Env<any>[];
+      envHash: string;
     }>();
-    const visit = (t: TestType<any, any, any, any>) => {
+    type AnyTestType = TestType<any, any, any, any>;
+    const hashByTestType = new Map<AnyTestType, string>();
+
+    const visit = (t: AnyTestType, lastWithForkingEnv: AnyTestType) => {
       const description = configFile.testTypeDescriptions.get(t)!;
-      result.add({ fileSuites: description.fileSuites, envs: description.envs });
+
+      // Fork if we get an environment with worker-level hooks.
+      if (description.newEnv && (description.newEnv.beforeAll || description.newEnv.afterAll))
+        lastWithForkingEnv = t;
+      let envHash = hashByTestType.get(lastWithForkingEnv);
+      if (!envHash) {
+        envHash = String(hashByTestType.size);
+        hashByTestType.set(lastWithForkingEnv, envHash);
+      }
+
+      result.add({
+        fileSuites: description.fileSuites,
+        envs: description.envs,
+        envHash
+      });
       for (const child of description.children)
-        visit(child);
+        visit(child, lastWithForkingEnv);
     };
-    visit(runList.testType);
+    visit(runList.testType, runList.testType);
     return result;
   }
 

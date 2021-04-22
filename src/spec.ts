@@ -32,6 +32,7 @@ export type TestTypeDescription = {
   fileSuites: Map<string, Suite>;
   children: Set<AnyTestType>;
   envs: Env<any>[];
+  newEnv: Env<any> | undefined;
 };
 export type RunListDescription = {
   index: number;
@@ -63,12 +64,13 @@ export function setLoadingConfigFile(loading: boolean) {
 
 const countByFile = new Map<string, number>();
 
-export function newTestTypeImpl(envs: Env<any>[]): any {
+export function newTestTypeImpl(envs: Env<any>[], newEnv: Env<any> | undefined): any {
   const fileSuites = new Map<string, Suite>();
   const description: TestTypeDescription = {
     fileSuites,
     children: new Set(),
     envs,
+    newEnv,
   };
   let suites: Suite[] = [];
 
@@ -167,12 +169,12 @@ export function newTestTypeImpl(envs: Env<any>[]): any {
     suites[0]._testOptions = options;
   };
   test.extend = (env?: Env<any>) => {
-    const newTestType = newTestTypeImpl(env ? [...envs, env] : envs);
+    const newTestType = newTestTypeImpl(env ? [...envs, env] : envs, env);
     description.children.add(newTestType);
     return newTestType;
   };
   test.declare = () => {
-    const newTestType = newTestTypeImpl(envs);
+    const newTestType = newTestTypeImpl(envs, undefined);
     description.children.add(newTestType);
     return newTestType;
   };

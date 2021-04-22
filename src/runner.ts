@@ -57,12 +57,10 @@ export class Runner {
     const grepMatcher = createMatcher(this._loader.config().grep);
 
     const nonEmptySuites = new Set<Suite>();
-    let descriptionIndex = 0;
     for (const runList of this._loader.runLists()) {
       if (tagFilter && !runList.tags.some(tag => tagFilter.includes(tag)))
         continue;
       for (const description of this._loader.descriptionsForRunList(runList)) {
-        ++descriptionIndex;
         for (const fileSuite of description.fileSuites.values()) {
           if (filtered.size && !filtered.has(fileSuite))
             continue;
@@ -78,7 +76,7 @@ export class Runner {
                 outputDir: config.outputDir,
                 repeatEachIndex: i,
                 runListIndex: runList.index,
-                workerHash: `${descriptionIndex}#repeat-${i}`,
+                workerHash: `#list-${runList.index}#env-${description.envHash}#repeat-${i}`,
                 variationId: `#run-${runList.index}#repeat-${i}`,
               };
               spec._appendTest(testVariation);
