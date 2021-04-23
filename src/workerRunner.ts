@@ -92,12 +92,16 @@ export class WorkerRunner extends EventEmitter {
     this._loader = new Loader();
     this._loader.deserialize(this._params.loader);
     this._runList = this._loader.runLists()[this._params.runListIndex];
+
     const tags = this._runList.tags.join('-');
     const sameTagsAndTestType = this._loader.runLists().filter(runList => runList.tags.join('-') === tags && runList.testType === this._runList.testType);
     if (sameTagsAndTestType.length > 1)
       this._outputPathSegment = tags + (sameTagsAndTestType.indexOf(this._runList) + 1);
     else
       this._outputPathSegment = tags;
+    if (this._outputPathSegment)
+      this._outputPathSegment = '-' + this._outputPathSegment;
+
     this._config = this._loader.config(this._runList);
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
@@ -222,10 +226,10 @@ export class WorkerRunner extends EventEmitter {
     const baseOutputDir = (() => {
       let suffix = this._outputPathSegment;
       if (entry.retry)
-        suffix += (suffix ? '-' : '') + 'retry' + entry.retry;
+        suffix += '-retry' + entry.retry;
       if (this._params.repeatEachIndex)
-        suffix += (suffix ? '-' : '') + 'repeat' + this._params.repeatEachIndex;
-      return path.join(config.outputDir, relativeTestPath, suffix);
+        suffix += '-repeat' + this._params.repeatEachIndex;
+      return path.join(config.outputDir, relativeTestPath + suffix);
     })();
     const testInfo: TestInfo = {
       ...this._workerInfo,

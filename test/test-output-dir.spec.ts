@@ -21,8 +21,8 @@ test('should work and remove empty dir', async ({ runInlineTest }) => {
     'my-test.spec.js': `
       test('test 1', async ({}, testInfo) => {
         if (testInfo.retry) {
-          expect(testInfo.outputDir).toContain(require('path').join('my-test', 'test-1', 'retry1'));
-          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1', 'retry1', 'foo', 'bar'));
+          expect(testInfo.outputDir).toContain(require('path').join('my-test', 'test-1-retry1'));
+          expect(testInfo.outputPath('foo', 'bar')).toContain(require('path').join('my-test', 'test-1-retry1', 'foo', 'bar'));
         } else {
           expect(testInfo.outputDir).toContain(require('path').join('my-test', 'test-1'));
           expect(testInfo.outputPath()).toContain(require('path').join('my-test', 'test-1'));
@@ -83,22 +83,22 @@ test('should include runWith tag', async ({ runInlineTest }) => {
   expect(result.results[1].status).toBe('passed');
 
   // test1, run with first env
-  expect(result.output).toContain('test-results/my-test/test-1/foo1/bar.txt');
+  expect(result.output).toContain('test-results/my-test/test-1-foo1/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
-  expect(result.output).toContain('test-results/my-test/test-1/foo1-retry1/bar.txt');
+  expect(result.output).toContain('test-results/my-test/test-1-foo1-retry1/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
 
   // test1, run with second env
-  expect(result.output).toContain('test-results/my-test/test-1/foo2/bar.txt');
+  expect(result.output).toContain('test-results/my-test/test-1-foo2/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots2/bar.txt');
-  expect(result.output).toContain('test-results/my-test/test-1/foo2-retry1/bar.txt');
+  expect(result.output).toContain('test-results/my-test/test-1-foo2-retry1/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots2/bar.txt');
 
   // test2, run with env and tag=foo
-  expect(result.output).toContain('test-results/my-test/test-2/foo/bar.txt');
+  expect(result.output).toContain('test-results/my-test/test-2-foo/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots1/bar.txt');
 
   // test2, run with env and tag=a,b
-  expect(result.output).toContain('test-results/my-test/test-2/a-b/bar.txt');
+  expect(result.output).toContain('test-results/my-test/test-2-a-b/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots1/bar.txt');
 });
