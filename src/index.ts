@@ -16,7 +16,7 @@
  */
 
 import type { TestType } from './types';
-import { newTestTypeImpl } from './spec';
+import { TestTypeImpl } from './spec';
 import DotReporter from './reporters/dot';
 import JSONReporter from './reporters/json';
 import JUnitReporter from './reporters/junit';
@@ -26,7 +26,7 @@ import ListReporter from './reporters/list';
 export * from './types';
 export { expect } from './expect';
 export { setConfig, setReporters, globalSetup, globalTeardown } from './spec';
-export const test: TestType<{}, {}, {}, {}> = newTestTypeImpl([], undefined);
+export const test: TestType<{}, {}, {}, {}> = new TestTypeImpl([], undefined).test;
 export const reporters = {
   dot: DotReporter,
   json: JSONReporter,
