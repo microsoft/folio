@@ -225,3 +225,73 @@ test('should run sync env methods and hooks', async ({ runInlineTest }) => {
   });
   expect(passed).toBe(2);
 });
+
+test('should not create a new worker for environment with beforeEach only', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      test('base test', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+      });
+
+      const test2 = test.extend({
+        beforeEach() {
+          console.log('beforeEach-a');
+        }
+      });
+      test2('a test', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+      });
+    `,
+    'b.test.ts': `
+      const test2 = test.extend({
+        beforeEach() {
+          console.log('beforeEach-b');
+        }
+      });
+      const test3 = test2.extend({
+        beforeEach() {
+          console.log('beforeEach-c');
+        }
+      });
+      test3('b test', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+      });
+    `,
+  }, { workers: 1 });
+  expect(result.output).toContain('beforeEach-a');
+  expect(result.output).toContain('beforeEach-b');
+  expect(result.output).toContain('beforeEach-c');
+  expect(result.passed).toBe(3);
+});
+
+test('should create a new worker for environment with afterAll', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      test('base test', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+      });
+
+      const test2 = test.extend({
+        beforeAll() {
+          console.log('beforeAll-a');
+        }
+      });
+      test2('a test', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(1);
+      });
+    `,
+    'b.test.ts': `
+      const test2 = test.extend({
+        beforeEach() {
+          console.log('beforeEach-b');
+        }
+      });
+      test2('b test', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+      });
+    `,
+  }, { workers: 1 });
+  expect(result.output).toContain('beforeAll-a');
+  expect(result.output).toContain('beforeEach-b');
+  expect(result.passed).toBe(3);
+});

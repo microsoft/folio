@@ -106,12 +106,16 @@ export class WorkerRunner extends EventEmitter {
   }
 
   private async _initEnvIfNeeded(envs: Env<any>[]) {
+    envs = [this._runList.env, ...envs];
+
     if (this._envRunner) {
-      // We rely on the fact that worker only receives tests with the same env list.
+      // We rely on the fact that worker only receives tests where
+      // environments with beforeAll/afterAll are the prefix of env list.
+      this._envRunner.update(envs);
       return;
     }
 
-    this._envRunner = new EnvRunner([this._runList.env, ...envs]);
+    this._envRunner = new EnvRunner(envs);
     // TODO: separate timeout for beforeAll?
     const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, this._runList.options), this._deadline());
     this._workerArgs = result.result;
@@ -509,6 +513,10 @@ class EnvRunner {
     this.envs = [...envs];
   }
 
+  update(envs: Env[]) {
+    this.envs = [...envs];
+  }
+
   stop() {
     this._isStopped = true;
   }
@@ -532,6 +540,8 @@ class EnvRunner {
     const count = this.workerArgs.length;
     for (let index = count - 1; index >= 0; index--) {
       const args = this.workerArgs.pop();
+      if (this.envs.length <= index)
+        continue;
       const env = this.envs[index];
       if (env.afterAll) {
         try {
@@ -563,8 +573,10 @@ class EnvRunner {
     let error: Error | undefined;
     const count = this.testArgs.length;
     for (let index = count - 1; index >= 0; index--) {
-      const env = this.envs[index];
       const args = this.testArgs.pop();
+      if (this.envs.length <= index)
+        continue;
+      const env = this.envs[index];
       if (env.afterEach) {
         try {
           await env.afterEach(mergeObjects(testOptions, args), testInfo);
