@@ -15,44 +15,12 @@
  */
 
 import { expect } from './expect';
-import { currentTestInfo } from './globals';
+import { currentlyLoadingConfigFile, currentlyLoadingTestFile, currentTestInfo } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
-import { Config, Env, Reporter, RunWithConfig, TestType } from './types';
+import { Env, RunWithConfig, TestType } from './types';
 
 Error.stackTraceLimit = 15;
-
-let currentFile: string | undefined;
-export function setCurrentFile(file?: string) {
-  currentFile = file;
-}
-
-export type RunListDescription = {
-  index: number;
-  tags: string[];
-  env: Env<any>;
-  testType: TestTypeImpl;
-  options: any;
-  config: {
-    outputDir?: string;
-    repeatEach?: number;
-    retries?: number;
-    timeout?: number;
-  };
-};
-
-export const configFile: {
-  config?: Config,
-  globalSetups: (() => any)[],
-  globalTeardowns: (() => any)[],
-  runLists: RunListDescription[],
-  reporters: Reporter[],
-} = { globalSetups: [], globalTeardowns: [], runLists: [], reporters: [] };
-
-let loadingConfigFile = false;
-export function setLoadingConfigFile(loading: boolean) {
-  loadingConfigFile = loading;
-}
 
 const countByFile = new Map<string, number>();
 
@@ -121,7 +89,7 @@ export class TestTypeImpl {
   }
 
   private _ensureSuiteForCurrentLocation() {
-    const location = callLocation(currentFile);
+    const location = callLocation(currentlyLoadingTestFile());
     let fileSuite = this.fileSuites.get(location.file);
     if (!fileSuite) {
       fileSuite = new Suite('');
@@ -134,7 +102,7 @@ export class TestTypeImpl {
   }
 
   private _spec(type: 'default' | 'only', title: string, fn: Function) {
-    if (!currentFile)
+    if (!currentlyLoadingTestFile())
       throw errorWithCallLocation(`Test can only be defined in a test file.`);
     const location = this._ensureSuiteForCurrentLocation();
 
@@ -151,7 +119,7 @@ export class TestTypeImpl {
   }
 
   private _describe(type: 'default' | 'only', title: string, fn: Function) {
-    if (!currentFile)
+    if (!currentlyLoadingTestFile())
       throw errorWithCallLocation(`Suite can only be defined in a test file.`);
     const location = this._ensureSuiteForCurrentLocation();
 
@@ -169,14 +137,14 @@ export class TestTypeImpl {
   }
 
   private _hook(name: string, fn: Function) {
-    if (!currentFile)
+    if (!currentlyLoadingTestFile())
       throw errorWithCallLocation(`Hook can only be defined in a test file.`);
     this._ensureSuiteForCurrentLocation();
     this._suites[0]._addHook(name, fn);
   }
 
   private _modifier(type: 'skip' | 'fail' | 'fixme', arg?: boolean | string, description?: string) {
-    if (currentFile) {
+    if (currentlyLoadingTestFile()) {
       const processed = interpretCondition(arg, description);
       if (processed.condition)
         this._suites[0]._annotations.push({ type, description: processed.description });
@@ -197,7 +165,7 @@ export class TestTypeImpl {
   }
 
   private _useOptions(options: any) {
-    if (!currentFile)
+    if (!currentlyLoadingTestFile())
       throw errorWithCallLocation(`useOptions() can only be called in a test file.`);
     this._ensureSuiteForCurrentLocation();
     this._suites[0]._testOptions = options;
@@ -216,48 +184,11 @@ export class TestTypeImpl {
   }
 
   private _runWith(env?: Env<any> & RunWithConfig<any>, config?: RunWithConfig<any>) {
-    if (!loadingConfigFile)
+    const configFile = currentlyLoadingConfigFile();
+    if (!configFile)
       throw errorWithCallLocation(`runWith() can only be called in a configuration file.`);
     env = env || {};
     config = config || env;
-    const tag = 'tag' in config ? config.tag : [];
-    configFile.runLists.push({
-      index: configFile.runLists.length,
-      env,
-      tags: Array.isArray(tag) ? tag : [tag],
-      options: config.options,
-      config: {
-        timeout: config.timeout,
-        repeatEach: config.repeatEach,
-        retries: config.retries,
-        outputDir: config.outputDir,
-      },
-      testType: this,
-    });
+    configFile.runWith(this, env, config);
   }
-}
-
-export function setConfig(config: Config) {
-  // TODO: add config validation.
-  configFile.config = config;
-}
-
-export function globalSetup(globalSetupFunction: () => any) {
-  if (typeof globalSetupFunction !== 'function')
-    throw errorWithCallLocation(`globalSetup() takes a single function argument.`);
-  if (!loadingConfigFile)
-    throw errorWithCallLocation(`globalSetup() can only be called in a configuration file.`);
-  configFile.globalSetups.push(globalSetupFunction);
-}
-
-export function globalTeardown(globalTeardownFunction: () => any) {
-  if (typeof globalTeardownFunction !== 'function')
-    throw errorWithCallLocation(`globalTeardown() takes a single function argument.`);
-  if (!loadingConfigFile)
-    throw errorWithCallLocation(`globalTeardown() can only be called in a configuration file.`);
-  configFile.globalTeardowns.push(globalTeardownFunction);
-}
-
-export function setReporters(reporters: Reporter[]) {
-  configFile.reporters = reporters;
 }
