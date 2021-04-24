@@ -15,18 +15,37 @@
  */
 
 import { installTransform } from './transform';
-import { Config, Env, FullConfig, Reporter, TestType } from './types';
-import { mergeObjects, prependErrorMessage } from './util';
-import { configFile, setCurrentFile, RunListDescription, setLoadingConfigFile } from './spec';
-import { Suite } from './test';
+import { Config, Env, FullConfig, Reporter, RunWithConfig } from './types';
+import { errorWithCallLocation, mergeObjects, prependErrorMessage } from './util';
+import { TestTypeImpl } from './testType';
+import { ConfigFileAPI, setCurrentlyLoadingConfigFile, setCurrentlyLoadingTestFile } from './globals';
 
 type SerializedLoaderData = {
   configs: (string | Config)[];
 };
 
-export class Loader {
+export type RunListDescription = {
+  index: number;
+  tags: string[];
+  env: Env<any>;
+  testType: TestTypeImpl;
+  options: any;
+  config: {
+    outputDir?: string;
+    repeatEach?: number;
+    retries?: number;
+    timeout?: number;
+  };
+};
+
+export class Loader implements ConfigFileAPI {
   private _mergedConfig: FullConfig;
   private _layeredConfigs: { config: Config, source?: string }[] = [];
+  private _configFromConfigFile?: Config;
+  private _globalSetups: (() => any)[] = [];
+  private _globalTeardowns: (() => any)[] = [];
+  private _runLists: RunListDescription[] = [];
+  private _reporters: Reporter[] = [];
 
   constructor() {
     this._mergedConfig = {} as any;
@@ -44,16 +63,17 @@ export class Loader {
   loadConfigFile(file: string) {
     const revertBabelRequire = installTransform();
     try {
-      setLoadingConfigFile(true);
+      setCurrentlyLoadingConfigFile(this);
+      this._configFromConfigFile = undefined;
       require(file);
-      this.addConfig(configFile.config || {});
+      this.addConfig(this._configFromConfigFile || {});
       this._layeredConfigs[this._layeredConfigs.length - 1].source = file;
     } catch (e) {
       // Drop the stack.
       throw new Error(e.message);
     } finally {
       revertBabelRequire();
-      setLoadingConfigFile(false);
+      setCurrentlyLoadingConfigFile(undefined);
     }
   }
 
@@ -64,15 +84,15 @@ export class Loader {
 
   loadTestFile(file: string) {
     const revertBabelRequire = installTransform();
-    setCurrentFile(file);
     try {
+      setCurrentlyLoadingTestFile(file);
       require(file);
     } catch (e) {
       prependErrorMessage(e, `Error while reading ${file}:\n`);
       throw e;
     } finally {
-      setCurrentFile();
       revertBabelRequire();
+      setCurrentlyLoadingTestFile(undefined);
     }
   }
 
@@ -82,29 +102,69 @@ export class Loader {
     return mergeObjects(this._mergedConfig, runList.config);
   }
 
-  runLists(): RunListDescription[] {
-    return configFile.runLists;
+  runLists() {
+    return this._runLists;
   }
 
   descriptionsForRunList(runList: RunListDescription) {
     return runList.testType.descriptionsToRun();
   }
 
-  reporters(): Reporter[] {
-    return configFile.reporters;
+  reporters() {
+    return this._reporters;
   }
 
-  globalSetups(): (() => any)[] {
-    return configFile.globalSetups;
+  globalSetups() {
+    return this._globalSetups;
   }
 
-  globalTeardowns(): (() => any)[] {
-    return configFile.globalTeardowns;
+  globalTeardowns() {
+    return this._globalTeardowns;
   }
 
   serialize(): SerializedLoaderData {
     return {
       configs: this._layeredConfigs.map(c => c.source || c.config),
     };
+  }
+
+  // --------- ConfigFileAPI ---------
+
+  setConfig(config: Config) {
+    // TODO: add config validation.
+    this._configFromConfigFile = config;
+  }
+
+  globalSetup(globalSetupFunction: () => any) {
+    if (typeof globalSetupFunction !== 'function')
+      throw errorWithCallLocation(`globalSetup() takes a single function argument.`);
+    this._globalSetups.push(globalSetupFunction);
+  }
+
+  globalTeardown(globalTeardownFunction: () => any) {
+    if (typeof globalTeardownFunction !== 'function')
+      throw errorWithCallLocation(`globalTeardown() takes a single function argument.`);
+    this._globalTeardowns.push(globalTeardownFunction);
+  }
+
+  setReporters(reporters: Reporter[])  {
+    this._reporters = reporters;
+  }
+
+  runWith(testType: TestTypeImpl, env: Env<any>, config: RunWithConfig<any>) {
+    const tag = 'tag' in config ? config.tag : [];
+    this._runLists.push({
+      index: this._runLists.length,
+      env,
+      tags: Array.isArray(tag) ? tag : [tag],
+      options: config.options,
+      config: {
+        timeout: config.timeout,
+        repeatEach: config.repeatEach,
+        retries: config.retries,
+        outputDir: config.outputDir,
+      },
+      testType,
+    });
   }
 }

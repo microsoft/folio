@@ -134,8 +134,10 @@ test('globalSetup should throw in the test file', async ({ runInlineTest }) => {
 
 test('globalSetup should throw when passed non-function', async ({ runInlineTest }) => {
   const { output } = await runInlineTest({
-    'a.test.js': `
+    'folio.config.ts': `
       folio.globalSetup(42);
+    `,
+    'a.test.js': `
       test('should work', async ({}) => {
       });
     `,

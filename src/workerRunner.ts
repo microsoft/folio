@@ -20,10 +20,9 @@ import { EventEmitter } from 'events';
 import { interpretCondition, mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
-import { Loader } from './loader';
+import { Loader, RunListDescription } from './loader';
 import { Spec, Suite, Test, TestVariation } from './test';
 import { Env, FullConfig, TestInfo, WorkerInfo } from './types';
-import { RunListDescription } from './spec';
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;

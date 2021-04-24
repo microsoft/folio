@@ -28,7 +28,6 @@ import { Runner } from './runner';
 import { Config, FullConfig, Reporter } from './types';
 import { Loader } from './loader';
 import { createMatcher } from './util';
-import { setReporters } from './spec';
 
 export const reporters: { [name: string]: new () => Reporter } = {
   'dot': DotReporter,
@@ -79,10 +78,9 @@ async function runTests(command: any) {
     process.exit(0);
   }
 
-  setReporters(process.env.CI ? [new DotReporter()] : [new LineReporter()]);
-
   const loader = new Loader();
   loader.addConfig(defaultConfig);
+  loader.setReporters(process.env.CI ? [new DotReporter()] : [new LineReporter()]);
 
   function loadConfig(configName: string) {
     const configFile = path.resolve(process.cwd(), configName);
@@ -117,7 +115,7 @@ async function runTests(command: any) {
 
   if (command.reporter && command.reporter.length) {
     const reporterList: string[] = command.reporter.split(',');
-    setReporters(reporterList.map(c => {
+    loader.setReporters(reporterList.map(c => {
       if (reporters[c])
         return new reporters[c]();
       try {
