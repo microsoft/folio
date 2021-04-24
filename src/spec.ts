@@ -27,18 +27,11 @@ export function setCurrentFile(file?: string) {
   currentFile = file;
 }
 
-type AnyTestType = TestType<any, any, any, any>;
-export type TestTypeDescription = {
-  fileSuites: Map<string, Suite>;
-  children: Set<AnyTestType>;
-  envs: Env<any>[];
-  newEnv: Env<any> | undefined;
-};
 export type RunListDescription = {
   index: number;
   tags: string[];
   env: Env<any>;
-  testType: AnyTestType;
+  testType: TestTypeImpl;
   options: any;
   config: {
     outputDir?: string;
@@ -52,10 +45,9 @@ export const configFile: {
   config?: Config,
   globalSetups: (() => any)[],
   globalTeardowns: (() => any)[],
-  testTypeDescriptions: Map<AnyTestType, TestTypeDescription>,
   runLists: RunListDescription[],
   reporters: Reporter[],
-} = { globalSetups: [], globalTeardowns: [], testTypeDescriptions: new Map(), runLists: [], reporters: [] };
+} = { globalSetups: [], globalTeardowns: [], runLists: [], reporters: [] };
 
 let loadingConfigFile = false;
 export function setLoadingConfigFile(loading: boolean) {
@@ -64,38 +56,92 @@ export function setLoadingConfigFile(loading: boolean) {
 
 const countByFile = new Map<string, number>();
 
-export function newTestTypeImpl(envs: Env<any>[], newEnv: Env<any> | undefined): any {
-  const fileSuites = new Map<string, Suite>();
-  const description: TestTypeDescription = {
-    fileSuites,
-    children: new Set(),
-    envs,
-    newEnv,
-  };
-  let suites: Suite[] = [];
+export class TestTypeImpl {
+  readonly fileSuites = new Map<string, Suite>();
+  readonly children = new Set<TestTypeImpl>();
+  readonly envs: Env<any>[];
+  readonly newEnv: Env<any> | undefined;
+  readonly test: TestType<any, any, any, any>;
 
-  function ensureSuiteForCurrentLocation() {
+  private _suites: Suite[] = [];
+
+  constructor(envs: Env<any>[], newEnv: Env<any> | undefined) {
+    this.envs = envs;
+    this.newEnv = newEnv;
+
+    const test: any = this._spec.bind(this, 'default');
+    test.expect = expect;
+    test.only = this._spec.bind(this, 'only');
+    test.describe = this._describe.bind(this, 'default');
+    test.describe.only = this._describe.bind(this, 'only');
+    test.beforeEach = this._hook.bind(this, 'beforeEach');
+    test.afterEach = this._hook.bind(this, 'afterEach');
+    test.beforeAll = this._hook.bind(this, 'beforeAll');
+    test.afterAll = this._hook.bind(this, 'afterAll');
+    test.skip = this._modifier.bind(this, 'skip');
+    test.fixme = this._modifier.bind(this, 'fixme');
+    test.fail = this._modifier.bind(this, 'fail');
+    test.slow = this._modifier.bind(this, 'slow');
+    test.setTimeout = this._setTimeout.bind(this);
+    test.useOptions = this._useOptions.bind(this);
+    test.extend = this._extend.bind(this);
+    test.declare = this._declare.bind(this);
+    test.runWith = this._runWith.bind(this);
+    this.test = test;
+  }
+
+  descriptionsToRun() {
+    const result = new Set<{
+      fileSuites: Map<string, Suite>;
+      envs: Env<any>[];
+      envHash: string;
+    }>();
+    const hashByTestType = new Map<TestTypeImpl, string>();
+
+    const visit = (t: TestTypeImpl, lastWithForkingEnv: TestTypeImpl) => {
+      // Fork if we get an environment with worker-level hooks.
+      if (t.newEnv && (t.newEnv.beforeAll || t.newEnv.afterAll))
+        lastWithForkingEnv = t;
+      let envHash = hashByTestType.get(lastWithForkingEnv);
+      if (!envHash) {
+        envHash = String(hashByTestType.size);
+        hashByTestType.set(lastWithForkingEnv, envHash);
+      }
+
+      result.add({
+        fileSuites: t.fileSuites,
+        envs: t.envs,
+        envHash
+      });
+      for (const child of t.children)
+        visit(child, lastWithForkingEnv);
+    };
+    visit(this, this);
+    return result;
+  }
+
+  private _ensureSuiteForCurrentLocation() {
     const location = callLocation(currentFile);
-    let fileSuite = fileSuites.get(location.file);
+    let fileSuite = this.fileSuites.get(location.file);
     if (!fileSuite) {
       fileSuite = new Suite('');
       fileSuite.file = location.file;
-      fileSuites.set(location.file, fileSuite);
+      this.fileSuites.set(location.file, fileSuite);
     }
-    if (suites[suites.length - 1] !== fileSuite)
-      suites = [fileSuite];
+    if (this._suites[this._suites.length - 1] !== fileSuite)
+      this._suites = [fileSuite];
     return location;
   }
 
-  function spec(type: 'default' | 'only', title: string, fn: Function) {
+  private _spec(type: 'default' | 'only', title: string, fn: Function) {
     if (!currentFile)
       throw errorWithCallLocation(`Test can only be defined in a test file.`);
-    const location = ensureSuiteForCurrentLocation();
+    const location = this._ensureSuiteForCurrentLocation();
 
     const ordinalInFile = countByFile.get(location.file) || 0;
     countByFile.set(location.file, ordinalInFile + 1);
 
-    const spec = new Spec(title, fn, suites[0], ordinalInFile);
+    const spec = new Spec(title, fn, this._suites[0], ordinalInFile);
     spec.file = location.file;
     spec.line = location.line;
     spec.column = location.column;
@@ -104,12 +150,12 @@ export function newTestTypeImpl(envs: Env<any>[], newEnv: Env<any> | undefined):
       spec._only = true;
   }
 
-  function describe(type: 'default' | 'only', title: string, fn: Function) {
+  private _describe(type: 'default' | 'only', title: string, fn: Function) {
     if (!currentFile)
       throw errorWithCallLocation(`Suite can only be defined in a test file.`);
-    const location = ensureSuiteForCurrentLocation();
+    const location = this._ensureSuiteForCurrentLocation();
 
-    const child = new Suite(title, suites[0]);
+    const child = new Suite(title, this._suites[0]);
     child.file = location.file;
     child.line = location.line;
     child.column = location.column;
@@ -117,23 +163,23 @@ export function newTestTypeImpl(envs: Env<any>[], newEnv: Env<any> | undefined):
     if (type === 'only')
       child._only = true;
 
-    suites.unshift(child);
+    this._suites.unshift(child);
     fn();
-    suites.shift();
+    this._suites.shift();
   }
 
-  function hook(name: string, fn: Function) {
+  private _hook(name: string, fn: Function) {
     if (!currentFile)
       throw errorWithCallLocation(`Hook can only be defined in a test file.`);
-    ensureSuiteForCurrentLocation();
-    suites[0]._addHook(name, fn);
+    this._ensureSuiteForCurrentLocation();
+    this._suites[0]._addHook(name, fn);
   }
 
-  const modifier = (type: 'skip' | 'fail' | 'fixme', arg?: boolean | string, description?: string) => {
+  private _modifier(type: 'skip' | 'fail' | 'fixme', arg?: boolean | string, description?: string) {
     if (currentFile) {
       const processed = interpretCondition(arg, description);
       if (processed.condition)
-        suites[0]._annotations.push({ type, description: processed.description });
+        this._suites[0]._annotations.push({ type, description: processed.description });
       return;
     }
 
@@ -141,44 +187,35 @@ export function newTestTypeImpl(envs: Env<any>[], newEnv: Env<any> | undefined):
     if (!testInfo)
       throw new Error(`test.${type} can only be called inside the test`);
     (testInfo[type] as any)(arg, description);
-  };
+  }
 
-  const test: any = spec.bind(null, 'default');
-  test.expect = expect;
-  test.only = spec.bind(null, 'only');
-  test.describe = describe.bind(null, 'default');
-  test.describe.only = describe.bind(null, 'only');
-  test.beforeEach = hook.bind(null, 'beforeEach');
-  test.afterEach = hook.bind(null, 'afterEach');
-  test.beforeAll = hook.bind(null, 'beforeAll');
-  test.afterAll = hook.bind(null, 'afterAll');
-  test.skip = modifier.bind(null, 'skip');
-  test.fixme = modifier.bind(null, 'fixme');
-  test.fail = modifier.bind(null, 'fail');
-  test.slow = modifier.bind(null, 'slow');
-  test.setTimeout = (timeout: number) => {
+  private _setTimeout(timeout: number) {
     const testInfo = currentTestInfo();
     if (!testInfo)
       throw new Error(`test.setTimeout() can only be called inside the test`);
     testInfo.setTimeout(timeout);
-  };
-  test.useOptions = (options: any) => {
+  }
+
+  private _useOptions(options: any) {
     if (!currentFile)
       throw errorWithCallLocation(`useOptions() can only be called in a test file.`);
-    ensureSuiteForCurrentLocation();
-    suites[0]._testOptions = options;
-  };
-  test.extend = (env?: Env<any>) => {
-    const newTestType = newTestTypeImpl(env ? [...envs, env] : envs, env);
-    description.children.add(newTestType);
-    return newTestType;
-  };
-  test.declare = () => {
-    const newTestType = newTestTypeImpl(envs, undefined);
-    description.children.add(newTestType);
-    return newTestType;
-  };
-  test.runWith = (env?: Env<any> & RunWithConfig<any>, config?: RunWithConfig<any>) => {
+    this._ensureSuiteForCurrentLocation();
+    this._suites[0]._testOptions = options;
+  }
+
+  private _extend(env?: Env<any>) {
+    const child = new TestTypeImpl(env ? [...this.envs, env] : this.envs, env);
+    this.children.add(child);
+    return child.test;
+  }
+
+  private _declare() {
+    const child = new TestTypeImpl(this.envs, undefined);
+    this.children.add(child);
+    return child.test;
+  }
+
+  private _runWith(env?: Env<any> & RunWithConfig<any>, config?: RunWithConfig<any>) {
     if (!loadingConfigFile)
       throw errorWithCallLocation(`runWith() can only be called in a configuration file.`);
     env = env || {};
@@ -195,11 +232,9 @@ export function newTestTypeImpl(envs: Env<any>[], newEnv: Env<any> | undefined):
         retries: config.retries,
         outputDir: config.outputDir,
       },
-      testType: test,
+      testType: this,
     });
-  };
-  configFile.testTypeDescriptions.set(test, description);
-  return test;
+  }
 }
 
 export function setConfig(config: Config) {

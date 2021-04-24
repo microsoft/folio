@@ -87,36 +87,7 @@ export class Loader {
   }
 
   descriptionsForRunList(runList: RunListDescription) {
-    const result = new Set<{
-      fileSuites: Map<string, Suite>;
-      envs: Env<any>[];
-      envHash: string;
-    }>();
-    type AnyTestType = TestType<any, any, any, any>;
-    const hashByTestType = new Map<AnyTestType, string>();
-
-    const visit = (t: AnyTestType, lastWithForkingEnv: AnyTestType) => {
-      const description = configFile.testTypeDescriptions.get(t)!;
-
-      // Fork if we get an environment with worker-level hooks.
-      if (description.newEnv && (description.newEnv.beforeAll || description.newEnv.afterAll))
-        lastWithForkingEnv = t;
-      let envHash = hashByTestType.get(lastWithForkingEnv);
-      if (!envHash) {
-        envHash = String(hashByTestType.size);
-        hashByTestType.set(lastWithForkingEnv, envHash);
-      }
-
-      result.add({
-        fileSuites: description.fileSuites,
-        envs: description.envs,
-        envHash
-      });
-      for (const child of description.children)
-        visit(child, lastWithForkingEnv);
-    };
-    visit(runList.testType, runList.testType);
-    return result;
+    return runList.testType.descriptionsToRun();
   }
 
   reporters(): Reporter[] {
