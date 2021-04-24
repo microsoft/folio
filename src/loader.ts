@@ -15,27 +15,14 @@
  */
 
 import { installTransform } from './transform';
-import { Config, Env, FullConfig, Reporter, RunWithConfig } from './types';
+import { Config, FullConfig, Reporter } from './types';
 import { errorWithCallLocation, mergeObjects, prependErrorMessage } from './util';
-import { TestTypeImpl } from './testType';
-import { ConfigFileAPI, setCurrentlyLoadingConfigFile, setCurrentlyLoadingTestFile } from './globals';
+import { RunList } from './testType';
+import { ConfigFileAPI, setCurrentlyLoadingConfigFile, setCurrentlyLoadingFileSuite } from './globals';
+import { Suite } from './test';
 
 type SerializedLoaderData = {
   configs: (string | Config)[];
-};
-
-export type RunListDescription = {
-  index: number;
-  tags: string[];
-  env: Env<any>;
-  testType: TestTypeImpl;
-  options: any;
-  config: {
-    outputDir?: string;
-    repeatEach?: number;
-    retries?: number;
-    timeout?: number;
-  };
 };
 
 export class Loader implements ConfigFileAPI {
@@ -44,8 +31,9 @@ export class Loader implements ConfigFileAPI {
   private _configFromConfigFile?: Config;
   private _globalSetups: (() => any)[] = [];
   private _globalTeardowns: (() => any)[] = [];
-  private _runLists: RunListDescription[] = [];
+  private _runLists: RunList[] = [];
   private _reporters: Reporter[] = [];
+  private _fileSuites = new Map<string, Suite>();
 
   constructor() {
     this._mergedConfig = {} as any;
@@ -85,18 +73,22 @@ export class Loader implements ConfigFileAPI {
   loadTestFile(file: string) {
     const revertBabelRequire = installTransform();
     try {
-      setCurrentlyLoadingTestFile(file);
+      const suite = new Suite('');
+      suite.file = file;
+      setCurrentlyLoadingFileSuite(suite);
       require(file);
+      this._fileSuites.set(file, suite);
+      return suite;
     } catch (e) {
       prependErrorMessage(e, `Error while reading ${file}:\n`);
       throw e;
     } finally {
       revertBabelRequire();
-      setCurrentlyLoadingTestFile(undefined);
+      setCurrentlyLoadingFileSuite(undefined);
     }
   }
 
-  config(runList?: RunListDescription): FullConfig {
+  config(runList?: RunList): FullConfig {
     if (!runList)
       return this._mergedConfig;
     return mergeObjects(this._mergedConfig, runList.config);
@@ -106,8 +98,8 @@ export class Loader implements ConfigFileAPI {
     return this._runLists;
   }
 
-  descriptionsForRunList(runList: RunListDescription) {
-    return runList.testType.descriptionsToRun();
+  fileSuites() {
+    return this._fileSuites;
   }
 
   reporters() {
@@ -151,20 +143,8 @@ export class Loader implements ConfigFileAPI {
     this._reporters = reporters;
   }
 
-  runWith(testType: TestTypeImpl, env: Env<any>, config: RunWithConfig<any>) {
-    const tag = 'tag' in config ? config.tag : [];
-    this._runLists.push({
-      index: this._runLists.length,
-      env,
-      tags: Array.isArray(tag) ? tag : [tag],
-      options: config.options,
-      config: {
-        timeout: config.timeout,
-        repeatEach: config.repeatEach,
-        retries: config.retries,
-        outputDir: config.outputDir,
-      },
-      testType,
-    });
+  addRunList(runList: RunList) {
+    runList.index = this._runLists.length;
+    this._runLists.push(runList);
   }
 }

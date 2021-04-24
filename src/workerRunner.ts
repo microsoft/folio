@@ -20,14 +20,15 @@ import { EventEmitter } from 'events';
 import { interpretCondition, mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
-import { Loader, RunListDescription } from './loader';
+import { Loader } from './loader';
 import { Spec, Suite, Test, TestVariation } from './test';
 import { Env, FullConfig, TestInfo, WorkerInfo } from './types';
+import { RunList } from './testType';
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
   private _loader: Loader;
-  private _runList: RunListDescription;
+  private _runList: RunList;
   private _envRunner: EnvRunner;
   private _outputPathSegment: string;
   private _workerInfo: WorkerInfo;
@@ -109,8 +110,6 @@ export class WorkerRunner extends EventEmitter {
   }
 
   private async _initEnvIfNeeded(envs: Env<any>[]) {
-    envs = [this._runList.env, ...envs];
-
     if (this._envRunner) {
       // We rely on the fact that worker only receives tests where
       // environments with beforeAll/afterAll are the prefix of env list.
@@ -135,37 +134,36 @@ export class WorkerRunner extends EventEmitter {
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
 
     this._loadIfNeeded();
-    this._loader.loadTestFile(this._file);
-
-    const descriptions = this._loader.descriptionsForRunList(this._runList);
-    for (const description of descriptions) {
-      const fileSuite = description.fileSuites.get(this._file);
-      if (!fileSuite)
-        continue;
-      let hasEntries = false;
-      fileSuite.findSpec(spec => {
-        const testVariation: TestVariation = {
-          tags: this._runList.tags,
-          retries: this._config.retries,
-          outputDir: this._config.outputDir,
-          repeatEachIndex: this._params.repeatEachIndex,
-          runListIndex: this._runList.index,
-          workerHash: `does-not-matter`,
-          variationId: `#run-${this._runList.index}#repeat-${this._params.repeatEachIndex}`,
-        };
-        const test = spec._appendTest(testVariation);
-        hasEntries = hasEntries || this._entries.has(test._id);
-      });
-      if (!hasEntries)
-        continue;
-      await this._initEnvIfNeeded(description.envs);
-      await this._runSuite(fileSuite);
-      if (this._isStopped)
-        return;
+    const fileSuite = this._loader.loadTestFile(this._file);
+    let anySpec: Spec | undefined;
+    fileSuite.findSpec(spec => {
+      const testVariation: TestVariation = {
+        tags: this._runList.tags,
+        retries: this._config.retries,
+        outputDir: this._config.outputDir,
+        repeatEachIndex: this._params.repeatEachIndex,
+        runListIndex: this._runList.index,
+        workerHash: `does-not-matter`,
+        variationId: `#run-${this._runList.index}#repeat-${this._params.repeatEachIndex}`,
+      };
+      const test = spec._appendTest(testVariation);
+      if (this._entries.has(test._id))
+        anySpec = spec;
+    });
+    if (!anySpec) {
+      this._reportDone();
+      return;
     }
 
+    // Initialize environments' beforeAll.
+    await this._initEnvIfNeeded([this._runList.env, ...anySpec._testType.envs]);
     if (this._isStopped)
       return;
+
+    await this._runSuite(fileSuite);
+    if (this._isStopped)
+      return;
+
     this._reportDone();
   }
 
@@ -296,6 +294,11 @@ export class WorkerRunner extends EventEmitter {
     const testOptions = parents.reverse().reduce((options, suite) => {
       return mergeObjects(options, suite._testOptions);
     }, {});
+
+    // Update the list of environment - it may differ between tests, but only
+    // by environments without beforeAll/afterAll, so we don't have to
+    // reinitialize the worker.
+    this._envRunner.update([this._runList.env, ...spec._testType.envs]);
 
     deadlineRunner = new DeadlineRunner(this._runEnvBeforeEach(testInfo, testOptions), deadline());
     const testArgsResult = await deadlineRunner.result;

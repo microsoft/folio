@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-import { Config, Env, Reporter, RunWithConfig, TestInfo } from './types';
+import type { Config, Reporter, TestInfo } from './types';
+import type { RunList } from './testType';
 import { errorWithCallLocation } from './util';
+import { Suite } from './test';
 
 let currentTestInfoValue: TestInfo | null = null;
 export function setCurrentTestInfo(testInfo: TestInfo | null) {
@@ -25,12 +27,12 @@ export function currentTestInfo(): TestInfo | null {
   return currentTestInfoValue;
 }
 
-let currentTestFile: string | undefined;
-export function setCurrentlyLoadingTestFile(file: string | undefined) {
-  currentTestFile = file;
+let currentFileSuite: Suite | undefined;
+export function setCurrentlyLoadingFileSuite(suite: Suite | undefined) {
+  currentFileSuite = suite;
 }
-export function currentlyLoadingTestFile() {
-  return currentTestFile;
+export function currentlyLoadingFileSuite() {
+  return currentFileSuite;
 }
 
 export interface ConfigFileAPI {
@@ -38,7 +40,7 @@ export interface ConfigFileAPI {
   globalSetup(globalSetupFunction: () => any): void;
   globalTeardown(globalTeardownFunction: () => any): void;
   setReporters(reporters: Reporter[]): void;
-  runWith(testType: any, env: Env<any>, config: RunWithConfig<any>): void;
+  addRunList(runList: RunList): void;
 }
 
 let configFile: ConfigFileAPI | undefined;

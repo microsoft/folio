@@ -295,3 +295,40 @@ test('should create a new worker for environment with afterAll', async ({ runInl
   expect(result.output).toContain('beforeEach-b');
   expect(result.passed).toBe(3);
 });
+
+test('should run tests in order', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      test('test1', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+        console.log('\\n%%test1');
+      });
+
+      const child = test.extend({
+        beforeEach() {
+          console.log('\\n%%beforeEach');
+        },
+        afterEach() {
+          console.log('\\n%%afterEach');
+        }
+      });
+      child('test2', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+        console.log('\\n%%test2');
+      });
+
+      test('test3', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+        console.log('\\n%%test3');
+      });
+    `,
+  }, { workers: 1 });
+  expect(result.passed).toBe(3);
+  expect(result.output.split('\n').filter(line => line.startsWith('%%'))).toEqual([
+    '%%test1',
+    '%%beforeEach',
+    '%%test2',
+    '%%afterEach',
+    '%%test3',
+  ]);
+});

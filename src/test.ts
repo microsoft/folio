@@ -15,6 +15,7 @@
  */
 
 import * as types from './types';
+import type { TestTypeImpl } from './testType';
 
 class Base {
   title: string;
@@ -47,11 +48,13 @@ export class Spec extends Base implements types.Spec {
   fn: Function;
   tests: Test[] = [];
   _ordinalInFile: number;
+  _testType: TestTypeImpl;
 
-  constructor(title: string, fn: Function, suite: Suite, ordinalInFile: number) {
+  constructor(title: string, fn: Function, suite: Suite, ordinalInFile: number, testType: TestTypeImpl) {
     super(title, suite);
     this.fn = fn;
     this._ordinalInFile = ordinalInFile;
+    this._testType = testType;
     suite._addSpec(this);
   }
 

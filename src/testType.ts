@@ -15,7 +15,7 @@
  */
 
 import { expect } from './expect';
-import { currentlyLoadingConfigFile, currentlyLoadingTestFile, currentTestInfo } from './globals';
+import { currentlyLoadingConfigFile, currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingConfigFile, setCurrentlyLoadingFileSuite } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
 import { Env, RunWithConfig, TestType } from './types';
@@ -25,13 +25,10 @@ Error.stackTraceLimit = 15;
 const countByFile = new Map<string, number>();
 
 export class TestTypeImpl {
-  readonly fileSuites = new Map<string, Suite>();
   readonly children = new Set<TestTypeImpl>();
   readonly envs: Env<any>[];
   readonly newEnv: Env<any> | undefined;
   readonly test: TestType<any, any, any, any>;
-
-  private _suites: Suite[] = [];
 
   constructor(envs: Env<any>[], newEnv: Env<any> | undefined) {
     this.envs = envs;
@@ -58,58 +55,16 @@ export class TestTypeImpl {
     this.test = test;
   }
 
-  descriptionsToRun() {
-    const result = new Set<{
-      fileSuites: Map<string, Suite>;
-      envs: Env<any>[];
-      envHash: string;
-    }>();
-    const hashByTestType = new Map<TestTypeImpl, string>();
-
-    const visit = (t: TestTypeImpl, lastWithForkingEnv: TestTypeImpl) => {
-      // Fork if we get an environment with worker-level hooks.
-      if (t.newEnv && (t.newEnv.beforeAll || t.newEnv.afterAll))
-        lastWithForkingEnv = t;
-      let envHash = hashByTestType.get(lastWithForkingEnv);
-      if (!envHash) {
-        envHash = String(hashByTestType.size);
-        hashByTestType.set(lastWithForkingEnv, envHash);
-      }
-
-      result.add({
-        fileSuites: t.fileSuites,
-        envs: t.envs,
-        envHash
-      });
-      for (const child of t.children)
-        visit(child, lastWithForkingEnv);
-    };
-    visit(this, this);
-    return result;
-  }
-
-  private _ensureSuiteForCurrentLocation() {
-    const location = callLocation(currentlyLoadingTestFile());
-    let fileSuite = this.fileSuites.get(location.file);
-    if (!fileSuite) {
-      fileSuite = new Suite('');
-      fileSuite.file = location.file;
-      this.fileSuites.set(location.file, fileSuite);
-    }
-    if (this._suites[this._suites.length - 1] !== fileSuite)
-      this._suites = [fileSuite];
-    return location;
-  }
-
   private _spec(type: 'default' | 'only', title: string, fn: Function) {
-    if (!currentlyLoadingTestFile())
+    const suite = currentlyLoadingFileSuite();
+    if (!suite)
       throw errorWithCallLocation(`Test can only be defined in a test file.`);
-    const location = this._ensureSuiteForCurrentLocation();
+    const location = callLocation(suite.file);
 
-    const ordinalInFile = countByFile.get(location.file) || 0;
+    const ordinalInFile = countByFile.get(suite.file) || 0;
     countByFile.set(location.file, ordinalInFile + 1);
 
-    const spec = new Spec(title, fn, this._suites[0], ordinalInFile);
+    const spec = new Spec(title, fn, suite, ordinalInFile, this);
     spec.file = location.file;
     spec.line = location.line;
     spec.column = location.column;
@@ -119,35 +74,37 @@ export class TestTypeImpl {
   }
 
   private _describe(type: 'default' | 'only', title: string, fn: Function) {
-    if (!currentlyLoadingTestFile())
+    const suite = currentlyLoadingFileSuite();
+    if (!suite)
       throw errorWithCallLocation(`Suite can only be defined in a test file.`);
-    const location = this._ensureSuiteForCurrentLocation();
+    const location = callLocation(suite.file);
 
-    const child = new Suite(title, this._suites[0]);
-    child.file = location.file;
+    const child = new Suite(title, suite);
+    child.file = suite.file;
     child.line = location.line;
     child.column = location.column;
 
     if (type === 'only')
       child._only = true;
 
-    this._suites.unshift(child);
+    setCurrentlyLoadingFileSuite(child);
     fn();
-    this._suites.shift();
+    setCurrentlyLoadingFileSuite(suite);
   }
 
   private _hook(name: string, fn: Function) {
-    if (!currentlyLoadingTestFile())
+    const suite = currentlyLoadingFileSuite();
+    if (!suite)
       throw errorWithCallLocation(`Hook can only be defined in a test file.`);
-    this._ensureSuiteForCurrentLocation();
-    this._suites[0]._addHook(name, fn);
+    suite._addHook(name, fn);
   }
 
   private _modifier(type: 'skip' | 'fail' | 'fixme', arg?: boolean | string, description?: string) {
-    if (currentlyLoadingTestFile()) {
+    const suite = currentlyLoadingFileSuite();
+    if (suite) {
       const processed = interpretCondition(arg, description);
       if (processed.condition)
-        this._suites[0]._annotations.push({ type, description: processed.description });
+        suite._annotations.push({ type, description: processed.description });
       return;
     }
 
@@ -165,10 +122,10 @@ export class TestTypeImpl {
   }
 
   private _useOptions(options: any) {
-    if (!currentlyLoadingTestFile())
+    const suite = currentlyLoadingFileSuite();
+    if (!suite)
       throw errorWithCallLocation(`useOptions() can only be called in a test file.`);
-    this._ensureSuiteForCurrentLocation();
-    this._suites[0]._testOptions = options;
+    suite._testOptions = options;
   }
 
   private _extend(env?: Env<any>) {
@@ -189,6 +146,53 @@ export class TestTypeImpl {
       throw errorWithCallLocation(`runWith() can only be called in a configuration file.`);
     env = env || {};
     config = config || env;
-    configFile.runWith(this, env, config);
+    configFile.addRunList(new RunList(this, env, config));
+  }
+}
+
+export class RunList {
+  index = 0;
+  tags: string[];
+  env: Env<any>;
+  testType: TestTypeImpl;
+  options: any;
+  config: {
+    outputDir?: string;
+    repeatEach?: number;
+    retries?: number;
+    timeout?: number;
+  };
+
+  constructor(testType: TestTypeImpl, env: Env<any>, config: RunWithConfig<any>) {
+    const tag = 'tag' in config ? config.tag : [];
+    this.tags = Array.isArray(tag) ? tag : [tag];
+    this.env = env;
+    this.options = config.options;
+    this.config = {
+      timeout: config.timeout,
+      repeatEach: config.repeatEach,
+      retries: config.retries,
+      outputDir: config.outputDir,
+    };
+    this.testType = testType;
+  }
+
+  hashTestTypes() {
+    const result = new Map<TestTypeImpl, string>();
+    const visit = (t: TestTypeImpl, lastWithForkingEnv: TestTypeImpl) => {
+      // Fork if we get an environment with worker-level hooks.
+      if (t.newEnv && (t.newEnv.beforeAll || t.newEnv.afterAll))
+        lastWithForkingEnv = t;
+      let envHash = result.get(lastWithForkingEnv);
+      if (!envHash) {
+        envHash = String(result.size);
+        result.set(lastWithForkingEnv, envHash);
+      }
+      result.set(t, envHash);
+      for (const child of t.children)
+        visit(child, lastWithForkingEnv);
+    };
+    visit(this.testType, this.testType);
+    return result;
   }
 }
