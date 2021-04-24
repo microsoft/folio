@@ -81,26 +81,27 @@ export class Dispatcher {
 
   _filesSortedByWorkerHash(): DispatcherEntry[] {
     const entriesByWorkerHashAndFile = new Map<string, Map<string, DispatcherEntry>>();
-    for (const suite of this._suite.suites) {
-      for (const spec of suite._allSpecs()) {
+    for (const fileSuite of this._suite.suites) {
+      const file = fileSuite.file;
+      for (const spec of fileSuite._allSpecs()) {
         for (const test of spec.tests) {
           let entriesByFile = entriesByWorkerHashAndFile.get(test._variation.workerHash);
           if (!entriesByFile) {
             entriesByFile = new Map();
             entriesByWorkerHashAndFile.set(test._variation.workerHash, entriesByFile);
           }
-          let entry = entriesByFile.get(spec.file);
+          let entry = entriesByFile.get(file);
           if (!entry) {
             entry = {
               runPayload: {
                 entries: [],
-                file: spec.file,
+                file,
               },
               repeatEachIndex: test._variation.repeatEachIndex,
               runListIndex: test._variation.runListIndex,
               hash: test._variation.workerHash,
             };
-            entriesByFile.set(spec.file, entry);
+            entriesByFile.set(file, entry);
           }
           entry.runPayload.entries.push({
             retry: this._testById.get(test._id).result.retry,

@@ -23,6 +23,7 @@ import { createMatcher, monotonicTime, raceAgainstDeadline } from './util';
 import { Suite, TestVariation } from './test';
 import { Loader } from './loader';
 import { Multiplexer } from './reporters/multiplexer';
+import { RunList, TestTypeImpl } from './testType';
 
 const removeFolderAsync = promisify(rimraf);
 
@@ -42,53 +43,57 @@ export class Runner {
     for (const file of testFiles)
       this._loader.loadTestFile(file);
 
-    // This makes sure we don't generate 1000000 tests if only one spec is focused.
-    const filtered = new Set<Suite>();
-    for (const runList of this._loader.runLists()) {
-      for (const description of this._loader.descriptionsForRunList(runList)) {
-        for (const fileSuite of description.fileSuites.values()) {
-          if (fileSuite._hasOnly())
-            filtered.add(fileSuite);
-        }
-      }
-    }
-
     const rootSuite = new Suite('');
     const grepMatcher = createMatcher(this._loader.config().grep);
-
     const nonEmptySuites = new Set<Suite>();
+
+    const testTypeToRuns = new Map<TestTypeImpl, { runList: RunList, hash: string }[]>();
     for (const runList of this._loader.runLists()) {
       if (tagFilter && !runList.tags.some(tag => tagFilter.includes(tag)))
         continue;
-      for (const description of this._loader.descriptionsForRunList(runList)) {
-        for (const fileSuite of description.fileSuites.values()) {
-          if (filtered.size && !filtered.has(fileSuite))
-            continue;
-          const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
-          if (!specs.length)
-            continue;
-          const config = this._loader.config(runList);
-          for (const spec of specs) {
-            for (let i = 0; i < config.repeatEach; ++i) {
-              const testVariation: TestVariation = {
-                tags: runList.tags,
-                retries: config.retries,
-                outputDir: config.outputDir,
-                repeatEachIndex: i,
-                runListIndex: runList.index,
-                workerHash: `#list-${runList.index}#env-${description.envHash}#repeat-${i}`,
-                variationId: `#run-${runList.index}#repeat-${i}`,
-              };
-              spec._appendTest(testVariation);
-            }
-          }
-          nonEmptySuites.add(fileSuite);
+      for (const [testType, hash] of runList.hashTestTypes()) {
+        const hashWithRunListIndex = `#list-${runList.index}#env-${hash}`;
+        let list = testTypeToRuns.get(testType);
+        if (!list) {
+          list = [];
+          testTypeToRuns.set(testType, list);
         }
+        list.push({ runList, hash: hashWithRunListIndex });
       }
     }
-    for (const fileSuite of nonEmptySuites)
-      rootSuite._addSuite(fileSuite);
 
+    // This makes sure we don't generate 1000000 tests if only one spec is focused.
+    const filtered = new Set<Suite>();
+    for (const fileSuite of this._loader.fileSuites().values()) {
+      if (fileSuite._hasOnly())
+        filtered.add(fileSuite);
+    }
+    for (const fileSuite of this._loader.fileSuites().values()) {
+      if (filtered.size && !filtered.has(fileSuite))
+        continue;
+      const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
+      let suiteHasTests = false;
+      for (const spec of specs) {
+        for (const { runList, hash } of testTypeToRuns.get(spec._testType) || []) {
+          const config = this._loader.config(runList);
+          for (let i = 0; i < config.repeatEach; ++i) {
+            const testVariation: TestVariation = {
+              tags: runList.tags,
+              retries: config.retries,
+              outputDir: config.outputDir,
+              repeatEachIndex: i,
+              runListIndex: runList.index,
+              workerHash: `${hash}#repeat-${i}`,
+              variationId: `#run-${runList.index}#repeat-${i}`,
+            };
+            spec._appendTest(testVariation);
+            suiteHasTests = true;
+          }
+        }
+      }
+      if (suiteHasTests)
+        rootSuite._addSuite(fileSuite);
+    }
     filterOnly(rootSuite);
     return rootSuite;
   }
