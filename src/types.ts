@@ -145,7 +145,6 @@ type EnvAndConfig<TestArgs, WorkerArgs> =
   : Env<TestArgs, WorkerArgs> & RunWithConfig<WorkerArgs>;
 type MaybePromise<T> = T | Promise<T>;
 type MaybeVoid<T> = {} extends T ? (T | void) : T;
-type RemovePromise<T> = T extends Promise<infer R> ? R : T;
 
 export interface Env<TestArgs = {}, WorkerArgs = {}, TestOptions = {}, WorkerOptions = {}, PreviousTestArgs = {}, PreviousWorkerArgs = {}> {
   // For type inference.
@@ -155,8 +154,8 @@ export interface Env<TestArgs = {}, WorkerArgs = {}, TestOptions = {}, WorkerOpt
   // Implementation.
   beforeEach?(args: PreviousTestArgs & TestOptions, testInfo: TestInfo): MaybePromise<MaybeVoid<TestArgs>>;
   beforeAll?(args: PreviousWorkerArgs & WorkerOptions, workerInfo: WorkerInfo): MaybePromise<MaybeVoid<WorkerArgs>>;
-  afterEach?(args: this['beforeEach'] extends undefined ? TestArgs : RemovePromise<ReturnType<Exclude<this['beforeEach'], undefined>>>, testInfo: TestInfo): MaybePromise<any>;
-  afterAll?(args: this['beforeAll'] extends undefined ? WorkerArgs : RemovePromise<ReturnType<Exclude<this['beforeAll'], undefined>>>, workerInfo: WorkerInfo): MaybePromise<any>;
+  afterEach?(args: PreviousTestArgs & TestOptions, testInfo: TestInfo): MaybePromise<any>;
+  afterAll?(args: PreviousWorkerArgs & WorkerOptions, workerInfo: WorkerInfo): MaybePromise<any>;
 }
 
 // ---------- Reporters API -----------

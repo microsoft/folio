@@ -86,3 +86,44 @@ test('test.declare should check types', async ({runTSC}) => {
   });
   expect(result.exitCode).toBe(0);
 });
+
+test('test.extend should infer types from beforeEach/afterEach', async ({runTSC}) => {
+  const result = await runTSC({
+    'folio.config.ts': `
+      export const test1 = folio.test.extend({
+        beforeEach: ({}, testInfo) => { return { foo: 42, bar: 'bar' }; },
+        afterEach: ({}, testInfo) => {},
+      });
+      export const test2 = test1.extend({
+        beforeEach: ({ foo }) => { return { baz: foo - 5 }; },
+        afterEach: ({ foo }) => {},
+      });
+    `,
+    'a.spec.ts': `
+      import { test1, test2 } from './folio.config';
+      test1('my test', async ({ foo, bar }) => {});
+      // @ts-expect-error
+      test1('my test', async ({ baz }) => {});
+      // @ts-expect-error
+      test1('my test', async ({ foo, bar, baz }) => {});
+
+      test2('my test', async ({ foo, bar, baz }) => {});
+      test2('my test', async ({ foo, bar, baz }) => {
+        let x: string = bar;
+        let y: number = foo;
+        let z: number = baz;
+      });
+      test2('my test', async ({ foo, bar, baz }) => {
+        // @ts-expect-error
+        let x: number = bar;
+        // @ts-expect-error
+        let y: string = foo;
+        // @ts-expect-error
+        let z: string = baz;
+      });
+      // @ts-expect-error
+      test2('my test', async ({ x }) => {});
+    `
+  });
+  expect(result.exitCode).toBe(0);
+});

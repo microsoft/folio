@@ -25,9 +25,7 @@ test('env should work', async ({ runInlineTest }) => {
           global.logs.push('beforeAll');
           return { x: 1 };
         }
-        async afterAll({ x }) {
-          if (x !== 1)
-            throw new Error('expected 1');
+        async afterAll() {
           global.logs.push('afterAll');
           console.log(global.logs.join('\\n'));
         }
@@ -35,9 +33,7 @@ test('env should work', async ({ runInlineTest }) => {
           global.logs.push('beforeEach');
           return { foo: 'bar' };
         }
-        async afterEach({ foo }) {
-          if (foo !== 'bar')
-            throw new Error('expected bar');
+        async afterEach() {
           global.logs.push('afterEach');
         }
       }

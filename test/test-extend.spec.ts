@@ -228,12 +228,12 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
     'beforeEach2-t1=t1',
     'beforeEach3-t1=t1,t2=t2',
     'test-t1=t1,t2=t2,t3=t3',
-    'afterEach3-t1=t1,t2=t2,t3=t3',
-    'afterEach2-t1=t1,t2=t2',
-    'afterEach1-t1=t1',
-    'afterAll3-w1=w1,w2=w2,w3=w3',
-    'afterAll2-w1=w1,w2=w2',
-    'afterAll1-w1=w1',
+    'afterEach3-t1=t1,t2=t2,t3=undefined',
+    'afterEach2-t1=t1,t2=undefined',
+    'afterEach1-t1=undefined',
+    'afterAll3-w1=w1,w2=w2,w3=undefined',
+    'afterAll2-w1=w1,w2=undefined',
+    'afterAll1-w1=undefined',
   ].join('\n'));
 });
 
