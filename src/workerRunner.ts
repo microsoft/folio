@@ -532,11 +532,11 @@ class EnvRunner {
     for (const env of this.envs) {
       if (this._isStopped)
         break;
-      if (env.beforeAll) {
-        const r = await env.beforeAll(mergeObjects(workerOptions, args), workerInfo);
-        args = mergeObjects(args, r);
-      }
+      let r: any = {};
+      if (env.beforeAll)
+        r = await env.beforeAll(mergeObjects(workerOptions, args), workerInfo);
       this.workerArgs.push(args);
+      args = mergeObjects(args, r);
     }
     return args;
   }
@@ -566,11 +566,11 @@ class EnvRunner {
     for (const env of this.envs) {
       if (this._isStopped)
         break;
-      if (env.beforeEach) {
-        const r = await env.beforeEach(mergeObjects(testOptions, args), testInfo);
-        args = mergeObjects(args, r);
-      }
+      let r: any = {};
+      if (env.beforeEach)
+        r = await env.beforeEach(mergeObjects(testOptions, args), testInfo);
       this.testArgs.push(args);
+      args = mergeObjects(args, r);
     }
     return args;
   }
