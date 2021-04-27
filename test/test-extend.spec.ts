@@ -169,12 +169,12 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
           global.logs.push('afterAll1-w1=' + w1);
           console.log(global.logs.join('\\n'));
         }
-        async beforeEach() {
-          global.logs.push('beforeEach1');
+        async beforeEach({ w1 }) {
+          global.logs.push('beforeEach1-w1=' + w1);
           return { t1: 't1' };
         }
-        async afterEach({ t1 }) {
-          global.logs.push('afterEach1-t1=' + t1);
+        async afterEach({ t1, w1 }) {
+          global.logs.push('afterEach1-w1=' + w1 + ',t1=' + t1);
         }
       }
       export class Env2 {
@@ -185,12 +185,12 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
         async afterAll({ w1, w2 }) {
           global.logs.push('afterAll2-w1=' + w1 + ',w2=' + w2);
         }
-        async beforeEach({ t1 }) {
-          global.logs.push('beforeEach2-t1=' + t1);
+        async beforeEach({ t1, w2 }) {
+          global.logs.push('beforeEach2-t1=' + t1 + ',w2=' + w2);
           return { t2: 't2' };
         }
-        async afterEach({ t1, t2 }) {
-          global.logs.push('afterEach2-t1=' + t1 + ',t2=' + t2);
+        async afterEach({ t1, t2, w2 }) {
+          global.logs.push('afterEach2-t1=' + t1 + ',t2=' + t2 + ',w2=' + w2);
         }
       }
       export class Env3 {
@@ -224,13 +224,13 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
     'beforeAll1',
     'beforeAll2-w1=w1',
     'beforeAll3-w1=w1,w2=w2',
-    'beforeEach1',
-    'beforeEach2-t1=t1',
+    'beforeEach1-w1=w1',
+    'beforeEach2-t1=t1,w2=w2',
     'beforeEach3-t1=t1,t2=t2',
     'test-t1=t1,t2=t2,t3=t3',
     'afterEach3-t1=t1,t2=t2,t3=undefined',
-    'afterEach2-t1=t1,t2=undefined',
-    'afterEach1-t1=undefined',
+    'afterEach2-t1=t1,t2=undefined,w2=w2',
+    'afterEach1-w1=w1,t1=undefined',
     'afterAll3-w1=w1,w2=w2,w3=undefined',
     'afterAll2-w1=w1,w2=undefined',
     'afterAll1-w1=undefined',
