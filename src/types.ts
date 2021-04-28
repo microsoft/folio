@@ -105,7 +105,7 @@ interface TestFunction<TestArgs> {
   (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
 }
 
-export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions> extends TestFunction<TestArgs>, TestModifier {
+interface TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs> extends TestFunction<TestArgs>, TestModifier {
   only: TestFunction<TestArgs>;
   describe: SuiteFunction & {
     only: SuiteFunction;
@@ -119,13 +119,19 @@ export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions> exte
 
   expect: Expect;
 
+  extend(): TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs>;
+  extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestTypeDidDeclare<TestArgs & T & W, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO, DeclaredTestArgs, DeclaredWorkerArgs>;
+
+  runWith(config: MaybeVoidIf<DeclaredTestArgs & DeclaredWorkerArgs & WorkerOptions, RunWithConfig<WorkerOptions>>,
+          env: MaybeVoidIf<DeclaredTestArgs & DeclaredWorkerArgs, Env<DeclaredTestArgs, DeclaredWorkerArgs>>): void;
+}
+
+export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions> extends TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, {}, {}> {
   extend(): TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions>;
   extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestType<TestArgs & T & W, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO>;
-  // TODO: use Declared{Test,Worker}Args so that runWith also implements T and W.
-  declare<T = {}, W = {}>(): TestType<TestArgs & T & W, WorkerArgs & W, TestOptions, WorkerOptions>;
 
-  runWith(envAndConfig: EnvAndConfig<TestOptions, WorkerOptions>): void;
-  runWith(env: Env<TestOptions, WorkerOptions>, config: RunWithConfig<WorkerOptions>): void;
+  // TODO: allow declaring more than once?
+  declare<T = {}, W = {}>(): TestTypeDidDeclare<TestArgs & T & W, WorkerArgs & W, TestOptions, WorkerOptions, T, W>;
 }
 
 export type RunWithConfig<WorkerArgs> = {
@@ -137,14 +143,9 @@ export type RunWithConfig<WorkerArgs> = {
   timeout?: number;
 };
 
-type EnvAndConfig<TestArgs, WorkerArgs> =
-  {} extends TestArgs
-  ? ({} extends WorkerArgs
-    ? Env<TestArgs, WorkerArgs> & RunWithConfig<WorkerArgs> | void
-    : Env<TestArgs, WorkerArgs> & RunWithConfig<WorkerArgs>)
-  : Env<TestArgs, WorkerArgs> & RunWithConfig<WorkerArgs>;
 type MaybePromise<T> = T | Promise<T>;
-type MaybeVoid<T> = {} extends T ? (T | void) : T;
+type MaybeVoidIf<T, R> = {} extends T ? R | void : R;
+type MaybeVoid<T> = MaybeVoidIf<T, T>;
 
 export interface Env<TestArgs = {}, WorkerArgs = {}, TestOptions = {}, WorkerOptions = {}, PreviousTestArgs = {}, PreviousWorkerArgs = {}> {
   // For type inference.

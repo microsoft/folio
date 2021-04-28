@@ -40,9 +40,9 @@ test('test.extend should work', async ({ runInlineTest }) => {
           global.logs.push('afterEach' + this.suffix);
         }
       }
-      export const base = folio.test;
-      base.runWith(new MyEnv('-base1'));
-      base.runWith(new MyEnv('-base2'));
+      export const base = folio.test.declare();
+      base.runWith({}, new MyEnv('-base1'));
+      base.runWith({}, new MyEnv('-base2'));
     `,
     'helper.ts': `
       import { base, MyEnv } from './folio.config';
@@ -209,8 +209,8 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
           global.logs.push('afterEach3-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
         }
       }
-      export const test = folio.test.declare().extend(new Env2()).extend(new Env3());
-      test.runWith(new Env1());
+      export const test = folio.test.extend(new Env1()).declare().extend(new Env3());
+      test.runWith({}, new Env2());
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

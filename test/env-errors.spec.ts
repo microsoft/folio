@@ -19,13 +19,12 @@ import { test, expect, stripAscii } from './config';
 test('should handle env afterEach timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      class MyEnv {
+      export const test = folio.test.extend({
         async afterEach() {
           await new Promise(f => setTimeout(f, 100000));
         }
-      }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      });
+      test.runWith();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -46,13 +45,12 @@ test('should handle env afterEach timeout', async ({ runInlineTest }) => {
 test('should handle env afterAll timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      class MyEnv {
+      export const test = folio.test.extend({
         async afterAll() {
           await new Promise(f => setTimeout(f, 100000));
         }
-      }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      });
+      test.runWith();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -67,13 +65,12 @@ test('should handle env afterAll timeout', async ({ runInlineTest }) => {
 test('should handle env beforeEach error', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      class MyEnv {
+      export const test = folio.test.extend({
         async beforeEach() {
           throw new Error('Worker failed');
         }
-      }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      });
+      test.runWith();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -89,13 +86,12 @@ test('should handle env beforeEach error', async ({ runInlineTest }) => {
 test('should handle env afterAll error', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      class MyEnv {
+      export const test = folio.test.extend({
         async afterAll() {
           throw new Error('Worker failed');
         }
-      }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      });
+      test.runWith();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -238,4 +234,22 @@ test('should not run afterEach when did not run beforeEach', async ({ runInlineT
   expect(result.output).not.toContain('afterEach-1');
   expect(result.output).not.toContain('beforeEach-2');
   expect(result.output).not.toContain('afterEach-2');
+});
+
+test('should throw for double declare', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      const test1 = folio.test.declare();
+      const test2 = test1.extend({});
+      export const test = test2.declare();
+      test.runWith();
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('test', async ({}) => {
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('Cannot declare() twice.');
 });

@@ -164,8 +164,8 @@ test('should retry env.beforeAll failure', async ({ runInlineTest }) => {
           throw new Error('env.beforeAll is bugged!');
         }
       }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      export const test = folio.test.extend(new MyEnv());
+      test.runWith();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';

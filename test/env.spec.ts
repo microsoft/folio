@@ -37,8 +37,8 @@ test('env should work', async ({ runInlineTest }) => {
           global.logs.push('afterEach');
         }
       }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      export const test = folio.test.extend(new MyEnv());
+      test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -80,9 +80,9 @@ const multipleEnvs = {
     }
     exports.fooTest = folio.test.declare();
     exports.barTest = folio.test.declare();
-    exports.fooTest.runWith(new MyEnv('-env1'), { tag: 'suite1' });
-    exports.fooTest.runWith(new MyEnv('-env2'), { tag: 'suite2' });
-    exports.barTest.runWith(new MyEnv('-env3'), { tag: 'suite3' });
+    exports.fooTest.runWith({ tag: 'suite1' }, new MyEnv('-env1'));
+    exports.fooTest.runWith({ tag: 'suite2' }, new MyEnv('-env2'));
+    exports.barTest.runWith({ tag: 'suite3' }, new MyEnv('-env3'));
   `,
   'a.test.js': `
     const {fooTest, barTest} = require('./folio.config');
@@ -131,8 +131,8 @@ test('should teardown env after timeout', async ({ runInlineTest }, testInfo) =>
           require('fs').appendFileSync(process.env.TEST_FILE, 'afterEach\\n', 'utf8');
         }
       }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      export const test = folio.test.extend(new MyEnv());
+      test.runWith();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -160,8 +160,8 @@ test('should initialize env once across files', async ({ runInlineTest }) => {
           console.log(global.logs.join('\\n'));
         }
       }
-      exports.test = folio.test;
-      exports.test.runWith(new MyEnv());
+      exports.test = folio.test.extend(new MyEnv());
+      exports.test.runWith();
     `,
     'a.test.js': `
       const {test} = require('./folio.config');
@@ -197,8 +197,8 @@ test('should run sync env methods and hooks', async ({ runInlineTest }) => {
         afterAll() {
         }
       }
-      export const test = folio.test;
-      test.runWith(new Env());
+      export const test = folio.test.extend(new Env());
+      test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

@@ -61,7 +61,7 @@ export class WorkerRunner extends EventEmitter {
       return;
     this._envInitialized = false;
     // TODO: separate timeout for afterAll?
-    const result = await raceAgainstDeadline(this._envRunner.runAfterAll(this._workerInfo, this._runList.options), this._deadline());
+    const result = await raceAgainstDeadline(this._envRunner.runAfterAll(this._workerInfo, this._runList.workerOptions), this._deadline());
     if (result.timedOut)
       throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
   }
@@ -119,7 +119,7 @@ export class WorkerRunner extends EventEmitter {
 
     this._envRunner = new EnvRunner(envs);
     // TODO: separate timeout for beforeAll?
-    const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, this._runList.options), this._deadline());
+    const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, this._runList.workerOptions), this._deadline());
     this._workerArgs = result.result;
     if (result.timedOut) {
       this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
@@ -156,7 +156,7 @@ export class WorkerRunner extends EventEmitter {
     }
 
     // Initialize environments' beforeAll.
-    await this._initEnvIfNeeded([this._runList.env, ...anySpec._testType.envs]);
+    await this._initEnvIfNeeded(this._runList.defineEnv(anySpec._testType.envs));
     if (this._isStopped)
       return;
 
@@ -298,7 +298,7 @@ export class WorkerRunner extends EventEmitter {
     // Update the list of environment - it may differ between tests, but only
     // by environments without beforeAll/afterAll, so we don't have to
     // reinitialize the worker.
-    this._envRunner.update([this._runList.env, ...spec._testType.envs]);
+    this._envRunner.update(this._runList.defineEnv(spec._testType.envs));
 
     deadlineRunner = new DeadlineRunner(this._runEnvBeforeEach(testInfo, testOptions), deadline());
     const testArgsResult = await deadlineRunner.result;

@@ -19,13 +19,12 @@ import { test, expect } from './config';
 test('should access error in env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      class MyEnv {
+      export const test = folio.test.extend({
         async afterEach({}, testInfo) {
           console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
         }
-      }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      });
+      test.runWith();
     `,
     'test-error-visible-in-env.spec.ts': `
       import { test } from './folio.config';
@@ -44,13 +43,12 @@ test('should access error in env', async ({ runInlineTest }) => {
 test('should access data in env', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
-      class MyEnv {
+      export const test = folio.test.extend({
         async afterEach({}, testInfo) {
           testInfo.data['myname'] = 'myvalue';
         }
-      }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      });
+      test.runWith();
     `,
     'test-data-visible-in-env.spec.ts': `
       import { test } from './folio.config';
