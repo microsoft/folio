@@ -25,8 +25,8 @@ test('should run tests with different options', async ({ runInlineTest }) => {
           return { foo: args.foo || 'foo' };
         }
       }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      export const test = folio.test.extend(new MyEnv());
+      test.runWith();
     `,
     'a.test.ts': `
       import { test } from './folio.config';

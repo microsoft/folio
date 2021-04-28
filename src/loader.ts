@@ -56,9 +56,6 @@ export class Loader implements ConfigFileAPI {
       require(file);
       this.addConfig(this._configFromConfigFile || {});
       this._layeredConfigs[this._layeredConfigs.length - 1].source = file;
-    } catch (e) {
-      // Drop the stack.
-      throw new Error(e.message);
     } finally {
       revertBabelRequire();
       setCurrentlyLoadingConfigFile(undefined);

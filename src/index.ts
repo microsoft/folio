@@ -26,7 +26,7 @@ import ListReporter from './reporters/list';
 export * from './types';
 export { expect } from './expect';
 export { setConfig, setReporters, globalSetup, globalTeardown } from './globals';
-export const test: TestType<{}, {}, {}, {}> = new TestTypeImpl([], undefined).test;
+export const test: TestType<{}, {}, {}, {}> = new TestTypeImpl([]).test;
 export const reporters = {
   dot: DotReporter,
   json: JSONReporter,

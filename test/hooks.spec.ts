@@ -36,8 +36,8 @@ test('hooks should work with env', async ({ runInlineTest }) => {
           global.logs.push('-t');
         }
       }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      export const test = folio.test.extend(new MyEnv());
+      test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -92,8 +92,8 @@ test('afterEach failure should not prevent other hooks and env teardown', async 
           console.log('-t');
         }
       }
-      export const test = folio.test;
-      test.runWith(new MyEnv());
+      export const test = folio.test.extend(new MyEnv());
+      test.runWith();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

@@ -15,7 +15,7 @@
  */
 
 import { expect } from './expect';
-import { currentlyLoadingConfigFile, currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingConfigFile, setCurrentlyLoadingFileSuite } from './globals';
+import { currentlyLoadingConfigFile, currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuite } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation, interpretCondition } from './util';
 import { Env, RunWithConfig, TestType } from './types';
@@ -26,13 +26,11 @@ const countByFile = new Map<string, number>();
 
 export class TestTypeImpl {
   readonly children = new Set<TestTypeImpl>();
-  readonly envs: Env<any>[];
-  readonly newEnv: Env<any> | undefined;
+  readonly envs: (Env | undefined)[];
   readonly test: TestType<any, any, any, any>;
 
-  constructor(envs: Env<any>[], newEnv: Env<any> | undefined) {
+  constructor(envs: (Env | undefined)[]) {
     this.envs = envs;
-    this.newEnv = newEnv;
 
     const test: any = this._spec.bind(this, 'default');
     test.expect = expect;
@@ -128,46 +126,46 @@ export class TestTypeImpl {
     suite._testOptions = options;
   }
 
-  private _extend(env?: Env<any>) {
-    const child = new TestTypeImpl(env ? [...this.envs, env] : this.envs, env);
+  private _extend(env?: Env) {
+    const child = new TestTypeImpl([...this.envs, env]);
     this.children.add(child);
     return child.test;
   }
 
   private _declare() {
-    const child = new TestTypeImpl(this.envs, undefined);
+    if (this.envs.some(env => env === undefined))
+      throw errorWithCallLocation(`Cannot declare() twice.`);
+    const child = new TestTypeImpl([...this.envs, undefined]);
     this.children.add(child);
     return child.test;
   }
 
-  private _runWith(env?: Env<any> & RunWithConfig<any>, config?: RunWithConfig<any>) {
+  private _runWith(config?: RunWithConfig<any>, env?: Env) {
     const configFile = currentlyLoadingConfigFile();
     if (!configFile)
       throw errorWithCallLocation(`runWith() can only be called in a configuration file.`);
-    env = env || {};
-    config = config || env;
-    configFile.addRunList(new RunList(this, env, config));
+    configFile.addRunList(new RunList(this, env || {}, config || {} as any));
   }
 }
 
 export class RunList {
   index = 0;
   tags: string[];
-  env: Env<any>;
   testType: TestTypeImpl;
-  options: any;
+  workerOptions: any;
   config: {
     outputDir?: string;
     repeatEach?: number;
     retries?: number;
     timeout?: number;
   };
+  private _definedEnv: Env;
 
-  constructor(testType: TestTypeImpl, env: Env<any>, config: RunWithConfig<any>) {
+  constructor(testType: TestTypeImpl, definedEnv: Env, config: RunWithConfig<any>) {
     const tag = 'tag' in config ? config.tag : [];
     this.tags = Array.isArray(tag) ? tag : [tag];
-    this.env = env;
-    this.options = config.options;
+    this._definedEnv = definedEnv;
+    this.workerOptions = config.options;
     this.config = {
       timeout: config.timeout,
       repeatEach: config.repeatEach,
@@ -180,9 +178,13 @@ export class RunList {
   hashTestTypes() {
     const result = new Map<TestTypeImpl, string>();
     const visit = (t: TestTypeImpl, lastWithForkingEnv: TestTypeImpl) => {
-      // Fork if we get an environment with worker-level hooks.
-      if (t.newEnv && (t.newEnv.beforeAll || t.newEnv.afterAll))
-        lastWithForkingEnv = t;
+      if (t.envs.length) {
+        const env = t.envs[t.envs.length - 1];
+        // Fork if we get an environment with worker-level hooks,
+        // or if we have a spot for declared environment to be filled during runWith.
+        if (!env || env.beforeAll || env.afterAll)
+          lastWithForkingEnv = t;
+      }
       let envHash = result.get(lastWithForkingEnv);
       if (!envHash) {
         envHash = String(result.size);
@@ -194,5 +196,10 @@ export class RunList {
     };
     visit(this.testType, this.testType);
     return result;
+  }
+
+  defineEnv(envs: (Env | undefined)[]): Env[] {
+    // Replace the undefined spot with our defined env.
+    return envs.map(env => env || this._definedEnv);
   }
 }
