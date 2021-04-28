@@ -120,9 +120,9 @@ export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions> exte
   expect: Expect;
 
   extend(): TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions>;
-  extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestType<TestArgs & T, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO>;
+  extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestType<TestArgs & T & W, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO>;
   // TODO: use Declared{Test,Worker}Args so that runWith also implements T and W.
-  declare<T = {}, W = {}>(): TestType<TestArgs & T, WorkerArgs & W, TestOptions, WorkerOptions>;
+  declare<T = {}, W = {}>(): TestType<TestArgs & T & W, WorkerArgs & W, TestOptions, WorkerOptions>;
 
   runWith(envAndConfig: EnvAndConfig<TestOptions, WorkerOptions>): void;
   runWith(env: Env<TestOptions, WorkerOptions>, config: RunWithConfig<WorkerOptions>): void;

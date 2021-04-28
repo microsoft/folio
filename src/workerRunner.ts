@@ -352,7 +352,7 @@ export class WorkerRunner extends EventEmitter {
   // Returns TestArgs or undefined when env.beforeEach has failed.
   private async _runEnvBeforeEach(testInfo: TestInfo, testOptions: any): Promise<any> {
     try {
-      return await this._envRunner.runBeforeEach(testInfo, testOptions);
+      return await this._envRunner.runBeforeEach(testInfo, testOptions, this._workerArgs);
     } catch (error) {
       testInfo.status = 'failed';
       testInfo.error = serializeError(error);
@@ -403,7 +403,7 @@ export class WorkerRunner extends EventEmitter {
       }
     }
     try {
-      await this._envRunner.runAfterEach(testInfo, testOptions);
+      await this._envRunner.runAfterEach(testInfo, testOptions, this._workerArgs);
     } catch (error) {
       // Do not overwrite test failure error.
       if (testInfo.status === 'passed') {
@@ -561,21 +561,23 @@ class EnvRunner {
       throw error;
   }
 
-  async runBeforeEach(testInfo: TestInfo, testOptions: any) {
+  async runBeforeEach(testInfo: TestInfo, testOptions: any, workerArgs: any) {
+    const merged = mergeObjects(workerArgs, testOptions);
     let args = {};
     for (const env of this.envs) {
       if (this._isStopped)
         break;
       let r: any = {};
       if (env.beforeEach)
-        r = await env.beforeEach(mergeObjects(testOptions, args), testInfo);
+        r = await env.beforeEach(mergeObjects(merged, args), testInfo);
       this.testArgs.push(args);
       args = mergeObjects(args, r);
     }
     return args;
   }
 
-  async runAfterEach(testInfo: TestInfo, testOptions: any) {
+  async runAfterEach(testInfo: TestInfo, testOptions: any, workerArgs: any) {
+    const merged = mergeObjects(workerArgs, testOptions);
     let error: Error | undefined;
     const count = this.testArgs.length;
     for (let index = count - 1; index >= 0; index--) {
@@ -585,7 +587,7 @@ class EnvRunner {
       const env = this.envs[index];
       if (env.afterEach) {
         try {
-          await env.afterEach(mergeObjects(testOptions, args), testInfo);
+          await env.afterEach(mergeObjects(merged, args), testInfo);
         } catch (e) {
           error = error || e;
         }
