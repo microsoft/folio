@@ -130,14 +130,6 @@ export function prependErrorMessage(e: Error, message: string) {
   e.stack = e.message + stack;
 }
 
-export function interpretCondition(arg?: boolean | string, description?: string): { condition: boolean, description?: string } {
-  if (arg === undefined && description === undefined)
-    return { condition: true };
-  if (typeof arg === 'string')
-    return { condition: true, description: arg };
-  return { condition: !!arg, description };
-}
-
 export function createMatcher(patterns: string | RegExp | (string | RegExp)[]): (value: string) => boolean {
   const list = Array.isArray(patterns) ? patterns : [patterns];
   return (value: string) => {

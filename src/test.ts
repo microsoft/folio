@@ -79,7 +79,6 @@ export class Suite extends Base implements types.Suite {
   _testOptions: any;
   _entries: (Suite | Spec)[] = [];
   _hooks: { type: string, fn: Function } [] = [];
-  _annotations: { type: 'skip' | 'fixme' | 'fail', description?: string }[] = [];
 
   constructor(title: string, parent?: Suite) {
     super(title, parent);
@@ -92,7 +91,6 @@ export class Suite extends Base implements types.Suite {
     this.specs = [];
     this._entries = [];
     this._hooks = [];
-    this._annotations = [];
   }
 
   _addSpec(spec: Spec) {
@@ -165,10 +163,6 @@ export class Suite extends Base implements types.Suite {
       return true;
     if (this.specs.find(spec => spec._only))
       return true;
-  }
-
-  _addHook(type: string, fn: any) {
-    this._hooks.push({ type, fn });
   }
 }
 

@@ -214,8 +214,8 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
-      test('should work', async ({t1, t2, t3}) => {
-        global.logs.push('test-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
+      test('should work', async ({t1, t2, t3, w1}) => {
+        global.logs.push('test-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3 + ',w1=' + w1);
       });
     `,
   });
@@ -227,7 +227,7 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
     'beforeEach1-w1=w1',
     'beforeEach2-t1=t1,w2=w2',
     'beforeEach3-t1=t1,t2=t2',
-    'test-t1=t1,t2=t2,t3=t3',
+    'test-t1=t1,t2=t2,t3=t3,w1=w1',
     'afterEach3-t1=t1,t2=t2,t3=undefined',
     'afterEach2-t1=t1,t2=undefined,w2=w2',
     'afterEach1-w1=w1,t1=undefined',
