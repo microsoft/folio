@@ -17,7 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { interpretCondition, mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError } from './util';
+import { mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
@@ -255,10 +255,10 @@ export class WorkerRunner extends EventEmitter {
         const basePath = path.join(config.testDir, config.snapshotDir, relativeTestPath, testInfo.snapshotPathSegment);
         return path.join(basePath, ...pathSegments);
       },
-      skip: (arg?: boolean | string, description?: string) => modifier(testInfo, 'skip', arg, description),
-      fixme: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fixme', arg, description),
-      fail: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fail', arg, description),
-      slow: (arg?: boolean | string, description?: string) => modifier(testInfo, 'slow', arg, description),
+      skip: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'skip', arg, description),
+      fixme: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'fixme', arg, description),
+      fail: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'fail', arg, description),
+      slow: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'slow', arg, description),
       setTimeout: (timeout: number) => {
         testInfo.timeout = timeout;
         if (deadlineRunner)
@@ -269,16 +269,6 @@ export class WorkerRunner extends EventEmitter {
     const deadline = () => {
       return testInfo.timeout ? startTime + testInfo.timeout : undefined;
     };
-
-    // Preprocess suite annotations.
-    for (let parent = spec.parent; parent; parent = parent.parent)
-      testInfo.annotations.push(...parent._annotations);
-    if (testInfo.annotations.some(a => a.type === 'skip' || a.type === 'fixme'))
-      testInfo.expectedStatus = 'skipped';
-    else if (testInfo.annotations.some(a => a.type === 'fail'))
-      testInfo.expectedStatus = 'failed';
-    if (testInfo.annotations.some(a => a.type === 'slow'))
-      testInfo.setTimeout(testInfo.timeout * 3);
 
     this.emit('testBegin', buildTestBeginPayload(testId, testInfo));
 
@@ -310,6 +300,7 @@ export class WorkerRunner extends EventEmitter {
     const testArgs = testArgsResult.result;
     // Do not run test/teardown if we failed to initialize.
     if (testArgs !== undefined) {
+      testInfo[kTestArgsSymbol] = testArgs;  // Save args for modifiers.
       deadlineRunner = new DeadlineRunner(this._runTestWithBeforeHooks(test, testInfo, testArgs), deadline());
       const result = await deadlineRunner.result;
       // Do not overwrite test failure upon hook timeout.
@@ -455,13 +446,7 @@ export class WorkerRunner extends EventEmitter {
   private _hasTestsToRun(suite: Suite): boolean {
     return suite.findSpec(spec => {
       const entry = this._entries.get(spec.tests[0]._id);
-      if (!entry)
-        return;
-      for (let parent = spec.parent; parent; parent = parent.parent) {
-        if (parent._annotations.some(a => a.type === 'skip' || a.type === 'fixme'))
-          return;
-      }
-      return true;
+      return !!entry;
     });
   }
 }
@@ -486,16 +471,27 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
   };
 }
 
-function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string, description?: string) {
-  const processed = interpretCondition(arg, description);
-  if (!processed.condition)
-    return;
-  testInfo.annotations.push({ type, description: processed.description });
+const kTestArgsSymbol = Symbol('testargs');
+
+function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string | Function, description?: string) {
+  if (arg === undefined && description === undefined) {
+    // No parameters - modifier applies.
+  } else if (typeof arg === 'string') {
+    // No condition - modifier applies.
+    description = arg;
+  } else {
+    if (typeof arg === 'function')
+      arg = arg(testInfo[kTestArgsSymbol]);
+    if (!arg)
+      return;
+  }
+
+  testInfo.annotations.push({ type, description });
   if (type === 'slow') {
     testInfo.setTimeout(testInfo.timeout * 3);
   } else if (type === 'skip' || type === 'fixme') {
     testInfo.expectedStatus = 'skipped';
-    throw new SkipError(processed.description);
+    throw new SkipError(description);
   } else if (type === 'fail') {
     if (testInfo.expectedStatus !== 'skipped')
       testInfo.expectedStatus = 'failed';
@@ -562,14 +558,13 @@ class EnvRunner {
   }
 
   async runBeforeEach(testInfo: TestInfo, testOptions: any, workerArgs: any) {
-    const merged = mergeObjects(workerArgs, testOptions);
-    let args = {};
+    let args = workerArgs;
     for (const env of this.envs) {
       if (this._isStopped)
         break;
       let r: any = {};
       if (env.beforeEach)
-        r = await env.beforeEach(mergeObjects(merged, args), testInfo);
+        r = await env.beforeEach(mergeObjects(args, testOptions), testInfo);
       this.testArgs.push(args);
       args = mergeObjects(args, r);
     }
@@ -577,7 +572,6 @@ class EnvRunner {
   }
 
   async runAfterEach(testInfo: TestInfo, testOptions: any, workerArgs: any) {
-    const merged = mergeObjects(workerArgs, testOptions);
     let error: Error | undefined;
     const count = this.testArgs.length;
     for (let index = count - 1; index >= 0; index--) {
@@ -587,7 +581,7 @@ class EnvRunner {
       const env = this.envs[index];
       if (env.afterEach) {
         try {
-          await env.afterEach(mergeObjects(merged, args), testInfo);
+          await env.afterEach(mergeObjects(args, testOptions), testInfo);
         } catch (e) {
           error = error || e;
         }

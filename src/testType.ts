@@ -17,8 +17,8 @@
 import { expect } from './expect';
 import { currentlyLoadingConfigFile, currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuite } from './globals';
 import { Spec, Suite } from './test';
-import { callLocation, errorWithCallLocation, interpretCondition } from './util';
-import { Env, RunWithConfig, TestType } from './types';
+import { callLocation, errorWithCallLocation } from './util';
+import { Env, RunWithConfig, TestInfo, TestType } from './types';
 
 Error.stackTraceLimit = 15;
 
@@ -94,15 +94,14 @@ export class TestTypeImpl {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
       throw errorWithCallLocation(`Hook can only be defined in a test file.`);
-    suite._addHook(name, fn);
+    suite._hooks.push({ type: name, fn });
   }
 
-  private _modifier(type: 'skip' | 'fail' | 'fixme', arg?: boolean | string, description?: string) {
+  private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string | Function, description?: string) {
     const suite = currentlyLoadingFileSuite();
     if (suite) {
-      const processed = interpretCondition(arg, description);
-      if (processed.condition)
-        suite._annotations.push({ type, description: processed.description });
+      const fn = (args: any, testInfo: TestInfo) => (testInfo[type] as any)(arg, description);
+      suite._hooks.unshift({ type: 'beforeEach', fn });
       return;
     }
 

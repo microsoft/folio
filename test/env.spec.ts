@@ -328,3 +328,33 @@ test('should run tests in order', async ({ runInlineTest }) => {
     '%%test3',
   ]);
 });
+
+test('should not create a new worker for extend+declare+extend', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      export const test = folio.test.extend({
+        beforeAll() {},
+      }).extend({
+        beforeEach() {},
+      }).declare();
+      test.runWith({}, { beforeAll() {} });
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('testa', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+        console.log('testa');
+      });
+    `,
+    'b.test.ts': `
+      import { test } from './folio.config';
+      test('testb', async ({}, testInfo) => {
+        expect(testInfo.workerIndex).toBe(0);
+        console.log('testb');
+      });
+    `,
+  }, { workers: 1 });
+  expect(result.passed).toBe(2);
+  expect(result.output).toContain('testa');
+  expect(result.output).toContain('testb');
+});

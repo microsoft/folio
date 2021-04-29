@@ -36,26 +36,34 @@ export interface Config {
 }
 export type FullConfig = Required<Config>;
 
-interface TestModifier {
+interface TestModifier<TestArgs> {
   skip(): void;
-  skip(condition: boolean): void;
   skip(description: string): void;
+  skip(condition: boolean): void;
   skip(condition: boolean, description: string): void;
+  skip(callback: (args: TestArgs) => boolean): void;
+  skip(callback: (args: TestArgs) => boolean, description: string): void;
 
   fixme(): void;
-  fixme(condition: boolean): void;
   fixme(description: string): void;
+  fixme(condition: boolean): void;
   fixme(condition: boolean, description: string): void;
+  fixme(callback: (args: TestArgs) => boolean): void;
+  fixme(callback: (args: TestArgs) => boolean, description: string): void;
 
   fail(): void;
-  fail(condition: boolean): void;
   fail(description: string): void;
+  fail(condition: boolean): void;
   fail(condition: boolean, description: string): void;
+  fail(callback: (args: TestArgs) => boolean): void;
+  fail(callback: (args: TestArgs) => boolean, description: string): void;
 
   slow(): void;
-  slow(condition: boolean): void;
   slow(description: string): void;
+  slow(condition: boolean): void;
   slow(condition: boolean, description: string): void;
+  slow(callback: (args: TestArgs) => boolean): void;
+  slow(callback: (args: TestArgs) => boolean, description: string): void;
 
   setTimeout(timeout: number): void;
 }
@@ -67,7 +75,7 @@ export interface WorkerInfo {
   workerIndex: number;
 }
 
-export interface TestInfo extends WorkerInfo, TestModifier {
+export interface TestInfo extends WorkerInfo, TestModifier<{}> {
   // Declaration
   title: string;
   file: string;
@@ -105,7 +113,7 @@ interface TestFunction<TestArgs> {
   (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
 }
 
-interface TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs> extends TestFunction<TestArgs>, TestModifier {
+interface TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs> extends TestFunction<TestArgs>, TestModifier<TestArgs> {
   only: TestFunction<TestArgs>;
   describe: SuiteFunction & {
     only: SuiteFunction;
