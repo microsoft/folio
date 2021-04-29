@@ -345,8 +345,13 @@ export class WorkerRunner extends EventEmitter {
     try {
       return await this._envRunner.runBeforeEach(testInfo, testOptions, this._workerArgs);
     } catch (error) {
-      testInfo.status = 'failed';
-      testInfo.error = serializeError(error);
+      if (error instanceof SkipError) {
+        if (testInfo.status === 'passed')
+          testInfo.status = 'skipped';
+      } else {
+        testInfo.status = 'failed';
+        testInfo.error = serializeError(error);
+      }
       // Failed to initialize environment - no need to run any hooks now.
       return undefined;
     }
@@ -357,7 +362,8 @@ export class WorkerRunner extends EventEmitter {
       await this._runHooks(test.spec.parent, 'beforeEach', testArgs, testInfo);
     } catch (error) {
       if (error instanceof SkipError) {
-        testInfo.status = 'skipped';
+        if (testInfo.status === 'passed')
+          testInfo.status = 'skipped';
       } else {
         testInfo.status = 'failed';
         testInfo.error = serializeError(error);
@@ -374,7 +380,8 @@ export class WorkerRunner extends EventEmitter {
       testInfo.status = 'passed';
     } catch (error) {
       if (error instanceof SkipError) {
-        testInfo.status = 'skipped';
+        if (testInfo.status === 'passed')
+          testInfo.status = 'skipped';
       } else {
         testInfo.status = 'failed';
         testInfo.error = serializeError(error);
@@ -491,7 +498,7 @@ function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', 
     testInfo.setTimeout(testInfo.timeout * 3);
   } else if (type === 'skip' || type === 'fixme') {
     testInfo.expectedStatus = 'skipped';
-    throw new SkipError(description);
+    throw new SkipError('Test is skipped: ' + (description || ''));
   } else if (type === 'fail') {
     if (testInfo.expectedStatus !== 'skipped')
       testInfo.expectedStatus = 'failed';

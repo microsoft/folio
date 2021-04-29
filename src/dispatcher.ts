@@ -248,7 +248,7 @@ export class Dispatcher {
       test.expectedStatus = params.expectedStatus;
       test.annotations = params.annotations;
       test.timeout = params.timeout;
-      if (params.expectedStatus === 'skipped')
+      if (params.expectedStatus === 'skipped' && params.status === 'skipped')
         test.skipped = true;
       this._reportTestEnd(test, result, params.status);
     });

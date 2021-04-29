@@ -61,10 +61,13 @@ export function installTransform(): () => void {
       babelrc: false,
       configFile: false,
       presets: [
-        ['@babel/preset-env', { targets: {node: '10.17.0'} }],
+        ['@babel/preset-env', { targets: { node: '10.17.0' } }],
         ['@babel/preset-typescript', { onlyRemoveTypeImports: true }],
       ],
-      plugins: [['@babel/plugin-proposal-class-properties', {loose: true}]],
+      plugins: [
+        ['@babel/plugin-proposal-private-methods', { loose: true }],
+        ['@babel/plugin-proposal-class-properties', { loose: true }]
+      ],
       sourceMaps: 'both',
     });
     if (result.code) {
