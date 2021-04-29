@@ -253,3 +253,23 @@ test('should throw for double declare', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('Cannot declare() twice.');
 });
+
+test('should skip inside env.beforeEach', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      export const test = folio.test.extend({
+        beforeEach({}, testInfo) {
+          testInfo.skip();
+        }
+      });
+      test.runWith();
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('skipped', async ({}) => {
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.skipped).toBe(1);
+});
