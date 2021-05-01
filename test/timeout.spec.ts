@@ -25,7 +25,7 @@ test('should run env afterEach on timeout', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      test.runWith();
+      folio.runTests();
     `,
     'c.spec.ts': `
       import { test } from './folio.config';

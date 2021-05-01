@@ -70,9 +70,9 @@ test('should not reuse worker for different suites', async ({ runInlineTest }) =
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.test;
-      test.runWith();
-      test.runWith();
-      test.runWith();
+      folio.runTests();
+      folio.runTests();
+      folio.runTests();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

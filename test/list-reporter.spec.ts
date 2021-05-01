@@ -20,8 +20,8 @@ test('render each test with tags', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.test;
-      test.runWith({ tag: 'foo' });
-      test.runWith({ tag: 'bar' });
+      folio.runTests({ tag: 'foo' });
+      folio.runTests({ tag: 'bar' });
     `,
     'a.test.ts': `
       import { test } from './folio.config';

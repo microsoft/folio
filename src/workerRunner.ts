@@ -94,9 +94,9 @@ export class WorkerRunner extends EventEmitter {
     this._runList = this._loader.runLists()[this._params.runListIndex];
 
     const tags = this._runList.tags.join('-');
-    const sameTagsAndTestType = this._loader.runLists().filter(runList => runList.tags.join('-') === tags && runList.testType === this._runList.testType);
-    if (sameTagsAndTestType.length > 1)
-      this._outputPathSegment = tags + (sameTagsAndTestType.indexOf(this._runList) + 1);
+    const sameTags = this._loader.runLists().filter(runList => runList.tags.join('-') === tags);
+    if (sameTags.length > 1)
+      this._outputPathSegment = tags + (sameTags.indexOf(this._runList) + 1);
     else
       this._outputPathSegment = tags;
     if (this._outputPathSegment)
@@ -156,7 +156,7 @@ export class WorkerRunner extends EventEmitter {
     }
 
     // Initialize environments' beforeAll.
-    await this._initEnvIfNeeded(this._runList.defineEnv(anySpec._testType.envs));
+    await this._initEnvIfNeeded(this._runList.resolveEnvs(anySpec._testType));
     if (this._isStopped)
       return;
 
@@ -288,7 +288,7 @@ export class WorkerRunner extends EventEmitter {
     // Update the list of environment - it may differ between tests, but only
     // by environments without beforeAll/afterAll, so we don't have to
     // reinitialize the worker.
-    this._envRunner.update(this._runList.defineEnv(spec._testType.envs));
+    this._envRunner.update(this._runList.resolveEnvs(spec._testType));
 
     deadlineRunner = new DeadlineRunner(this._runEnvBeforeEach(testInfo, testOptions), deadline());
     const testArgsResult = await deadlineRunner.result;

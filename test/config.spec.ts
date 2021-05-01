@@ -23,7 +23,7 @@ test('should be able to redefine config', async ({ runInlineTest }) => {
     'folio.config.ts': `
       folio.setConfig({ timeout: 12345 });
       export const test = folio.test;
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './folio.config';
@@ -45,7 +45,7 @@ test('should read config from --config', async ({ runInlineTest }) => {
         testDir: path.join(__dirname, 'dir'),
       });
       export const test = folio.test;
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './my.config';
@@ -69,7 +69,7 @@ test('should default testDir to the config file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'dir/my.config.ts': `
       export const test = folio.test;
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './dir/my.config';
@@ -98,7 +98,7 @@ test('should be able to setReporters', async ({ runInlineTest }, testInfo) => {
         new folio.reporters.list(),
       ]);
       export const test = folio.test;
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './folio.config';

@@ -24,7 +24,7 @@ test('should access error in env', async ({ runInlineTest }) => {
           console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'test-error-visible-in-env.spec.ts': `
       import { test } from './folio.config';
@@ -48,7 +48,7 @@ test('should access data in env', async ({ runInlineTest }) => {
           testInfo.data['myname'] = 'myvalue';
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'test-data-visible-in-env.spec.ts': `
       import { test } from './folio.config';
@@ -71,8 +71,8 @@ test('should report tags in result', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.test;
-      test.runWith({ tag: ['foo', 'bar'] });
-      test.runWith({ tag: 'some tag' });
+      folio.runTests({ tag: ['foo', 'bar'] });
+      folio.runTests({ tag: 'some tag' });
     `,
     'test-data-visible-in-env.spec.ts': `
       import { test } from './folio.config';

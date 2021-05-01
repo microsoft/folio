@@ -113,7 +113,7 @@ interface TestFunction<TestArgs> {
   (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
 }
 
-interface TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs> extends TestFunction<TestArgs>, TestModifier<TestArgs> {
+export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs> extends TestFunction<TestArgs>, TestModifier<TestArgs> {
   only: TestFunction<TestArgs>;
   describe: SuiteFunction & {
     only: SuiteFunction;
@@ -127,29 +127,18 @@ interface TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, D
 
   expect: Expect;
 
-  extend(): TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs>;
-  extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestTypeDidDeclare<TestArgs & T & W, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO, DeclaredTestArgs, DeclaredWorkerArgs>;
-
-  runWith(config: MaybeVoidIf<DeclaredTestArgs & DeclaredWorkerArgs & WorkerOptions, RunWithConfig<WorkerOptions>>,
-          env: MaybeVoidIf<DeclaredTestArgs & DeclaredWorkerArgs, Env<DeclaredTestArgs, DeclaredWorkerArgs>>): void;
+  extend(): TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs>;
+  extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestType<TestArgs & T & W, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO, DeclaredTestArgs, DeclaredWorkerArgs>;
+  declare<T = {}, W = {}, TO = {}, WO = {}>(): {
+    test: TestType<TestArgs & T & W, WorkerArgs & W, TestOptions, WorkerOptions, T, W>;
+    define(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): DefinedEnv;
+  };
 }
 
-export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions> extends TestTypeDidDeclare<TestArgs, WorkerArgs, TestOptions, WorkerOptions, {}, {}> {
-  extend(): TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions>;
-  extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestType<TestArgs & T & W, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO>;
-
-  // TODO: allow declaring more than once?
-  declare<T = {}, W = {}>(): TestTypeDidDeclare<TestArgs & T & W, WorkerArgs & W, TestOptions, WorkerOptions, T, W>;
+export interface DefinedEnv {
+  // Just a tag type.
+  __tag: 'defined-env';
 }
-
-export type RunWithConfig<WorkerArgs> = {
-  options?: WorkerArgs;
-  outputDir?: string;
-  repeatEach?: number;
-  retries?: number;
-  tag?: string | string[];
-  timeout?: number;
-};
 
 type MaybePromise<T> = T | Promise<T>;
 type MaybeVoidIf<T, R> = {} extends T ? R | void : R;

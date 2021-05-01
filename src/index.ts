@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-import type { TestType } from './types';
-import { TestTypeImpl } from './testType';
+import type { TestType, Config, Reporter } from './types';
+import { rootTestType, RunList, RunListConfig } from './testType';
+import { currentlyLoadingConfigFile } from './globals';
+import { errorWithCallLocation } from './util';
 import DotReporter from './reporters/dot';
 import JSONReporter from './reporters/json';
 import JUnitReporter from './reporters/junit';
@@ -25,8 +27,7 @@ import ListReporter from './reporters/list';
 
 export * from './types';
 export { expect } from './expect';
-export { setConfig, setReporters, globalSetup, globalTeardown } from './globals';
-export const test: TestType<{}, {}, {}, {}> = new TestTypeImpl([]).test;
+export const test: TestType<{}, {}, {}, {}, {}, {}> = rootTestType.test;
 export const reporters = {
   dot: DotReporter,
   json: JSONReporter,
@@ -34,3 +35,39 @@ export const reporters = {
   line: LineReporter,
   list: ListReporter,
 };
+
+export function setConfig(config: Config) {
+  const configFile = currentlyLoadingConfigFile();
+  if (!configFile)
+    throw errorWithCallLocation(`setConfig() can only be called in a configuration file.`);
+  configFile.setConfig(config);
+}
+
+export function globalSetup(globalSetupFunction: () => any) {
+  const configFile = currentlyLoadingConfigFile();
+  if (!configFile)
+    throw errorWithCallLocation(`globalSetup() can only be called in a configuration file.`);
+  configFile.globalSetup(globalSetupFunction);
+}
+
+export function globalTeardown(globalTeardownFunction: () => any) {
+  const configFile = currentlyLoadingConfigFile();
+  if (!configFile)
+    throw errorWithCallLocation(`globalTeardown() can only be called in a configuration file.`);
+  configFile.globalTeardown(globalTeardownFunction);
+}
+
+export function setReporters(reporters: Reporter[]) {
+  const configFile = currentlyLoadingConfigFile();
+  if (!configFile)
+    throw errorWithCallLocation(`setReporters() can only be called in a configuration file.`);
+  configFile.setReporters(reporters);
+}
+
+type WorkerOptionsForEnv<T> = T extends TestType<infer T, infer W, infer TO, infer WO, infer DT, infer DW> ? WO : never;
+export function runTests<T = typeof test>(config?: RunListConfig<WorkerOptionsForEnv<T>>) {
+  const configFile = currentlyLoadingConfigFile();
+  if (!configFile)
+    throw errorWithCallLocation(`runTests() can only be called in a configuration file.`);
+  configFile.addRunList(new RunList(config || {}));
+}

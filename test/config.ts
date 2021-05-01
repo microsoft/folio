@@ -56,7 +56,7 @@ async function writeFiles(testInfo: folio.TestInfo, files: Files) {
       ...files,
       'folio.config.ts': `
         export const test = folio.test;
-        test.runWith();
+        folio.runTests();
       `,
     };
   }
