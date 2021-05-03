@@ -15,10 +15,10 @@
  */
 
 import { expect } from './expect';
-import { currentlyLoadingConfigFile, currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuite } from './globals';
+import { currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuite } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation } from './util';
-import { Env, RunWithConfig, TestInfo, TestType } from './types';
+import { DefinedEnv, Env, TestInfo, TestType } from './types';
 
 Error.stackTraceLimit = 15;
 
@@ -26,10 +26,10 @@ const countByFile = new Map<string, number>();
 
 export class TestTypeImpl {
   readonly children = new Set<TestTypeImpl>();
-  readonly envs: (Env | undefined)[];
-  readonly test: TestType<any, any, any, any>;
+  readonly envs: (Env | DeclaredEnv)[];
+  readonly test: TestType<any, any, any, any, any, any>;
 
-  constructor(envs: (Env | undefined)[]) {
+  constructor(envs: (Env | DeclaredEnv)[]) {
     this.envs = envs;
 
     const test: any = this._spec.bind(this, 'default');
@@ -49,7 +49,6 @@ export class TestTypeImpl {
     test.useOptions = this._useOptions.bind(this);
     test.extend = this._extend.bind(this);
     test.declare = this._declare.bind(this);
-    test.runWith = this._runWith.bind(this);
     this.test = test;
   }
 
@@ -132,25 +131,43 @@ export class TestTypeImpl {
   }
 
   private _declare() {
-    if (this.envs.some(env => env === undefined))
-      throw errorWithCallLocation(`Cannot declare() twice.`);
-    const child = new TestTypeImpl([...this.envs, undefined]);
+    const declared = new DeclaredEnv();
+    const child = new TestTypeImpl([...this.envs, declared]);
     this.children.add(child);
-    return child.test;
-  }
-
-  private _runWith(config?: RunWithConfig<any>, env?: Env) {
-    const configFile = currentlyLoadingConfigFile();
-    if (!configFile)
-      throw errorWithCallLocation(`runWith() can only be called in a configuration file.`);
-    configFile.addRunList(new RunList(this, env || {}, config || {} as any));
+    return {
+      test: child.test,
+      define: (env: Env) => new DefinedEnvImpl(declared, env),
+    };
   }
 }
+
+class DeclaredEnv {
+}
+
+class DefinedEnvImpl implements DefinedEnv {
+  __tag = 'defined-env' as const;
+  declared: DeclaredEnv;
+  env: Env;
+
+  constructor(declared: DeclaredEnv, env: Env) {
+    this.declared = declared;
+    this.env = env;
+  }
+}
+
+export type RunListConfig<WorkerOptions = {}> = {
+  options?: WorkerOptions;
+  outputDir?: string;
+  repeatEach?: number;
+  retries?: number;
+  tag?: string | string[];
+  timeout?: number;
+  defines?: DefinedEnv[];
+};
 
 export class RunList {
   index = 0;
   tags: string[];
-  testType: TestTypeImpl;
   workerOptions: any;
   config: {
     outputDir?: string;
@@ -158,12 +175,11 @@ export class RunList {
     retries?: number;
     timeout?: number;
   };
-  private _definedEnv: Env;
+  defines = new Map<DeclaredEnv, Env>();
 
-  constructor(testType: TestTypeImpl, definedEnv: Env, config: RunWithConfig<any>) {
+  constructor(config: RunListConfig) {
     const tag = 'tag' in config ? config.tag : [];
     this.tags = Array.isArray(tag) ? tag : [tag];
-    this._definedEnv = definedEnv;
     this.workerOptions = config.options;
     this.config = {
       timeout: config.timeout,
@@ -171,14 +187,18 @@ export class RunList {
       retries: config.retries,
       outputDir: config.outputDir,
     };
-    this.testType = testType;
+    for (const define of config.defines || []) {
+      const impl = define as DefinedEnvImpl;
+      this.defines.set(impl.declared, impl.env);
+    }
   }
 
   hashTestTypes() {
     const result = new Map<TestTypeImpl, string>();
     const visit = (t: TestTypeImpl, lastWithForkingEnv: TestTypeImpl) => {
-      if (t.envs.length) {
-        const env = t.envs[t.envs.length - 1];
+      const envs = this.resolveEnvs(t);
+      if (envs.length) {
+        const env = envs[envs.length - 1];
         // Fork if we get an environment with worker-level hooks,
         // or if we have a spot for declared environment to be filled during runWith.
         if (!env || env.beforeAll || env.afterAll)
@@ -193,12 +213,13 @@ export class RunList {
       for (const child of t.children)
         visit(child, lastWithForkingEnv);
     };
-    visit(this.testType, this.testType);
+    visit(rootTestType, rootTestType);
     return result;
   }
 
-  defineEnv(envs: (Env | undefined)[]): Env[] {
-    // Replace the undefined spot with our defined env.
-    return envs.map(env => env || this._definedEnv);
+  resolveEnvs(testType: TestTypeImpl): Env[] {
+    return testType.envs.map(e => e instanceof DeclaredEnv ? this.defines.get(e) || {} : e);
   }
 }
+
+export const rootTestType = new TestTypeImpl([]);

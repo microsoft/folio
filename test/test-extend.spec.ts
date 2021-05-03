@@ -40,9 +40,10 @@ test('test.extend should work', async ({ runInlineTest }) => {
           global.logs.push('afterEach' + this.suffix);
         }
       }
-      export const base = folio.test.declare();
-      base.runWith({}, new MyEnv('-base1'));
-      base.runWith({}, new MyEnv('-base2'));
+      const declared = folio.test.declare();
+      export const base = declared.test;
+      folio.runTests({ defines: [ declared.define(new MyEnv('-base1')) ] });
+      folio.runTests({ defines: [ declared.define(new MyEnv('-base2')) ] });
     `,
     'helper.ts': `
       import { base, MyEnv } from './folio.config';
@@ -120,7 +121,7 @@ test('test.extend should work with plain object syntax', async ({ runInlineTest 
           console.log('afterEach=' + this.foo + ';' + testInfo.title);
         },
       });
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -131,29 +132,6 @@ test('test.extend should work with plain object syntax', async ({ runInlineTest 
   });
   expect(passed).toBe(1);
   expect(output).toContain('afterEach=bar;test1');
-});
-
-test('test.declare should fork', async ({ runInlineTest }) => {
-  const { failed, passed, skipped } = await runInlineTest({
-    'folio.config.ts': `
-      export const test1 = folio.test.declare();
-      test1.runWith();
-      export const test2 = folio.test.declare();
-      test2.runWith({ timeout: 100 });
-    `,
-    'a.test.js': `
-      const { test1, test2 } = require('./folio.config');
-      test1('test1', async ({}) => {
-        await new Promise(f => setTimeout(f, 1000));
-      });
-      test2('test2', async ({}) => {
-        await new Promise(f => setTimeout(f, 1000));
-      });
-    `,
-  });
-  expect(passed).toBe(1);
-  expect(failed).toBe(1);
-  expect(skipped).toBe(0);
 });
 
 test('test.extend should chain worker and test args', async ({ runInlineTest }) => {
@@ -209,8 +187,11 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
           global.logs.push('afterEach3-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
         }
       }
-      export const test = folio.test.extend(new Env1()).declare().extend(new Env3());
-      test.runWith({}, new Env2());
+      const declared = folio.test.extend(new Env1()).declare();
+      export const test = declared.test.extend(new Env3());
+      folio.runTests({
+        defines: [ declared.define(new Env2()) ],
+      });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -250,8 +231,8 @@ test('env.options should work', async ({ runInlineTest }) => {
           return { baz: options.foo + options.bar };
         }
       }
-      export const test = folio.test.declare().extend(new Env1()).extend(new Env2());
-      test.runWith({ options: { foo: 'foo' } });
+      export const test = folio.test.extend(new Env1()).extend(new Env2());
+      folio.runTests({ options: { foo: 'foo' } });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

@@ -50,27 +50,3 @@ export function setCurrentlyLoadingConfigFile(file: ConfigFileAPI | undefined) {
 export function currentlyLoadingConfigFile() {
   return configFile;
 }
-
-export function setConfig(config: Config) {
-  if (!configFile)
-    throw errorWithCallLocation(`setConfig() can only be called in a configuration file.`);
-  configFile.setConfig(config);
-}
-
-export function globalSetup(globalSetupFunction: () => any) {
-  if (!configFile)
-    throw errorWithCallLocation(`globalSetup() can only be called in a configuration file.`);
-  configFile.globalSetup(globalSetupFunction);
-}
-
-export function globalTeardown(globalTeardownFunction: () => any) {
-  if (!configFile)
-    throw errorWithCallLocation(`globalTeardown() can only be called in a configuration file.`);
-  configFile.globalTeardown(globalTeardownFunction);
-}
-
-export function setReporters(reporters: Reporter[]) {
-  if (!configFile)
-    throw errorWithCallLocation(`setReporters() can only be called in a configuration file.`);
-  configFile.setReporters(reporters);
-}

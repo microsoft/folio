@@ -45,7 +45,6 @@ export class Runner {
 
     const rootSuite = new Suite('');
     const grepMatcher = createMatcher(this._loader.config().grep);
-    const nonEmptySuites = new Set<Suite>();
 
     const testTypeToRuns = new Map<TestTypeImpl, { runList: RunList, hash: string }[]>();
     for (const runList of this._loader.runLists()) {

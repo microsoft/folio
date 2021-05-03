@@ -24,7 +24,7 @@ test('should handle env afterEach timeout', async ({ runInlineTest }) => {
           await new Promise(f => setTimeout(f, 100000));
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -50,7 +50,7 @@ test('should handle env afterAll timeout', async ({ runInlineTest }) => {
           await new Promise(f => setTimeout(f, 100000));
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -70,7 +70,7 @@ test('should handle env beforeEach error', async ({ runInlineTest }) => {
           throw new Error('Worker failed');
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -91,7 +91,7 @@ test('should handle env afterAll error', async ({ runInlineTest }) => {
           throw new Error('Worker failed');
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -133,7 +133,7 @@ test('should run afterAll from mulitple envs when one throws', async ({ runInlin
         }
       }
       export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './folio.config';
@@ -145,21 +145,21 @@ test('should run afterAll from mulitple envs when one throws', async ({ runInlin
   expect(result.output).toContain('env2-afterAll');
 });
 
-test('can only call runWith in config file', async ({ runInlineTest }) => {
+test('can only call runTests in config file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.test;
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './folio.config';
-      test.runWith();
+      folio.runTests();
       test('test', async ({}) => {
       });
     `,
   });
   expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('runWith() can only be called in a configuration file');
+  expect(result.output).toContain('runTests() can only be called in a configuration file');
 });
 
 test('should not run afterAll when did not run beforeAll', async ({ runInlineTest }) => {
@@ -183,7 +183,7 @@ test('should not run afterAll when did not run beforeAll', async ({ runInlineTes
         }
       }
       export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
-      test.runWith();
+      folio.runTests();
       folio.setConfig({ timeout: 1000 });
     `,
     'a.test.ts': `
@@ -220,7 +220,7 @@ test('should not run afterEach when did not run beforeEach', async ({ runInlineT
         }
       }
       export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
-      test.runWith();
+      folio.runTests();
       folio.setConfig({ timeout: 1000 });
     `,
     'a.test.ts': `
@@ -236,24 +236,6 @@ test('should not run afterEach when did not run beforeEach', async ({ runInlineT
   expect(result.output).not.toContain('afterEach-2');
 });
 
-test('should throw for double declare', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'folio.config.ts': `
-      const test1 = folio.test.declare();
-      const test2 = test1.extend({});
-      export const test = test2.declare();
-      test.runWith();
-    `,
-    'a.test.ts': `
-      import { test } from './folio.config';
-      test('test', async ({}) => {
-      });
-    `,
-  });
-  expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('Cannot declare() twice.');
-});
-
 test('should skip inside env.beforeEach', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
@@ -262,7 +244,7 @@ test('should skip inside env.beforeEach', async ({ runInlineTest }) => {
           testInfo.skip();
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './folio.config';

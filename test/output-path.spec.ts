@@ -50,7 +50,7 @@ test('should include tag', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.test;
-      test.runWith({ tag: 'my-title' });
+      folio.runTests({ tag: 'my-title' });
     `,
     'a.spec.js': `
       const { test } = require('./folio.config');
@@ -79,8 +79,8 @@ test('should remove output paths', async ({runInlineTest}, testInfo) => {
   const result = await runInlineTest({
     'folio.config.js': `
       exports.test = folio.test;
-      exports.test.runWith({ outputDir: ${JSON.stringify(paths[0])} });
-      exports.test.runWith({ outputDir: ${JSON.stringify(paths[2])} });
+      folio.runTests({ outputDir: ${JSON.stringify(paths[0])} });
+      folio.runTests({ outputDir: ${JSON.stringify(paths[2])} });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

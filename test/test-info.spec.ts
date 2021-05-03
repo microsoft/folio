@@ -39,7 +39,7 @@ test('should work via env', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

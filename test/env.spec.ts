@@ -38,7 +38,7 @@ test('env should work', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -78,11 +78,24 @@ const multipleEnvs = {
         global.logs.push('afterEach' + this.suffix);
       }
     }
-    exports.fooTest = folio.test.declare();
-    exports.barTest = folio.test.declare();
-    exports.fooTest.runWith({ tag: 'suite1' }, new MyEnv('-env1'));
-    exports.fooTest.runWith({ tag: 'suite2' }, new MyEnv('-env2'));
-    exports.barTest.runWith({ tag: 'suite3' }, new MyEnv('-env3'));
+    const fooDeclare = folio.test.declare();
+    exports.fooTest = fooDeclare.test;
+    const barDeclare = folio.test.declare();
+    exports.barTest = barDeclare.test;
+    folio.runTests({
+      tag: 'suite1',
+      defines: [
+        fooDeclare.define(new MyEnv('-env1')),
+        barDeclare.define(new MyEnv('-env2')),
+      ],
+    });
+    folio.runTests({
+      tag: 'suite2',
+      defines: [
+        fooDeclare.define(new MyEnv('-env3')),
+        barDeclare.define(new MyEnv('-env4')),
+      ],
+    });
   `,
   'a.test.js': `
     const {fooTest, barTest} = require('./folio.config');
@@ -91,11 +104,7 @@ const multipleEnvs = {
       expect(foo).toBe('bar');
     });
     barTest('should work', async ({foo}) => {
-      global.logs.push('barTest1');
-      expect(foo).toBe('bar');
-    });
-    barTest('should work', async ({foo}) => {
-      global.logs.push('barTest2');
+      global.logs.push('barTest');
       expect(foo).toBe('bar');
     });
   `,
@@ -106,16 +115,17 @@ test('multiple envs and suites should work', async ({ runInlineTest }) => {
   expect(passed).toBe(4);
   expect(failed).toBe(0);
   expect(output).toContain('beforeAll-env1\nbeforeEach-env1\nfooTest\nafterEach-env1\nafterAll-env1');
-  expect(output).toContain('beforeAll-env2\nbeforeEach-env2\nfooTest\nafterEach-env2\nafterAll-env2');
-  expect(output).toContain('beforeAll-env3\nbeforeEach-env3\nbarTest1\nafterEach-env3\nbeforeEach-env3\nbarTest2\nafterEach-env3\nafterAll-env3');
+  expect(output).toContain('beforeAll-env2\nbeforeEach-env2\nbarTest\nafterEach-env2\nafterAll-env2');
+  expect(output).toContain('beforeAll-env3\nbeforeEach-env3\nfooTest\nafterEach-env3\nafterAll-env3');
+  expect(output).toContain('beforeAll-env4\nbeforeEach-env4\nbarTest\nafterEach-env4\nafterAll-env4');
 });
 
 test('should filter by tag', async ({ runInlineTest }) => {
-  const { passed, failed, output } = await runInlineTest(multipleEnvs, { tag: ['suite2', 'suite1'] });
+  const { passed, failed, output } = await runInlineTest(multipleEnvs, { tag: ['suite2'] });
   expect(passed).toBe(2);
   expect(failed).toBe(0);
-  expect(output).toContain('beforeAll-env1\nbeforeEach-env1\nfooTest\nafterEach-env1\nafterAll-env1');
-  expect(output).toContain('beforeAll-env2\nbeforeEach-env2\nfooTest\nafterEach-env2\nafterAll-env2');
+  expect(output).toContain('beforeAll-env3\nbeforeEach-env3\nfooTest\nafterEach-env3\nafterAll-env3');
+  expect(output).toContain('beforeAll-env4\nbeforeEach-env4\nbarTest\nafterEach-env4\nafterAll-env4');
 });
 
 test('should teardown env after timeout', async ({ runInlineTest }, testInfo) => {
@@ -132,7 +142,7 @@ test('should teardown env after timeout', async ({ runInlineTest }, testInfo) =>
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      test.runWith();
+      folio.runTests();
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -161,7 +171,7 @@ test('should initialize env once across files', async ({ runInlineTest }) => {
         }
       }
       exports.test = folio.test.extend(new MyEnv());
-      exports.test.runWith();
+      folio.runTests();
     `,
     'a.test.js': `
       const {test} = require('./folio.config');
@@ -198,7 +208,7 @@ test('should run sync env methods and hooks', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.test.extend(new Env());
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -332,12 +342,17 @@ test('should run tests in order', async ({ runInlineTest }) => {
 test('should not create a new worker for extend+declare+extend', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.test.extend({
+      const declared = folio.test.extend({
         beforeAll() {},
-      }).extend({
-        beforeEach() {},
       }).declare();
-      test.runWith({}, { beforeAll() {} });
+      export const test = declared.test.extend({
+        beforeEach() {},
+      });
+      folio.runTests({
+        defines: [
+          declared.define({ beforeAll() {} })
+        ],
+      });
     `,
     'a.test.ts': `
       import { test } from './folio.config';

@@ -37,7 +37,7 @@ test('should be able to extend the expect matchers with test.extend in the folio
         },
       });
       export const test = folio.test;
-      test.runWith();
+      folio.runTests();
     `,
     'expect-test.spec.ts': `
       import { test } from './folio.config';

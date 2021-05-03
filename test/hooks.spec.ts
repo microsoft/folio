@@ -37,7 +37,7 @@ test('hooks should work with env', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -93,7 +93,7 @@ test('afterEach failure should not prevent other hooks and env teardown', async 
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -185,7 +185,7 @@ test('beforeAll from a helper file should throw', async ({ runInlineTest }) => {
     `,
     'folio.config.ts': `
       import { test } from './my-test';
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './my-test';

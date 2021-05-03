@@ -24,7 +24,7 @@ test('test modifiers should work', async ({ runInlineTest }) => {
           return { foo: true };
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './folio.config';
@@ -143,7 +143,7 @@ test('test modifiers should check types', async ({runTSC}) => {
           return { foo: true };
         }
       });
-      test.runWith();
+      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './folio.config';
