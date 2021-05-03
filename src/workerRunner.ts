@@ -61,7 +61,7 @@ export class WorkerRunner extends EventEmitter {
       return;
     this._envInitialized = false;
     // TODO: separate timeout for afterAll?
-    const result = await raceAgainstDeadline(this._envRunner.runAfterAll(this._workerInfo, this._runList.workerOptions), this._deadline());
+    const result = await raceAgainstDeadline(this._envRunner.runAfterAll(), this._deadline());
     if (result.timedOut)
       throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
   }
@@ -109,17 +109,18 @@ export class WorkerRunner extends EventEmitter {
     };
   }
 
-  private async _initEnvIfNeeded(envs: Env<any>[]) {
+  private async _initEnvIfNeeded(envs: Env<any>[], workerOptions: any) {
     if (this._envRunner) {
       // We rely on the fact that worker only receives tests where
       // environments with beforeAll/afterAll are the prefix of env list.
+      // In addition, all the tests should have the same workerOptions.
       this._envRunner.update(envs);
       return;
     }
 
     this._envRunner = new EnvRunner(envs);
     // TODO: separate timeout for beforeAll?
-    const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, this._runList.workerOptions), this._deadline());
+    const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, workerOptions), this._deadline());
     this._workerArgs = result.result;
     if (result.timedOut) {
       this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
@@ -156,7 +157,7 @@ export class WorkerRunner extends EventEmitter {
     }
 
     // Initialize environments' beforeAll.
-    await this._initEnvIfNeeded(this._runList.resolveEnvs(anySpec._testType));
+    await this._initEnvIfNeeded(this._runList.resolveEnvs(anySpec._testType), this._specOptions(anySpec));
     if (this._isStopped)
       return;
 
@@ -278,19 +279,12 @@ export class WorkerRunner extends EventEmitter {
       return;
     }
 
-    const parents: Suite[] = [];
-    for (let suite = spec.parent; suite; suite = suite.parent)
-      parents.push(suite);
-    const testOptions = parents.reverse().reduce((options, suite) => {
-      return mergeObjects(options, suite._testOptions);
-    }, {});
-
     // Update the list of environment - it may differ between tests, but only
     // by environments without beforeAll/afterAll, so we don't have to
     // reinitialize the worker.
     this._envRunner.update(this._runList.resolveEnvs(spec._testType));
 
-    deadlineRunner = new DeadlineRunner(this._runEnvBeforeEach(testInfo, testOptions), deadline());
+    deadlineRunner = new DeadlineRunner(this._runEnvBeforeEach(testInfo, this._specOptions(spec)), deadline());
     const testArgsResult = await deadlineRunner.result;
     if (testArgsResult.timedOut && testInfo.status === 'passed')
       testInfo.status = 'timedOut';
@@ -310,7 +304,7 @@ export class WorkerRunner extends EventEmitter {
         return;
 
       if (!result.timedOut) {
-        deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo, testArgs, testOptions), deadline());
+        deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo, testArgs), deadline());
         deadlineRunner.setDeadline(deadline());
         const hooksResult = await deadlineRunner.result;
         // Do not overwrite test failure upon hook timeout.
@@ -319,7 +313,7 @@ export class WorkerRunner extends EventEmitter {
       } else {
         // A timed-out test gets a full additional timeout to run after hooks.
         const newDeadline = this._deadline();
-        deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo, testArgs, testOptions), newDeadline);
+        deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo, testArgs), newDeadline);
         await deadlineRunner.result;
       }
     }
@@ -389,7 +383,7 @@ export class WorkerRunner extends EventEmitter {
     }
   }
 
-  private async _runAfterHooks(test: Test, testInfo: TestInfo, testArgs: any, testOptions: any) {
+  private async _runAfterHooks(test: Test, testInfo: TestInfo, testArgs: any) {
     try {
       await this._runHooks(test.spec.parent, 'afterEach', testArgs, testInfo);
     } catch (error) {
@@ -401,7 +395,7 @@ export class WorkerRunner extends EventEmitter {
       }
     }
     try {
-      await this._envRunner.runAfterEach(testInfo, testOptions, this._workerArgs);
+      await this._envRunner.runAfterEach();
     } catch (error) {
       // Do not overwrite test failure error.
       if (testInfo.status === 'passed') {
@@ -455,6 +449,16 @@ export class WorkerRunner extends EventEmitter {
       const entry = this._entries.get(spec.tests[0]._id);
       return !!entry;
     });
+  }
+
+  private _specOptions(spec: Spec): any {
+    const parents: Suite[] = [];
+    for (let suite = spec.parent; suite; suite = suite.parent)
+      parents.push(suite);
+    const testOptions = parents.reverse().reduce((options, suite) => {
+      return mergeObjects(options, suite._options);
+    }, this._runList.options);
+    return testOptions;
   }
 }
 
@@ -517,6 +521,10 @@ class EnvRunner {
   private workerArgs: any[] = [];
   private testArgs: any[] = [];
   private _isStopped = false;
+  private _workerOptions: any = {};
+  private _workerInfo: WorkerInfo | undefined;
+  private _testOptions: any = {};
+  private _testInfo: TestInfo | undefined;
 
   constructor(envs: Env[]) {
     this.envs = [...envs];
@@ -531,6 +539,8 @@ class EnvRunner {
   }
 
   async runBeforeAll(workerInfo: WorkerInfo, workerOptions: any) {
+    this._workerOptions = workerOptions;
+    this._workerInfo = workerInfo;
     let args = {};
     for (const env of this.envs) {
       if (this._isStopped)
@@ -544,7 +554,7 @@ class EnvRunner {
     return args;
   }
 
-  async runAfterAll(workerInfo: WorkerInfo, workerOptions: any) {
+  async runAfterAll() {
     let error: Error | undefined;
     const count = this.workerArgs.length;
     for (let index = count - 1; index >= 0; index--) {
@@ -554,7 +564,7 @@ class EnvRunner {
       const env = this.envs[index];
       if (env.afterAll) {
         try {
-          await env.afterAll(mergeObjects(workerOptions, args), workerInfo);
+          await env.afterAll(mergeObjects(this._workerOptions, args), this._workerInfo!);
         } catch (e) {
           error = error || e;
         }
@@ -565,6 +575,8 @@ class EnvRunner {
   }
 
   async runBeforeEach(testInfo: TestInfo, testOptions: any, workerArgs: any) {
+    this._testOptions = testOptions;
+    this._testInfo = testInfo;
     let args = workerArgs;
     for (const env of this.envs) {
       if (this._isStopped)
@@ -578,7 +590,7 @@ class EnvRunner {
     return args;
   }
 
-  async runAfterEach(testInfo: TestInfo, testOptions: any, workerArgs: any) {
+  async runAfterEach() {
     let error: Error | undefined;
     const count = this.testArgs.length;
     for (let index = count - 1; index >= 0; index--) {
@@ -588,7 +600,7 @@ class EnvRunner {
       const env = this.envs[index];
       if (env.afterEach) {
         try {
-          await env.afterEach(mergeObjects(args, testOptions), testInfo);
+          await env.afterEach(mergeObjects(args, this._testOptions), this._testInfo!);
         } catch (e) {
           error = error || e;
         }

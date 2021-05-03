@@ -27,7 +27,7 @@ const countByFile = new Map<string, number>();
 export class TestTypeImpl {
   readonly children = new Set<TestTypeImpl>();
   readonly envs: (Env | DeclaredEnv)[];
-  readonly test: TestType<any, any, any, any, any, any>;
+  readonly test: TestType<any, any, any, any, any>;
 
   constructor(envs: (Env | DeclaredEnv)[]) {
     this.envs = envs;
@@ -121,7 +121,7 @@ export class TestTypeImpl {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
       throw errorWithCallLocation(`useOptions() can only be called in a test file.`);
-    suite._testOptions = options;
+    suite._options = options;
   }
 
   private _extend(env?: Env) {
@@ -169,7 +169,7 @@ export type RunListConfig<WorkerOptions = {}> = {
 export class RunList {
   index = 0;
   tags: string[];
-  workerOptions: any;
+  options: any;
   config: {
     outputDir?: string;
     repeatEach?: number;
@@ -182,7 +182,7 @@ export class RunList {
   constructor(config: RunListConfig) {
     const tag = 'tag' in config ? config.tag : [];
     this.tags = Array.isArray(tag) ? tag : [tag];
-    this.workerOptions = config.options;
+    this.options = config.options;
     this.config = {
       timeout: config.timeout,
       repeatEach: config.repeatEach,

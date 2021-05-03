@@ -21,7 +21,7 @@ import * as path from 'path';
 import { default as ignore } from 'fstream-ignore';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { Reporter } from './types';
+import { Env, Reporter } from './types';
 import { createMatcher, monotonicTime, raceAgainstDeadline } from './util';
 import { Suite, TestVariation } from './test';
 import { Loader } from './loader';
@@ -102,6 +102,31 @@ export class Runner {
       if (fileSuite._hasOnly())
         filtered.add(fileSuite);
     }
+
+    // Options that are used in beforeAll produce a new worker.
+    const findOptionsHash = (map: Map<Suite, string>, envs: Env[], suite: Suite): string => {
+      if (!suite.parent)
+        return '';
+
+      let hasBeforeAllOptions = false;
+      if (suite._options) {
+        for (const env of envs) {
+          if (env.hasBeforeAllOptions)
+            hasBeforeAllOptions = hasBeforeAllOptions || env.hasBeforeAllOptions(suite._options);
+        }
+      }
+      if (!hasBeforeAllOptions)
+        return findOptionsHash(map, envs, suite.parent);
+
+      if (!map.has(suite)) {
+        const hash = String(map.size);
+        map.set(suite, hash);
+        return hash;
+      }
+      return map.get(suite);
+    };
+    const runListToSuiteOptionsHash = new Map<RunList, Map<Suite, string>>();
+
     for (const [file, fileSuite] of this._loader.fileSuites()) {
       if (filtered.size && !filtered.has(fileSuite))
         continue;
@@ -111,6 +136,15 @@ export class Runner {
         for (const { runList, hash } of testTypeToRuns.get(spec._testType) || []) {
           if (!fileSets.get(runList)!.has(file))
             continue;
+
+          let optionsHashMap = runListToSuiteOptionsHash.get(runList);
+          if (!optionsHashMap) {
+            optionsHashMap = new Map();
+            runListToSuiteOptionsHash.set(runList, optionsHashMap);
+          }
+          const envs = runList.resolveEnvs(spec._testType);
+          const optionsHash = findOptionsHash(optionsHashMap, envs, spec.parent!);
+
           const config = this._loader.config(runList);
           for (let i = 0; i < config.repeatEach; ++i) {
             const testVariation: TestVariation = {
@@ -119,7 +153,7 @@ export class Runner {
               outputDir: config.outputDir,
               repeatEachIndex: i,
               runListIndex: runList.index,
-              workerHash: `${hash}#repeat-${i}`,
+              workerHash: `${hash}#options-${optionsHash}#repeat-${i}`,
               variationId: `#run-${runList.index}#repeat-${i}`,
             };
             spec._appendTest(testVariation);
@@ -225,9 +259,11 @@ export class Runner {
 function filterOnly(suite: Suite) {
   const onlySuites = suite.suites.filter(child => filterOnly(child) || child._only);
   const onlyTests = suite.specs.filter(spec => spec._only);
-  if (onlySuites.length || onlyTests.length) {
+  const onlyEntries = new Set([...onlySuites, ...onlyTests]);
+  if (onlyEntries.size) {
     suite.suites = onlySuites;
     suite.specs = onlyTests;
+    suite._entries = suite._entries.filter(e => onlyEntries.has(e)); // Preserve the order.
     return true;
   }
   return false;

@@ -123,7 +123,7 @@ interface TestFunction<TestArgs> {
   (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
 }
 
-export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs> extends TestFunction<TestArgs>, TestModifier<TestArgs> {
+export interface TestType<TestArgs, WorkerArgs, Options, DeclaredTestArgs, DeclaredWorkerArgs> extends TestFunction<TestArgs>, TestModifier<TestArgs> {
   only: TestFunction<TestArgs>;
   describe: SuiteFunction & {
     only: SuiteFunction;
@@ -133,15 +133,15 @@ export interface TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions, Decl
   afterEach(inner: (args: TestArgs, testInfo: TestInfo) => Promise<any> | any): void;
   beforeAll(inner: (args: WorkerArgs, workerInfo: WorkerInfo) => Promise<any> | any): void;
   afterAll(inner: (args: WorkerArgs, workerInfo: WorkerInfo) => Promise<any> | any): void;
-  useOptions(options: TestOptions): void;
+  useOptions(options: Options): void;
 
   expect: Expect;
 
-  extend(): TestType<TestArgs, WorkerArgs, TestOptions, WorkerOptions, DeclaredTestArgs, DeclaredWorkerArgs>;
-  extend<T, W, TO, WO>(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): TestType<TestArgs & T & W, WorkerArgs & W, TestOptions & TO, WorkerOptions & WO, DeclaredTestArgs, DeclaredWorkerArgs>;
-  declare<T = {}, W = {}, TO = {}, WO = {}>(): {
-    test: TestType<TestArgs & T & W, WorkerArgs & W, TestOptions, WorkerOptions, T, W>;
-    define(env: Env<T, W, TO, WO, TestArgs & TestOptions, WorkerArgs & WorkerOptions>): DefinedEnv;
+  extend(): TestType<TestArgs, WorkerArgs, Options, DeclaredTestArgs, DeclaredWorkerArgs>;
+  extend<T, W, O>(env: Env<T, W, O, TestArgs & Options, WorkerArgs & Options>): TestType<TestArgs & T & W, WorkerArgs & W, Options & O, DeclaredTestArgs, DeclaredWorkerArgs>;
+  declare<T = {}, W = {}, O = {}>(): {
+    test: TestType<TestArgs & T & W, WorkerArgs & W, Options, T, W>;
+    define(env: Env<T, W, O, TestArgs & Options, WorkerArgs & Options>): DefinedEnv;
   };
 }
 
@@ -154,16 +154,12 @@ type MaybePromise<T> = T | Promise<T>;
 type MaybeVoidIf<T, R> = {} extends T ? R | void : R;
 type MaybeVoid<T> = MaybeVoidIf<T, T>;
 
-export interface Env<TestArgs = {}, WorkerArgs = {}, TestOptions = {}, WorkerOptions = {}, PreviousTestArgs = {}, PreviousWorkerArgs = {}> {
-  // For type inference.
-  testOptionsType?(): TestOptions;
-  optionsType?(): WorkerOptions;
-
-  // Implementation.
-  beforeEach?(args: PreviousTestArgs & TestOptions, testInfo: TestInfo): MaybePromise<MaybeVoid<TestArgs>>;
-  beforeAll?(args: PreviousWorkerArgs & WorkerOptions, workerInfo: WorkerInfo): MaybePromise<MaybeVoid<WorkerArgs>>;
-  afterEach?(args: PreviousTestArgs & TestOptions, testInfo: TestInfo): MaybePromise<any>;
-  afterAll?(args: PreviousWorkerArgs & WorkerOptions, workerInfo: WorkerInfo): MaybePromise<any>;
+export interface Env<TestArgs = {}, WorkerArgs = {}, Options = {}, PreviousTestArgs = {}, PreviousWorkerArgs = {}> {
+  hasBeforeAllOptions?(options: Options): boolean;
+  beforeEach?(args: PreviousTestArgs & Options, testInfo: TestInfo): MaybePromise<MaybeVoid<TestArgs>>;
+  beforeAll?(args: PreviousWorkerArgs & Options, workerInfo: WorkerInfo): MaybePromise<MaybeVoid<WorkerArgs>>;
+  afterEach?(args: PreviousTestArgs & Options, testInfo: TestInfo): MaybePromise<any>;
+  afterAll?(args: PreviousWorkerArgs & Options, workerInfo: WorkerInfo): MaybePromise<any>;
 }
 
 // ---------- Reporters API -----------

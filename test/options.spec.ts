@@ -16,7 +16,7 @@
 
 import { test, expect } from './config';
 
-test('should run tests with different options', async ({ runInlineTest }) => {
+test('should run tests with different test options in the same worker', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       global.logs = [];
@@ -30,25 +30,75 @@ test('should run tests with different options', async ({ runInlineTest }) => {
     `,
     'a.test.ts': `
       import { test } from './folio.config';
-      test('test', ({ foo }) => {
+      test('test', ({ foo }, testInfo) => {
         expect(foo).toBe('foo');
+        expect(testInfo.workerIndex).toBe(0);
       });
 
       test.describe('suite1', () => {
         test.useOptions({ foo: 'bar' });
-        test('test1', ({ foo }) => {
+        test('test1', ({ foo }, testInfo) => {
           expect(foo).toBe('bar');
+          expect(testInfo.workerIndex).toBe(0);
         });
 
         test.describe('suite2', () => {
           test.useOptions({ foo: 'baz' });
-          test('test2', ({ foo }) => {
+          test('test2', ({ foo }, testInfo) => {
             expect(foo).toBe('baz');
+            expect(testInfo.workerIndex).toBe(0);
           });
         });
       });
     `
-  });
+  }, { workers: 1 });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(3);
+});
+
+test('should run tests with different worker options', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      class MyEnv {
+        hasBeforeAllOptions(options) {
+          return 'foo' in options;
+        }
+        async beforeAll(options) {
+          return { foo: options.foo };
+        }
+      }
+      export const test = folio.test.extend(new MyEnv());
+      folio.runTests();
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('test', ({ foo }, testInfo) => {
+        expect(foo).toBe(undefined);
+        expect(testInfo.workerIndex).toBe(0);
+      });
+
+      test.describe('suite1', () => {
+        test.useOptions({ foo: 'bar' });
+        test('test1', ({ foo }, testInfo) => {
+          expect(foo).toBe('bar');
+          expect(testInfo.workerIndex).toBe(1);
+        });
+
+        test.describe('suite2', () => {
+          test.useOptions({ foo: 'baz' });
+          test('test2', ({ foo }, testInfo) => {
+            expect(foo).toBe('baz');
+            expect(testInfo.workerIndex).toBe(2);
+          });
+        });
+
+        test('test3', ({ foo }, testInfo) => {
+          expect(foo).toBe('bar');
+          expect(testInfo.workerIndex).toBe(1);
+        });
+      });
+    `
+  }, { workers: 1 });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(4);
 });

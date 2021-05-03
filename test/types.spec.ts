@@ -30,8 +30,8 @@ test('runTests should check types of options', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
       export const test = folio.test.extend({
-        optionsType(): { foo: string, bar: number } {
-          return {} as any;
+        hasBeforeAllOptions(options: { foo: string, bar: number }) {
+          return false;
         },
         async beforeEach({}, testInfo: folio.TestInfo) {
           return { a: '42', b: 42 };
