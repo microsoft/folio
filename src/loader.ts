@@ -32,7 +32,6 @@ export class Loader implements ConfigFileAPI {
   private _globalSetups: (() => any)[] = [];
   private _globalTeardowns: (() => any)[] = [];
   private _runLists: RunList[] = [];
-  private _reporters: Reporter[] = [];
   private _fileSuites = new Map<string, Suite>();
 
   constructor() {
@@ -99,10 +98,6 @@ export class Loader implements ConfigFileAPI {
     return this._fileSuites;
   }
 
-  reporters() {
-    return this._reporters;
-  }
-
   globalSetups() {
     return this._globalSetups;
   }
@@ -134,10 +129,6 @@ export class Loader implements ConfigFileAPI {
     if (typeof globalTeardownFunction !== 'function')
       throw errorWithCallLocation(`globalTeardown() takes a single function argument.`);
     this._globalTeardowns.push(globalTeardownFunction);
-  }
-
-  setReporters(reporters: Reporter[])  {
-    this._reporters = reporters;
   }
 
   addRunList(runList: RunList) {

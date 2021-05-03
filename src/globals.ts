@@ -39,7 +39,6 @@ export interface ConfigFileAPI {
   setConfig(config: Config): void;
   globalSetup(globalSetupFunction: () => any): void;
   globalTeardown(globalTeardownFunction: () => any): void;
-  setReporters(reporters: Reporter[]): void;
   addRunList(runList: RunList): void;
 }
 

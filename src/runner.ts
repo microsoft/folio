@@ -24,6 +24,12 @@ import { Suite, TestVariation } from './test';
 import { Loader } from './loader';
 import { Multiplexer } from './reporters/multiplexer';
 import { RunList, TestTypeImpl } from './testType';
+import DotReporter from './reporters/dot';
+import LineReporter from './reporters/line';
+import ListReporter from './reporters/list';
+import JSONReporter from './reporters/json';
+import JUnitReporter from './reporters/junit';
+import EmptyReporter from './reporters/empty';
 
 const removeFolderAsync = promisify(rimraf);
 
@@ -36,7 +42,30 @@ export class Runner {
 
   constructor(loader: Loader) {
     this._loader = loader;
-    this._reporter = new Multiplexer(loader.reporters());
+
+    const reporters: Reporter[] = [];
+    const configReporters = loader.config().reporter;
+    for (const r of Array.isArray(configReporters) ? configReporters : [configReporters]) {
+      if (r === 'dot')
+        reporters.push(new DotReporter());
+      else if (r === 'line')
+        reporters.push(new LineReporter());
+      else if (r === 'list')
+        reporters.push(new ListReporter());
+      else if (r === 'json')
+        reporters.push(new JSONReporter());
+      else if (r === 'junit')
+        reporters.push(new JUnitReporter());
+      else if (r === 'null')
+        reporters.push(new EmptyReporter());
+      else if ('name' in r && r.name === 'junit')
+        reporters.push(new JUnitReporter(r));
+      else if ('name' in r && r.name === 'json')
+        reporters.push(new JSONReporter(r));
+      else
+        reporters.push(r);
+    }
+    this._reporter = new Multiplexer(reporters);
   }
 
   private _loadSuite(testFiles: string[], tagFilter?: string[]): Suite {

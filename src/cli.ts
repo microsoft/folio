@@ -18,27 +18,12 @@ import { default as ignore } from 'fstream-ignore';
 import * as commander from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
-import EmptyReporter from './reporters/empty';
-import DotReporter from './reporters/dot';
-import JSONReporter from './reporters/json';
-import JUnitReporter from './reporters/junit';
-import LineReporter from './reporters/line';
-import ListReporter from './reporters/list';
 import { Runner } from './runner';
 import { Config, FullConfig, Reporter } from './types';
 import { Loader } from './loader';
 import { createMatcher } from './util';
 
-export const reporters: { [name: string]: new () => Reporter } = {
-  'dot': DotReporter,
-  'json': JSONReporter,
-  'junit': JUnitReporter,
-  'line': LineReporter,
-  'list': ListReporter,
-  'null': EmptyReporter,
-};
-
-const availableReporters = Object.keys(reporters).map(r => `"${r}"`).join();
+const availableReporters = new Set(['dot', 'json', 'junit', 'line', 'list', 'null']);
 
 const defaultConfig: FullConfig = {
   forbidOnly: false,
@@ -48,6 +33,7 @@ const defaultConfig: FullConfig = {
   outputDir: path.resolve(process.cwd(), 'test-results'),
   quiet: false,
   repeatEach: 1,
+  reporter: process.env.CI ? 'dot' : 'line',
   retries: 0,
   shard: null,
   snapshotDir: '__snapshots__',
@@ -80,7 +66,6 @@ async function runTests(command: any) {
 
   const loader = new Loader();
   loader.addConfig(defaultConfig);
-  loader.setReporters(process.env.CI ? [new DotReporter()] : [new LineReporter()]);
 
   function loadConfig(configName: string) {
     const configFile = path.resolve(process.cwd(), configName);
@@ -114,10 +99,10 @@ async function runTests(command: any) {
   const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(loader.config().testMatch), createMatcher(loader.config().testIgnore));
 
   if (command.reporter && command.reporter.length) {
-    const reporterList: string[] = command.reporter.split(',');
-    loader.setReporters(reporterList.map(c => {
-      if (reporters[c])
-        return new reporters[c]();
+    const reporterNames: string[] = command.reporter.split(',');
+    const reporters = reporterNames.map(c => {
+      if (availableReporters.has(c))
+        return c;
       try {
         const p = path.resolve(process.cwd(), c);
         return new (require(p).default)();
@@ -125,7 +110,8 @@ async function runTests(command: any) {
         console.error('Invalid reporter ' + c, e);
         process.exit(1);
       }
-    }));
+    });
+    loader.addConfig({ reporter: reporters });
   }
 
   const runner = new Runner(loader);
