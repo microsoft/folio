@@ -161,6 +161,7 @@ export type RunListConfig<WorkerOptions = {}> = {
   repeatEach?: number;
   retries?: number;
   tag?: string | string[];
+  testDir?: string;
   timeout?: number;
   defines?: DefinedEnv[];
 };
@@ -173,6 +174,7 @@ export class RunList {
     outputDir?: string;
     repeatEach?: number;
     retries?: number;
+    testDir?: string;
     timeout?: number;
   };
   defines = new Map<DeclaredEnv, Env>();
@@ -185,6 +187,7 @@ export class RunList {
       timeout: config.timeout,
       repeatEach: config.repeatEach,
       retries: config.retries,
+      testDir: config.testDir,
       outputDir: config.outputDir,
     };
     for (const define of config.defines || []) {

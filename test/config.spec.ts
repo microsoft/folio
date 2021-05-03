@@ -113,3 +113,33 @@ test('should be able to set reporters', async ({ runInlineTest }, testInfo) => {
   const report = JSON.parse(fs.readFileSync(reportFile).toString());
   expect(report.suites[0].file).toBe('a.test.ts');
 });
+
+test('should support different testDirs', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      export const test = folio.test;
+      folio.runTests({ testDir: __dirname });
+      folio.runTests({ testDir: path.join(__dirname, 'dir') });
+    `,
+    'a.test.ts': `
+      import { test } from './folio.config';
+      test('runs once', async ({}) => {
+      });
+    `,
+    'dir/b.test.ts': `
+      import { test } from '../folio.config';
+      test('runs twice', async ({}) => {
+      });
+    `,
+  });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(3);
+
+  expect(result.report.suites[0].specs[0].tests.length).toBe(1);
+  expect(result.report.suites[0].specs[0].title).toBe('runs once');
+
+  expect(result.report.suites[1].specs[0].tests.length).toBe(2);
+  expect(result.report.suites[1].specs[0].title).toBe('runs twice');
+});

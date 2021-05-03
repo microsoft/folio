@@ -16,6 +16,9 @@
  */
 
 import rimraf from 'rimraf';
+import * as fs from 'fs';
+import * as path from 'path';
+import { default as ignore } from 'fstream-ignore';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
 import { Reporter } from './types';
@@ -68,10 +71,7 @@ export class Runner {
     this._reporter = new Multiplexer(reporters);
   }
 
-  private _loadSuite(testFiles: string[], tagFilter?: string[]): Suite {
-    for (const file of testFiles)
-      this._loader.loadTestFile(file);
-
+  private _loadSuite(testFiles: Map<RunList, string[]>, tagFilter?: string[]): Suite {
     const rootSuite = new Suite('');
     const grepMatcher = createMatcher(this._loader.config().grep);
 
@@ -79,6 +79,8 @@ export class Runner {
     for (const runList of this._loader.runLists()) {
       if (tagFilter && !runList.tags.some(tag => tagFilter.includes(tag)))
         continue;
+      for (const file of testFiles.get(runList)!)
+        this._loader.loadTestFile(file);
       for (const [testType, hash] of runList.hashTestTypes()) {
         const hashWithRunListIndex = `#list-${runList.index}#env-${hash}`;
         let list = testTypeToRuns.get(testType);
@@ -90,19 +92,25 @@ export class Runner {
       }
     }
 
+    const fileSets = new Map<RunList, Set<string>>();
+    for (const [runList, files] of testFiles)
+      fileSets.set(runList, new Set(files));
+
     // This makes sure we don't generate 1000000 tests if only one spec is focused.
     const filtered = new Set<Suite>();
     for (const fileSuite of this._loader.fileSuites().values()) {
       if (fileSuite._hasOnly())
         filtered.add(fileSuite);
     }
-    for (const fileSuite of this._loader.fileSuites().values()) {
+    for (const [file, fileSuite] of this._loader.fileSuites()) {
       if (filtered.size && !filtered.has(fileSuite))
         continue;
       const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
       let suiteHasTests = false;
       for (const spec of specs) {
         for (const { runList, hash } of testTypeToRuns.get(spec._testType) || []) {
+          if (!fileSets.get(runList)!.has(file))
+            continue;
           const config = this._loader.config(runList);
           for (let i = 0; i < config.repeatEach; ++i) {
             const testVariation: TestVariation = {
@@ -126,9 +134,9 @@ export class Runner {
     return rootSuite;
   }
 
-  async run(list: boolean, testFiles: string[], tagFilter?: string[]): Promise<RunResult> {
+  async run(list: boolean, testFileFilter: string[], tagFilter?: string[]): Promise<RunResult> {
     const globalDeadline = this._loader.config().globalTimeout ? this._loader.config().globalTimeout + monotonicTime() : undefined;
-    const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFiles, tagFilter), globalDeadline);
+    const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFileFilter, tagFilter), globalDeadline);
     if (timedOut) {
       if (!this._didBegin)
         this._reporter.onBegin(this._loader.config(), new Suite(''));
@@ -138,11 +146,24 @@ export class Runner {
     return result;
   }
 
-  private async _run(list: boolean, testFiles: string[], tagFilter?: string[]): Promise<RunResult> {
+  private async _run(list: boolean, testFileFilter: string[], tagFilter?: string[]): Promise<RunResult> {
+    const files = new Map<RunList, string[]>();
+    for (const runList of this._loader.runLists()) {
+      const config = this._loader.config(runList);
+      const testDir = config.testDir;
+      if (!fs.existsSync(testDir))
+        throw new Error(`${testDir} does not exist`);
+      if (!fs.statSync(testDir).isDirectory())
+        throw new Error(`${testDir} is not a directory`);
+      const allFiles = await collectFiles(testDir);
+      const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(config.testMatch), createMatcher(config.testIgnore));
+      files.set(runList, testFiles);
+    }
+
     for (const globalSetup of this._loader.globalSetups())
       await globalSetup();
 
-    const rootSuite = this._loadSuite(testFiles, tagFilter);
+    const rootSuite = this._loadSuite(files, tagFilter);
 
     if (this._loader.config().forbidOnly) {
       const hasOnly = rootSuite.findSpec(t => t._only) || rootSuite.findSuite(s => s._only);
@@ -210,4 +231,32 @@ function filterOnly(suite: Suite) {
     return true;
   }
   return false;
+}
+
+async function collectFiles(testDir: string): Promise<string[]> {
+  const entries: any[] = [];
+  let callback = () => {};
+  const promise = new Promise<void>(f => callback = f);
+  ignore({ path: testDir, ignoreFiles: ['.gitignore'] })
+      .on('child', (entry: any) => entries.push(entry))
+      .on('end', callback);
+  await promise;
+  return entries.filter(e => e.type === 'File').sort((a, b) => {
+    if (a.depth !== b.depth && (a.dirname.startsWith(b.dirname) || b.dirname.startsWith(a.dirname)))
+      return a.depth - b.depth;
+    return a.path > b.path ? 1 : (a.path < b.path ? -1 : 0);
+  }).map(e => e.path);
+}
+
+function filterFiles(base: string, files: string[], filters: string[], filesMatch: (value: string) => boolean, filesIgnore: (value: string) => boolean): string[] {
+  return files.filter(file => {
+    file = path.relative(base, file);
+    if (filesIgnore(file))
+      return false;
+    if (!filesMatch(file))
+      return false;
+    if (filters.length && !filters.find(filter => file.includes(filter)))
+      return false;
+    return true;
+  });
 }
