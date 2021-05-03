@@ -16,6 +16,15 @@
 
 import type { Expect } from './expectType';
 
+type ReporterDescription =
+  'dot' |
+  'line' |
+  'list' |
+  'junit' | { name: 'junit', outputFile?: string, stripANSIControlSequences?: boolean } |
+  'json' | { name: 'json', outputFile?: string } |
+  'null' |
+  Reporter;
+
 export interface Config {
   forbidOnly?: boolean;
   globalTimeout?: number;
@@ -23,6 +32,7 @@ export interface Config {
   maxFailures?: number;
   outputDir?: string;
   repeatEach?: number;
+  reporter?: ReporterDescription | ReporterDescription[];
   retries?: number;
   quiet?: boolean;
   shard?: { total: number, current: number } | null;

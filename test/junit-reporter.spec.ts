@@ -114,7 +114,9 @@ test('render stdout without ansi escapes', async ({ runInlineTest }) => {
     'folio.config.ts': `
       export const test = folio.test;
       folio.runTests();
-      folio.setReporters([new folio.reporters.junit({ stripANSIControlSequences: true })]);
+      folio.setConfig({
+        reporter: { name: 'junit', stripANSIControlSequences: true },
+      });
     `,
     'a.test.ts': `
       import colors from 'colors/safe';

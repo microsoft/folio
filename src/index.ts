@@ -15,26 +15,14 @@
  * limitations under the License.
  */
 
-import type { TestType, Config, Reporter } from './types';
+import type { TestType, Config } from './types';
 import { rootTestType, RunList, RunListConfig } from './testType';
 import { currentlyLoadingConfigFile } from './globals';
 import { errorWithCallLocation } from './util';
-import DotReporter from './reporters/dot';
-import JSONReporter from './reporters/json';
-import JUnitReporter from './reporters/junit';
-import LineReporter from './reporters/line';
-import ListReporter from './reporters/list';
 
 export * from './types';
 export { expect } from './expect';
 export const test: TestType<{}, {}, {}, {}, {}, {}> = rootTestType.test;
-export const reporters = {
-  dot: DotReporter,
-  json: JSONReporter,
-  junit: JUnitReporter,
-  line: LineReporter,
-  list: ListReporter,
-};
 
 export function setConfig(config: Config) {
   const configFile = currentlyLoadingConfigFile();
@@ -55,13 +43,6 @@ export function globalTeardown(globalTeardownFunction: () => any) {
   if (!configFile)
     throw errorWithCallLocation(`globalTeardown() can only be called in a configuration file.`);
   configFile.globalTeardown(globalTeardownFunction);
-}
-
-export function setReporters(reporters: Reporter[]) {
-  const configFile = currentlyLoadingConfigFile();
-  if (!configFile)
-    throw errorWithCallLocation(`setReporters() can only be called in a configuration file.`);
-  configFile.setReporters(reporters);
 }
 
 type WorkerOptionsForEnv<T> = T extends TestType<infer T, infer W, infer TO, infer WO, infer DT, infer DW> ? WO : never;

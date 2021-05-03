@@ -89,14 +89,16 @@ test('should default testDir to the config file', async ({ runInlineTest }) => {
   expect(result.report.suites[0].file).toBe('b.test.ts');
 });
 
-test('should be able to setReporters', async ({ runInlineTest }, testInfo) => {
+test('should be able to set reporters', async ({ runInlineTest }, testInfo) => {
   const reportFile = testInfo.outputPath('my-report.json');
   const result = await runInlineTest({
     'folio.config.ts': `
-      folio.setReporters([
-        new folio.reporters.json({ outputFile: ${JSON.stringify(reportFile)}}),
-        new folio.reporters.list(),
-      ]);
+      folio.setConfig({
+        reporter: [
+          { name: 'json', outputFile: ${JSON.stringify(reportFile)} },
+          'list',
+        ]
+      });
       export const test = folio.test;
       folio.runTests();
     `,
