@@ -23,12 +23,15 @@ import { Suite } from './test';
 
 type SerializedLoaderData = {
   configs: (string | Config)[];
+  overrides: Config[];
 };
 
 export class Loader implements ConfigFileAPI {
   private _mergedConfig: FullConfig;
   private _layeredConfigs: { config: Config, source?: string }[] = [];
   private _configFromConfigFile?: Config;
+  private _configOverrides: { config: Config, }[] = [];
+  private _mergedOverrides: Config;
   private _globalSetups: (() => any)[] = [];
   private _globalTeardowns: (() => any)[] = [];
   private _runLists: RunList[] = [];
@@ -36,6 +39,7 @@ export class Loader implements ConfigFileAPI {
 
   constructor() {
     this._mergedConfig = {} as any;
+    this._mergedOverrides = {};
   }
 
   deserialize(data: SerializedLoaderData) {
@@ -45,6 +49,8 @@ export class Loader implements ConfigFileAPI {
       else
         this.addConfig(config);
     }
+    for (const config of data.overrides)
+      this.addConfigOverride(config);
   }
 
   loadConfigFile(file: string) {
@@ -66,7 +72,14 @@ export class Loader implements ConfigFileAPI {
     this._mergedConfig = mergeObjects(this._mergedConfig, config);
   }
 
+  addConfigOverride(config: Config) {
+    this._configOverrides.push({ config });
+    this._mergedOverrides = mergeObjects(this._mergedOverrides, config);
+  }
+
   loadTestFile(file: string) {
+    if (this._fileSuites.has(file))
+      return this._fileSuites.get(file);
     const revertBabelRequire = installTransform();
     try {
       const suite = new Suite('');
@@ -86,8 +99,8 @@ export class Loader implements ConfigFileAPI {
 
   config(runList?: RunList): FullConfig {
     if (!runList)
-      return this._mergedConfig;
-    return mergeObjects(this._mergedConfig, runList.config);
+      return mergeObjects(this._mergedConfig, this._mergedOverrides);
+    return mergeObjects(mergeObjects(this._mergedConfig, runList.config), this._mergedOverrides);
   }
 
   runLists() {
@@ -109,6 +122,7 @@ export class Loader implements ConfigFileAPI {
   serialize(): SerializedLoaderData {
     return {
       configs: this._layeredConfigs.map(c => c.source || c.config),
+      overrides: this._configOverrides.map(c => c.config),
     };
   }
 

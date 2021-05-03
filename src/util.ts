@@ -131,17 +131,28 @@ export function prependErrorMessage(e: Error, message: string) {
 }
 
 export function createMatcher(patterns: string | RegExp | (string | RegExp)[]): (value: string) => boolean {
-  const list = Array.isArray(patterns) ? patterns : [patterns];
+  const reList: RegExp[] = [];
+  const filePatterns: string[] = [];
+  for (const pattern of Array.isArray(patterns) ? patterns : [patterns]) {
+    if (pattern instanceof RegExp || Object.prototype.toString.call(pattern) === '[object RegExp]') {
+      reList.push(pattern as RegExp);
+    } else {
+      if (!pattern.includes('/') && !pattern.includes('\\'))
+        filePatterns.push('**/' + pattern);
+      else
+        filePatterns.push(pattern);
+    }
+  }
+
   return (value: string) => {
-    for (const pattern of list) {
-      if (pattern instanceof RegExp || Object.prototype.toString.call(pattern) === '[object RegExp]') {
-        (pattern as RegExp).lastIndex = 0;
-        if ((pattern as RegExp).test(value))
-          return true;
-      } else {
-        if (minimatch(value, pattern))
-          return true;
-      }
+    for (const re of reList) {
+      re.lastIndex = 0;
+      if (re.test(value))
+        return true;
+    }
+    for (const pattern of filePatterns) {
+      if (minimatch(value, pattern))
+        return true;
     }
     return false;
   };

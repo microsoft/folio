@@ -15,7 +15,7 @@
     "test": "folio --config=test/config.ts",
     "prepare": "npm run build",
     "roll-dogfood": "cd dogfood && npm install",
-    "prepublishOnly": "rm tsconfig.tsbuildinfo && rm -rf out && npm run build"
+    "prepublishOnly": "rm -rf out && npm run build"
   },
   "dependencies": {
     "@babel/code-frame": "^7.10.4",

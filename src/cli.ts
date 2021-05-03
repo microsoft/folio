@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-import { default as ignore } from 'fstream-ignore';
 import * as commander from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Runner } from './runner';
-import { Config, FullConfig, Reporter } from './types';
+import { Config, FullConfig } from './types';
 import { Loader } from './loader';
-import { createMatcher } from './util';
 
 const availableReporters = new Set(['dot', 'json', 'junit', 'line', 'list', 'null']);
 
@@ -84,19 +82,7 @@ async function runTests(command: any) {
     throw new Error(`Configuration file not found. Either pass --config, or create folio.config.(js|ts) file`);
   }
 
-  loader.addConfig(configFromCommand(command));
-  loader.addConfig({ testMatch: normalizeFilePatterns(loader.config().testMatch) });
-  loader.addConfig({ testIgnore: normalizeFilePatterns(loader.config().testIgnore) });
-
-  const testDir = loader.config().testDir;
-  if (!fs.existsSync(testDir))
-    throw new Error(`${testDir} does not exist`);
-  if (!fs.statSync(testDir).isDirectory())
-    throw new Error(`${testDir} is not a directory`);
-
-  const testFileFilter: string[] = command.args;
-  const allFiles = await collectFiles(testDir);
-  const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(loader.config().testMatch), createMatcher(loader.config().testIgnore));
+  loader.addConfigOverride(configFromCommand(command));
 
   if (command.reporter && command.reporter.length) {
     const reporterNames: string[] = command.reporter.split(',');
@@ -116,7 +102,7 @@ async function runTests(command: any) {
 
   const runner = new Runner(loader);
   const tagFilter = command.tag && command.tag.length ? command.tag : undefined;
-  const result = await runner.run(!!command.list, testFiles, tagFilter);
+  const result = await runner.run(!!command.list, command.args, tagFilter);
 
   // Calling process.exit() might truncate large stdout/stderr output.
   // See https://github.com/nodejs/node/issues/6456.
@@ -144,34 +130,6 @@ async function runTests(command: any) {
     process.exit(1);
   }
   process.exit(result === 'failed' ? 1 : 0);
-}
-
-async function collectFiles(testDir: string): Promise<string[]> {
-  const entries: any[] = [];
-  let callback = () => {};
-  const promise = new Promise<void>(f => callback = f);
-  ignore({ path: testDir, ignoreFiles: ['.gitignore'] })
-      .on('child', (entry: any) => entries.push(entry))
-      .on('end', callback);
-  await promise;
-  return entries.filter(e => e.type === 'File').sort((a, b) => {
-    if (a.depth !== b.depth && (a.dirname.startsWith(b.dirname) || b.dirname.startsWith(a.dirname)))
-      return a.depth - b.depth;
-    return a.path > b.path ? 1 : (a.path < b.path ? -1 : 0);
-  }).map(e => e.path);
-}
-
-function filterFiles(base: string, files: string[], filters: string[], filesMatch: (value: string) => boolean, filesIgnore: (value: string) => boolean): string[] {
-  return files.filter(file => {
-    file = path.relative(base, file);
-    if (filesIgnore(file))
-      return false;
-    if (!filesMatch(file))
-      return false;
-    if (filters.length && !filters.find(filter => file.includes(filter)))
-      return false;
-    return true;
-  });
 }
 
 function addRunnerOptions(program: commander.Command) {
@@ -238,20 +196,6 @@ function configFromCommand(command: any): Config {
   if (command.workers)
     config.workers = parseInt(command.workers, 10);
   return config;
-}
-
-function normalizeFilePattern(pattern: string): string {
-  if (!pattern.includes('/') && !pattern.includes('\\'))
-    pattern = '**/' + pattern;
-  return pattern;
-}
-
-function normalizeFilePatterns(patterns: string | RegExp | (string | RegExp)[]) {
-  if (typeof patterns === 'string')
-    patterns = normalizeFilePattern(patterns);
-  else if (Array.isArray(patterns))
-    patterns = patterns.map(item => typeof item === 'string' ? normalizeFilePattern(item) : item);
-  return patterns;
 }
 
 function maybeRegExp(pattern: string): string | RegExp {

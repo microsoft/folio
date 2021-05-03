@@ -86,7 +86,7 @@ test('should remove output paths', async ({runInlineTest}, testInfo) => {
       const { test } = require('./folio.config');
       test('my test', ({}, testInfo) => {});
     `
-  });
+  }, { output: '' });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(2);
 

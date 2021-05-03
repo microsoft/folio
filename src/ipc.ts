@@ -23,6 +23,7 @@ export type WorkerInitParams = {
   runListIndex: number;
   loader: {
     configs: (string | Config)[];
+    overrides: Config[];
   };
 };
 

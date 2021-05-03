@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "target": "es2018",
-    "composite": true,
     "moduleResolution": "node",
     "module": "commonjs",
     "strict": false,
