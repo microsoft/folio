@@ -76,7 +76,7 @@ export class Spec extends Base implements types.Spec {
 export class Suite extends Base implements types.Suite {
   suites: Suite[] = [];
   specs: Spec[] = [];
-  _testOptions: any;
+  _options: any;
   _entries: (Suite | Spec)[] = [];
   _hooks: { type: string, fn: Function } [] = [];
 
@@ -106,27 +106,29 @@ export class Suite extends Base implements types.Suite {
   }
 
   findTest(fn: (test: Test) => boolean | void): boolean {
-    for (const suite of this.suites) {
-      if (suite.findTest(fn))
-        return true;
-    }
-    for (const spec of this.specs) {
-      for (const test of spec.tests) {
-        if (fn(test))
+    for (const entry of this._entries) {
+      if (entry instanceof Suite) {
+        if (entry.findTest(fn))
           return true;
+      } else {
+        for (const test of entry.tests) {
+          if (fn(test))
+            return true;
+        }
       }
     }
     return false;
   }
 
   findSpec(fn: (spec: Spec) => boolean | void): boolean {
-    for (const suite of this.suites) {
-      if (suite.findSpec(fn))
-        return true;
-    }
-    for (const spec of this.specs) {
-      if (fn(spec))
-        return true;
+    for (const entry of this._entries) {
+      if (entry instanceof Suite) {
+        if (entry.findSpec(fn))
+          return true;
+      } else {
+        if (fn(entry))
+          return true;
+      }
     }
     return false;
   }

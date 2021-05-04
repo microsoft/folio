@@ -22,7 +22,7 @@ import { errorWithCallLocation } from './util';
 
 export * from './types';
 export { expect } from './expect';
-export const test: TestType<{}, {}, {}, {}, {}, {}> = rootTestType.test;
+export const test: TestType<{}, {}, {}, {}, {}> = rootTestType.test;
 
 export function setConfig(config: Config) {
   const configFile = currentlyLoadingConfigFile();
@@ -45,8 +45,8 @@ export function globalTeardown(globalTeardownFunction: () => any) {
   configFile.globalTeardown(globalTeardownFunction);
 }
 
-type WorkerOptionsForEnv<T> = T extends TestType<infer T, infer W, infer TO, infer WO, infer DT, infer DW> ? WO : never;
-export function runTests<T = typeof test>(config?: RunListConfig<WorkerOptionsForEnv<T>>) {
+type OptionsForEnv<T> = T extends TestType<infer T, infer W, infer O, infer DT, infer DW> ? O : never;
+export function runTests<T = typeof test>(config?: RunListConfig<OptionsForEnv<T>>) {
   const configFile = currentlyLoadingConfigFile();
   if (!configFile)
     throw errorWithCallLocation(`runTests() can only be called in a configuration file.`);
