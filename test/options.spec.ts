@@ -97,8 +97,16 @@ test('should run tests with different worker options', async ({ runInlineTest })
           expect(testInfo.workerIndex).toBe(1);
         });
       });
+    `,
+    'b.test.ts': `
+      import { test } from './helper';
+      test.useOptions({ foo: 'qux' });
+      test('test4', ({ foo }, testInfo) => {
+        expect(foo).toBe('qux');
+        expect(testInfo.workerIndex).toBe(3);
+      });
     `
   }, { workers: 1 });
   expect(result.exitCode).toBe(0);
-  expect(result.passed).toBe(4);
+  expect(result.passed).toBe(5);
 });

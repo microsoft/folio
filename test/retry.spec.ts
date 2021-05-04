@@ -39,7 +39,6 @@ test('should retry failures', async ({ runInlineTest }) => {
 test('should retry based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
-      folio.setConfig({ retries: 1 });
       exports.test = folio.test;
       folio.runTests({ retries: 0, tag: 'no-retries' });
       folio.runTests({ retries: 2, tag: 'two-retries' });

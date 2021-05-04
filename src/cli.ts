@@ -66,26 +66,7 @@ async function runTests(command: any) {
 
   const loader = new Loader();
   loader.addConfig(defaultConfig);
-
-  function loadConfig(configName: string) {
-    const configFile = path.resolve(process.cwd(), configName);
-    if (fs.existsSync(configFile)) {
-      loader.addConfig({ testDir: path.dirname(configFile) });
-      loader.loadConfigFile(configFile);
-      return true;
-    }
-    return false;
-  }
-
-  if (command.config) {
-    if (!loadConfig(command.config))
-      throw new Error(`${command.config} does not exist`);
-  } else if (!loadConfig('folio.config.ts') && !loadConfig('folio.config.js')) {
-    throw new Error(`Configuration file not found. Either pass --config, or create folio.config.(js|ts) file`);
-  }
-
   loader.addConfigOverride(configFromCommand(command));
-
   if (command.reporter && command.reporter.length) {
     const reporterNames: string[] = command.reporter.split(',');
     const reporters = reporterNames.map(c => {
@@ -99,7 +80,23 @@ async function runTests(command: any) {
         process.exit(1);
       }
     });
-    loader.addConfig({ reporter: reporters });
+    loader.addConfigOverride({ reporter: reporters });
+  }
+
+  function loadConfig(configName: string) {
+    const configFile = path.resolve(process.cwd(), configName);
+    if (fs.existsSync(configFile)) {
+      loader.addConfig({ testDir: path.dirname(configFile) });
+      loader.loadConfigFile(configFile);
+      return true;
+    }
+    return false;
+  }
+  if (command.config) {
+    if (!loadConfig(command.config))
+      throw new Error(`${command.config} does not exist`);
+  } else if (!loadConfig('folio.config.ts') && !loadConfig('folio.config.js')) {
+    throw new Error(`Configuration file not found. Either pass --config, or create folio.config.(js|ts) file`);
   }
 
   const runner = new Runner(loader);

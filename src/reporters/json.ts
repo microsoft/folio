@@ -30,8 +30,8 @@ export interface SerializedSuite {
 
 export type ReportFormat = {
   config: FullConfig;
-  errors?: TestError[];
-  suites?: SerializedSuite[];
+  errors: TestError[];
+  suites: SerializedSuite[];
 };
 
 function toPosixPath(aPath: string): string {
@@ -124,13 +124,19 @@ class JSONReporter extends EmptyReporter {
 }
 
 function outputReport(report: ReportFormat, outputFile: string | undefined) {
-  const reportString = JSON.stringify(report, undefined, 2);
   outputFile = outputFile || process.env[`FOLIO_JSON_OUTPUT_NAME`];
   if (outputFile) {
+    try {
+      // TODO: hack
+      const existing = JSON.parse(fs.readFileSync(outputFile, 'utf-8')) as ReportFormat;
+      report.suites = [...existing.suites, ...report.suites];
+      report.errors = [...existing.errors, ...report.errors];
+    } catch (e) {
+    }
     fs.mkdirSync(path.dirname(outputFile), { recursive: true });
-    fs.writeFileSync(outputFile, reportString);
+    fs.writeFileSync(outputFile, JSON.stringify(report, undefined, 2));
   } else {
-    console.log(reportString);
+    console.log(JSON.stringify(report, undefined, 2));
   }
 }
 

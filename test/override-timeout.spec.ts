@@ -19,9 +19,8 @@ import { test, expect } from './config';
 test('should consider dynamically set value', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
-      folio.setConfig({ timeout: 100 });
       exports.test = folio.test;
-      folio.runTests();
+      folio.runTests({ timeout: 100 });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -37,10 +36,9 @@ test('should consider dynamically set value', async ({ runInlineTest }) => {
 test('should allow different timeouts', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
-      folio.setConfig({ timeout: 100 });
       exports.test = folio.test;
       folio.runTests({ timeout: 200 });
-      folio.runTests();
+      folio.runTests({ timeout: 100 });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');
@@ -58,9 +56,8 @@ test('should allow different timeouts', async ({ runInlineTest }) => {
 test('should prioritize value set via command line', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
-      folio.setConfig({ timeout: 100 });
       exports.test = folio.test;
-      folio.runTests();
+      folio.runTests({ timeout: 100 });
     `,
     'a.test.js': `
       const { test } = require('./folio.config');

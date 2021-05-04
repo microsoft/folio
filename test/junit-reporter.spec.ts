@@ -113,8 +113,7 @@ test('render stdout without ansi escapes', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       export const test = folio.test;
-      folio.runTests();
-      folio.setConfig({
+      folio.runTests({
         reporter: { name: 'junit', stripANSIControlSequences: true },
       });
     `,

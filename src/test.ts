@@ -19,16 +19,15 @@ import type { TestTypeImpl } from './testType';
 
 class Base {
   title: string;
-  file: string;
-  line: number;
-  column: number;
+  file: string = '';
+  line: number = 0;
+  column: number = 0;
   parent?: Suite;
 
   _only = false;
 
-  constructor(title: string, parent?: Suite) {
+  constructor(title: string) {
     this.title = title;
-    this.parent = parent;
   }
 
   titlePath(): string[] {
@@ -50,12 +49,11 @@ export class Spec extends Base implements types.Spec {
   _ordinalInFile: number;
   _testType: TestTypeImpl;
 
-  constructor(title: string, fn: Function, suite: Suite, ordinalInFile: number, testType: TestTypeImpl) {
-    super(title, suite);
+  constructor(title: string, fn: Function, ordinalInFile: number, testType: TestTypeImpl) {
+    super(title);
     this.fn = fn;
     this._ordinalInFile = ordinalInFile;
     this._testType = testType;
-    suite._addSpec(this);
   }
 
   ok(): boolean {
@@ -71,6 +69,15 @@ export class Spec extends Base implements types.Spec {
     this.tests.push(test);
     return test;
   }
+
+  _clone(): Spec {
+    const result = new Spec(this.title, this.fn, this._ordinalInFile, this._testType);
+    result.file = this.file;
+    result.line = this.line;
+    result.column = this.column;
+    result._only = this._only;
+    return result;
+  }
 }
 
 export class Suite extends Base implements types.Suite {
@@ -79,12 +86,6 @@ export class Suite extends Base implements types.Suite {
   _options: any;
   _entries: (Suite | Spec)[] = [];
   _hooks: { type: string, fn: Function } [] = [];
-
-  constructor(title: string, parent?: Suite) {
-    super(title, parent);
-    if (parent)
-      parent._addSuite(this);
-  }
 
   _clear() {
     this.suites = [];
@@ -165,6 +166,24 @@ export class Suite extends Base implements types.Suite {
       return true;
     if (this.specs.find(spec => spec._only))
       return true;
+  }
+
+  _clone(): Suite {
+    const result = new Suite(this.title);
+    result.title = this.title;
+    result.file = this.file;
+    result.line = this.line;
+    result.column = this.column;
+    result._only = this._only;
+    result._hooks = this._hooks.slice();
+    result._options = this._options;
+    for (const entry of this._entries) {
+      if (entry instanceof Suite)
+        result._addSuite(entry._clone());
+      else
+        result._addSpec(entry._clone());
+    }
+    return result;
   }
 }
 

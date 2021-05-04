@@ -15,25 +15,20 @@
  * limitations under the License.
  */
 
-import type { TestType, Config } from './types';
-import { rootTestType, RunList, RunListConfig } from './testType';
+import type { TestType } from './types';
+import { rootTestType } from './testType';
 import { currentlyLoadingConfigFile } from './globals';
 import { errorWithCallLocation } from './util';
+import { RunListConfig } from './loader';
 
 export * from './types';
 export { expect } from './expect';
 export const test: TestType<{}, {}, {}, {}, {}> = rootTestType.test;
 
-export function setConfig(config: Config) {
-  const configFile = currentlyLoadingConfigFile();
-  if (!configFile)
-    throw errorWithCallLocation(`setConfig() can only be called in a configuration file.`);
-  configFile.setConfig(config);
-}
-
 export function runTests<Options = {}>(config?: RunListConfig<Options>) {
   const configFile = currentlyLoadingConfigFile();
   if (!configFile)
     throw errorWithCallLocation(`runTests() can only be called in a configuration file.`);
-  configFile.addRunList(new RunList(config || {}));
+  // TODO: add config validation.
+  configFile.addRunList(config || {});
 }

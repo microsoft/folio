@@ -17,13 +17,12 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError } from './util';
+import { mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError, wrapInPromise } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
-import { Loader } from './loader';
+import { Loader, RunList } from './loader';
 import { Spec, Suite, Test, TestVariation } from './test';
 import { Env, FullConfig, TestInfo, WorkerInfo } from './types';
-import { RunList } from './testType';
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
@@ -102,7 +101,7 @@ export class WorkerRunner extends EventEmitter {
     if (this._outputPathSegment)
       this._outputPathSegment = '-' + this._outputPathSegment;
 
-    this._config = this._loader.config(this._runList);
+    this._config = this._runList.config;
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
       config: { ...this._config },
@@ -510,10 +509,6 @@ function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', 
 }
 
 class SkipError extends Error {
-}
-
-async function wrapInPromise(value: any) {
-  return value;
 }
 
 class EnvRunner {

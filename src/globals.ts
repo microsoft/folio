@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import type { Config, TestInfo } from './types';
-import type { RunList } from './testType';
+import type { TestInfo } from './types';
 import { Suite } from './test';
+import { RunListConfig } from './loader';
 
 let currentTestInfoValue: TestInfo | null = null;
 export function setCurrentTestInfo(testInfo: TestInfo | null) {
@@ -35,8 +35,7 @@ export function currentlyLoadingFileSuite() {
 }
 
 export interface ConfigFileAPI {
-  setConfig(config: Config): void;
-  addRunList(runList: RunList): void;
+  addRunList(config: RunListConfig): void;
 }
 
 let configFile: ConfigFileAPI | undefined;

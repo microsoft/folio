@@ -47,6 +47,6 @@ test('should repeat based on config', async ({ runInlineTest }) => {
   });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(3);
-  const tags = result.report.suites[0].specs[0].tests.map(test => test.tags[0]);
+  const tags = result.report.suites.map(suite => suite.specs[0].tests[0].tags[0]);
   expect(tags).toEqual(['no-repeats', 'two-repeats', 'two-repeats']);
 });

@@ -21,9 +21,8 @@ import { test, expect } from './config';
 test('should be able to redefine config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      folio.setConfig({ timeout: 12345 });
       export const test = folio.test;
-      folio.runTests();
+      folio.runTests({ timeout: 12345 });
     `,
     'a.test.ts': `
       import { test } from './folio.config';
@@ -41,11 +40,10 @@ test('should read config from --config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my.config.ts': `
       import * as path from 'path';
-      folio.setConfig({
+      export const test = folio.test;
+      folio.runTests({
         testDir: path.join(__dirname, 'dir'),
       });
-      export const test = folio.test;
-      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './my.config';
@@ -93,14 +91,13 @@ test('should be able to set reporters', async ({ runInlineTest }, testInfo) => {
   const reportFile = testInfo.outputPath('my-report.json');
   const result = await runInlineTest({
     'folio.config.ts': `
-      folio.setConfig({
+      export const test = folio.test;
+      folio.runTests({
         reporter: [
           { name: 'json', outputFile: ${JSON.stringify(reportFile)} },
           'list',
         ]
       });
-      export const test = folio.test;
-      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './folio.config';
@@ -140,6 +137,9 @@ test('should support different testDirs', async ({ runInlineTest }) => {
   expect(result.report.suites[0].specs[0].tests.length).toBe(1);
   expect(result.report.suites[0].specs[0].title).toBe('runs once');
 
-  expect(result.report.suites[1].specs[0].tests.length).toBe(2);
+  expect(result.report.suites[1].specs[0].tests.length).toBe(1);
   expect(result.report.suites[1].specs[0].title).toBe('runs twice');
+
+  expect(result.report.suites[2].specs[0].tests.length).toBe(1);
+  expect(result.report.suites[2].specs[0].title).toBe('runs twice');
 });

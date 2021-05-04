@@ -200,3 +200,30 @@ test('skip should take priority over fail', async ({ runInlineTest }) => {
   expect(skipped).toBe(1);
   expect(failed).toBe(1);
 });
+
+test('should focus test from one runTests', async ({ runInlineTest }) => {
+  const { exitCode, passed, skipped, failed } = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      export const test = folio.test;
+      folio.runTests({ testDir: path.join(__dirname, 'a') });
+      folio.runTests({ testDir: path.join(__dirname, 'b') });
+    `,
+    'a/afile.spec.ts': `
+      import { test } from '../folio.config';
+      test('just a test', () => {
+        expect(1 + 1).toBe(3);
+      });
+    `,
+    'b/bfile.spec.ts': `
+      import { test } from '../folio.config';
+      test.only('focused test', () => {
+        expect(1 + 1).toBe(2);
+      });
+    `,
+  }, { reporter: 'list,json' });
+  expect(passed).toBe(1);
+  expect(failed).toBe(0);
+  expect(skipped).toBe(0);
+  expect(exitCode).toBe(100);
+});

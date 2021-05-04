@@ -183,8 +183,7 @@ test('should not run afterAll when did not run beforeAll', async ({ runInlineTes
         }
       }
       export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
-      folio.runTests();
-      folio.setConfig({ timeout: 1000 });
+      folio.runTests({ timeout: 1000 });
     `,
     'a.test.ts': `
       import { test } from './folio.config';
@@ -220,8 +219,7 @@ test('should not run afterEach when did not run beforeEach', async ({ runInlineT
         }
       }
       export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
-      folio.runTests();
-      folio.setConfig({ timeout: 1000 });
+      folio.runTests({ timeout: 1000 });
     `,
     'a.test.ts': `
       import { test } from './folio.config';

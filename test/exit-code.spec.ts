@@ -74,7 +74,7 @@ test('should work with typescript', async ({ runInlineTest }) => {
 });
 
 test('should repeat each', async ({ runInlineTest }) => {
-  const { exitCode, report } = await runInlineTest({
+  const { exitCode, report, passed } = await runInlineTest({
     'one-success.spec.js': `
       test('succeeds', () => {
         expect(1 + 1).toBe(2);
@@ -82,9 +82,12 @@ test('should repeat each', async ({ runInlineTest }) => {
     `
   }, { 'repeat-each': 3 });
   expect(exitCode).toBe(0);
-  expect(report.suites.length).toBe(1);
+  expect(passed).toBe(3);
+  expect(report.suites.length).toBe(3);
   expect(report.suites[0].specs.length).toBe(1);
-  expect(report.suites[0].specs[0].tests.length).toBe(3);
+  expect(report.suites[0].specs[0].tests.length).toBe(1);
+  expect(report.suites[1].specs[0].tests.length).toBe(1);
+  expect(report.suites[2].specs[0].tests.length).toBe(1);
 });
 
 test('should allow flaky', async ({ runInlineTest }) => {

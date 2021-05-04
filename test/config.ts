@@ -157,10 +157,17 @@ async function runFolio(baseDir: string, params: any, env: any): Promise<RunResu
       process.stdout.write(String(chunk));
   });
   const status = await new Promise<number>(x => testProcess.on('close', x));
-  const passed = (/(\d+) passed/.exec(output.toString()) || [])[1] || '0';
-  const failed = (/(\d+) failed/.exec(output.toString()) || [])[1] || '0';
-  const flaky = (/(\d+) flaky/.exec(output.toString()) || [])[1] || '0';
-  const skipped = (/(\d+) skipped/.exec(output.toString()) || [])[1] || '0';
+
+  const summary = (re: RegExp) => {
+    let result = 0;
+    for (const match of output.toString().matchAll(re))
+      result += (+match[1]);
+    return result;
+  };
+  const passed = summary(/(\d+) passed/g);
+  const failed = summary(/(\d+) failed/g);
+  const flaky = summary(/(\d+) flaky/g);
+  const skipped = summary(/(\d+) skipped/g);
   let report;
   try {
     report = JSON.parse(fs.readFileSync(reportFile).toString());
@@ -186,10 +193,10 @@ async function runFolio(baseDir: string, params: any, env: any): Promise<RunResu
   return {
     exitCode: status,
     output,
-    passed: parseInt(passed, 10),
-    failed: parseInt(failed, 10),
-    flaky: parseInt(flaky, 10),
-    skipped: parseInt(skipped, 10),
+    passed,
+    failed,
+    flaky,
+    skipped,
     report,
     results,
   };

@@ -81,6 +81,6 @@ test('should report tags in result', async ({ runInlineTest }) => {
     `
   });
   expect(report.suites[0].specs[0].tests[0].tags).toEqual(['foo', 'bar']);
-  expect(report.suites[0].specs[0].tests[1].tags).toEqual(['some tag']);
+  expect(report.suites[1].specs[0].tests[0].tags).toEqual(['some tag']);
   expect(exitCode).toBe(0);
 });
