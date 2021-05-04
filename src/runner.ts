@@ -194,8 +194,11 @@ export class Runner {
       files.set(runList, testFiles);
     }
 
-    for (const globalSetup of this._loader.globalSetups())
+    const globalSetupFile = this._loader.config().globalSetup;
+    if (globalSetupFile) {
+      const globalSetup = this._loader.loadGlobalHook(globalSetupFile);
       await globalSetup();
+    }
 
     const rootSuite = this._loadSuite(files, tagFilter);
 
@@ -248,8 +251,12 @@ export class Runner {
     }
     this._reporter.onEnd();
 
-    for (const globalTeardown of this._loader.globalTeardowns())
+    const globalTeardownFile = this._loader.config().globalTeardown;
+    if (globalTeardownFile) {
+      const globalTeardown = this._loader.loadGlobalHook(globalTeardownFile);
       await globalTeardown();
+    }
+
     if (sigint)
       return 'sigint';
     return hasWorkerErrors || rootSuite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';

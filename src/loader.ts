@@ -32,8 +32,6 @@ export class Loader implements ConfigFileAPI {
   private _configFromConfigFile?: Config;
   private _configOverrides: { config: Config, }[] = [];
   private _mergedOverrides: Config;
-  private _globalSetups: (() => any)[] = [];
-  private _globalTeardowns: (() => any)[] = [];
   private _runLists: RunList[] = [];
   private _fileSuites = new Map<string, Suite>();
 
@@ -97,6 +95,21 @@ export class Loader implements ConfigFileAPI {
     }
   }
 
+  loadGlobalHook(file: string): () => any {
+    const revertBabelRequire = installTransform();
+    try {
+      const hook = require(file);
+      if (typeof hook !== 'function')
+        throw errorWithCallLocation(`globalSetup and globalTeardown files must export a single function.`);
+      return hook;
+    } catch (e) {
+      prependErrorMessage(e, `Error while reading ${file}:\n`);
+      throw e;
+    } finally {
+      revertBabelRequire();
+    }
+  }
+
   config(runList?: RunList): FullConfig {
     if (!runList)
       return mergeObjects(this._mergedConfig, this._mergedOverrides);
@@ -111,14 +124,6 @@ export class Loader implements ConfigFileAPI {
     return this._fileSuites;
   }
 
-  globalSetups() {
-    return this._globalSetups;
-  }
-
-  globalTeardowns() {
-    return this._globalTeardowns;
-  }
-
   serialize(): SerializedLoaderData {
     return {
       configs: this._layeredConfigs.map(c => c.source || c.config),
@@ -131,18 +136,6 @@ export class Loader implements ConfigFileAPI {
   setConfig(config: Config) {
     // TODO: add config validation.
     this._configFromConfigFile = config;
-  }
-
-  globalSetup(globalSetupFunction: () => any) {
-    if (typeof globalSetupFunction !== 'function')
-      throw errorWithCallLocation(`globalSetup() takes a single function argument.`);
-    this._globalSetups.push(globalSetupFunction);
-  }
-
-  globalTeardown(globalTeardownFunction: () => any) {
-    if (typeof globalTeardownFunction !== 'function')
-      throw errorWithCallLocation(`globalTeardown() takes a single function argument.`);
-    this._globalTeardowns.push(globalTeardownFunction);
   }
 
   addRunList(runList: RunList) {

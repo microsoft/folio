@@ -25,6 +25,8 @@ const availableReporters = new Set(['dot', 'json', 'junit', 'line', 'list', 'nul
 
 const defaultConfig: FullConfig = {
   forbidOnly: false,
+  globalSetup: null,
+  globalTeardown: null,
   globalTimeout: 0,
   grep: /.*/,
   maxFailures: 0,

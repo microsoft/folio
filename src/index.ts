@@ -31,20 +31,6 @@ export function setConfig(config: Config) {
   configFile.setConfig(config);
 }
 
-export function globalSetup(globalSetupFunction: () => any) {
-  const configFile = currentlyLoadingConfigFile();
-  if (!configFile)
-    throw errorWithCallLocation(`globalSetup() can only be called in a configuration file.`);
-  configFile.globalSetup(globalSetupFunction);
-}
-
-export function globalTeardown(globalTeardownFunction: () => any) {
-  const configFile = currentlyLoadingConfigFile();
-  if (!configFile)
-    throw errorWithCallLocation(`globalTeardown() can only be called in a configuration file.`);
-  configFile.globalTeardown(globalTeardownFunction);
-}
-
 export function runTests<Options = {}>(config?: RunListConfig<Options>) {
   const configFile = currentlyLoadingConfigFile();
   if (!configFile)
