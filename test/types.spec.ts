@@ -29,8 +29,9 @@ test('sanity', async ({runTSC}) => {
 test('runTests should check types of options', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
+      type MyOptions = { foo: string, bar: number };
       export const test = folio.test.extend({
-        hasBeforeAllOptions(options: { foo: string, bar: number }) {
+        hasBeforeAllOptions(options: MyOptions) {
           return false;
         },
         async beforeEach({}, testInfo: folio.TestInfo) {
@@ -43,28 +44,28 @@ test('runTests should check types of options', async ({runTSC}) => {
         }
       }
       folio.runTests({ options: { foo: '42', bar: 42 } });
-      folio.runTests<typeof test>({ options: { foo: '42', bar: 42 } });
+      folio.runTests<MyOptions>({ options: { foo: '42', bar: 42 } });
       folio.runTests({ options: { foo: '42', bar: 42 }, timeout: 100 });
       // @ts-expect-error
       folio.runTests({ options: { foo: '42', bar: 42 } }, {});
       // @ts-expect-error
-      folio.runTests<typeof test>({ options: { foo: '42' } });
+      folio.runTests<MyOptions>({ options: { foo: '42' } });
       // @ts-expect-error
-      folio.runTests<typeof test>({ options: { bar: '42' } });
+      folio.runTests<MyOptions>({ options: { bar: '42' } });
       // @ts-expect-error
-      folio.runTests<typeof test>({ options: { bar: 42 } });
+      folio.runTests<MyOptions>({ options: { bar: 42 } });
       // @ts-expect-error
-      folio.runTests<typeof test>(new Env2());
+      folio.runTests<MyOptions>(new Env2());
       // @ts-expect-error
-      folio.runTests<typeof test>({ options: { foo: 42, bar: 42 } });
+      folio.runTests<MyOptions>({ options: { foo: 42, bar: 42 } });
       // @ts-expect-error
-      folio.runTests<typeof test>({ beforeAll: async () => { return {}; } });
+      folio.runTests<MyOptions>({ beforeAll: async () => { return {}; } });
       // TODO: next line should not compile.
-      folio.runTests<typeof test>({ timeout: 100 });
+      folio.runTests<MyOptions>({ timeout: 100 });
       // @ts-expect-error
-      folio.runTests<typeof test>('alias');
+      folio.runTests<MyOptions>('alias');
       // TODO: next line should not compile.
-      folio.runTests<typeof test>({});
+      folio.runTests<MyOptions>({});
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
@@ -80,10 +81,10 @@ test('runTests should allow void/empty options', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
       export const test = folio.test;
-      folio.runTests<typeof test>({});
-      folio.runTests<typeof test>({ timeout: 100 });
-      folio.runTests<typeof test>();
-      folio.runTests<typeof test>({ options: { foo: 42 }});
+      folio.runTests({});
+      folio.runTests({ timeout: 100 });
+      folio.runTests();
+      folio.runTests({ options: { foo: 42 }});
     `,
     'a.spec.ts': `
       import { test } from './folio.config';
