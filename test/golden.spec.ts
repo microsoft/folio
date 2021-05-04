@@ -23,6 +23,7 @@ test('should support golden', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot();
       });
@@ -41,6 +42,7 @@ Line5
 Line6
 Line7`,
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         const data = [];
         data.push('Line1');
@@ -66,6 +68,7 @@ Line7`,
 test('should write missing expectations', async ({runInlineTest}, testInfo) => {
   const result = await runInlineTest({
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot();
       });
@@ -81,6 +84,7 @@ test('should update expectations', async ({runInlineTest}, testInfo) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect('Hello world updated').toMatchSnapshot();
       });
@@ -99,6 +103,7 @@ test('should match multiple snapshots', async ({runInlineTest}) => {
     '__snapshots__/a/is-a-test/snapshot_1.txt': `Snapshot2`,
     '__snapshots__/a/is-a-test/snapshot_2.txt': `Snapshot3`,
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect('Snapshot1').toMatchSnapshot();
         expect('Snapshot2').toMatchSnapshot();
@@ -113,6 +118,7 @@ test('should use provided name', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot('provided.txt');
       });
@@ -125,6 +131,7 @@ test('should use provided name via options', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect('Hello world').toMatchSnapshot({ name: 'provided.txt' });
       });
@@ -137,6 +144,7 @@ test('should compare binary', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/snapshot.dat': Buffer.from([1,2,3,4]),
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect(Buffer.from([1,2,3,4])).toMatchSnapshot();
       });
@@ -150,6 +158,7 @@ test('should compare PNG images', async ({runInlineTest}) => {
     '__snapshots__/a/is-a-test/snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64')).toMatchSnapshot();
       });
@@ -163,6 +172,7 @@ test('should compare different PNG images', async ({runInlineTest}) => {
     '__snapshots__/a/is-a-test/snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVQYV2NgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII==', 'base64')).toMatchSnapshot();
       });
@@ -180,6 +190,7 @@ test('should respect threshold', async ({runInlineTest}) => {
     '__snapshots__/a/is-a-test/snapshot.png': expected,
     '__snapshots__/a/is-a-test/snapshot2.png': expected,
     'a.spec.js': `
+      const { test } = folio;
       test('is a test', ({}) => {
         expect(Buffer.from('${actual.toString('base64')}', 'base64')).toMatchSnapshot({ threshold: 0.3 });
         expect(Buffer.from('${actual.toString('base64')}', 'base64')).not.toMatchSnapshot({ threshold: 0.2 });

@@ -18,8 +18,9 @@ import * as commander from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Runner } from './runner';
-import { Config, FullConfig } from './types';
+import { FullConfig } from './types';
 import { Loader } from './loader';
+import { ConfigOverrides } from './configs';
 
 const availableReporters = new Set(['dot', 'json', 'junit', 'line', 'list', 'null']);
 
@@ -30,17 +31,10 @@ const defaultConfig: FullConfig = {
   globalTimeout: 0,
   grep: /.*/,
   maxFailures: 0,
-  outputDir: path.resolve(process.cwd(), 'test-results'),
+  reporter: [process.env.CI ? 'dot' : 'line'],
+  rootDir: path.resolve(process.cwd()),
   quiet: false,
-  repeatEach: 1,
-  reporter: process.env.CI ? 'dot' : 'line',
-  retries: 0,
   shard: null,
-  snapshotDir: '__snapshots__',
-  testDir: path.resolve(process.cwd()),
-  testIgnore: 'node_modules/**',
-  testMatch: '**/?(*.)+(spec|test).[jt]s',
-  timeout: 10000,
   updateSnapshots: false,
   workers: Math.ceil(require('os').cpus().length / 2),
 };
@@ -64,29 +58,11 @@ async function runTests(command: any) {
     process.exit(0);
   }
 
-  const loader = new Loader();
-  loader.addConfig(defaultConfig);
-  loader.addConfigOverride(configFromCommand(command));
-  if (command.reporter && command.reporter.length) {
-    const reporterNames: string[] = command.reporter.split(',');
-    const reporters = reporterNames.map(c => {
-      if (availableReporters.has(c))
-        return c;
-      try {
-        const p = path.resolve(process.cwd(), c);
-        return new (require(p).default)();
-      } catch (e) {
-        console.error('Invalid reporter ' + c, e);
-        process.exit(1);
-      }
-    });
-    loader.addConfigOverride({ reporter: reporters });
-  }
+  const loader = new Loader(defaultConfig, configFromCommand(command));
 
   function loadConfig(configName: string) {
     const configFile = path.resolve(process.cwd(), configName);
     if (fs.existsSync(configFile)) {
-      loader.addConfig({ testDir: path.dirname(configFile) });
       loader.loadConfigFile(configFile);
       return true;
     }
@@ -144,22 +120,18 @@ function addRunnerOptions(program: commander.Command) {
       .option('--max-failures <N>', `Stop after the first N failures (default: ${defaultConfig.maxFailures})`)
       .option('--output <dir>', `Folder for output artifacts (default: "test-results")`)
       .option('--quiet', `Suppress stdio`)
-      .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: ${defaultConfig.repeatEach})`)
+      .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: 1)`)
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters} (default: "${process.env.CI ? 'dot' : 'line'}")`)
-      .option('--retries <retries>', `Specify retry count (default: ${defaultConfig.retries})`)
+      .option('--retries <retries>', `Specify retry count (default: 0)`)
       .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
-      .option('--snapshot-dir <dir>', `Snapshot directory, relative to tests directory (default: "${defaultConfig.snapshotDir}"`)
       .option('--tag <tag...>', `Only run tests tagged with one of the specified tags (default: all tests)`)
-      .option('--test-dir <dir>', `Directory containing test files (default: current directory)`)
-      .option('--test-ignore <pattern>', `Pattern used to ignore test files (default: "${defaultConfig.testIgnore}")`)
-      .option('--test-match <pattern>', `Pattern used to find test files (default: "${defaultConfig.testMatch}")`)
-      .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: ${defaultConfig.timeout})`)
+      .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: 10000)`)
       .option('-u, --update-snapshots', `Whether to update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
       .option('-x', `Stop after the first failure`);
 }
 
-function configFromCommand(command: any): Config {
-  const config: Config = {};
+function configFromCommand(command: any): ConfigOverrides {
+  const config: ConfigOverrides = {};
   if (command.forbidOnly)
     config.forbidOnly = true;
   if (command.globalTimeout)
@@ -176,18 +148,12 @@ function configFromCommand(command: any): Config {
     config.repeatEach = parseInt(command.repeatEach, 10);
   if (command.retries)
     config.retries = parseInt(command.retries, 10);
+  if (command.reporter && command.reporter.length)
+    config.reporter = command.reporter.split(',');
   if (command.shard) {
     const pair = command.shard.split('/').map((t: string) => parseInt(t, 10));
     config.shard = { current: pair[0] - 1, total: pair[1] };
   }
-  if (command.snapshotDir)
-    config.snapshotDir = command.snapshotDir;
-  if (command.testDir)
-    config.testDir = path.resolve(process.cwd(), command.testDir);
-  if (command.testMatch)
-    config.testMatch = maybeRegExp(command.testMatch);
-  if (command.testIgnore)
-    config.testIgnore = maybeRegExp(command.testIgnore);
   if (command.timeout)
     config.timeout = parseInt(command.timeout, 10);
   if (command.updateSnapshots)
@@ -195,13 +161,6 @@ function configFromCommand(command: any): Config {
   if (command.workers)
     config.workers = parseInt(command.workers, 10);
   return config;
-}
-
-function maybeRegExp(pattern: string): string | RegExp {
-  const match = pattern.match(/^\/(.*)\/([gi]*)$/);
-  if (match)
-    return new RegExp(match[1], match[2]);
-  return pattern;
 }
 
 function forceRegExp(pattern: string): RegExp {

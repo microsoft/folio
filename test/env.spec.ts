@@ -18,7 +18,7 @@ import { test, expect } from './config';
 
 test('env should work', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
-    'folio.config.ts': `
+    'a.test.js': `
       global.logs = [];
       class MyEnv {
         async beforeAll() {
@@ -37,11 +37,8 @@ test('env should work', async ({ runInlineTest }) => {
           global.logs.push('afterEach');
         }
       }
-      export const test = folio.test.extend(new MyEnv());
-      folio.runTests();
-    `,
-    'a.test.js': `
-      const { test } = require('./folio.config');
+      const test = folio.test.extend(new MyEnv());
+
       test('should work', async ({foo}) => {
         global.logs.push('test1');
         expect(foo).toBe('bar');
@@ -57,7 +54,7 @@ test('env should work', async ({ runInlineTest }) => {
 });
 
 const multipleEnvs = {
-  'folio.config.js': `
+  'helper.js': `
     global.logs = [];
     class MyEnv {
       constructor(suffix) {
@@ -78,27 +75,35 @@ const multipleEnvs = {
         global.logs.push('afterEach' + this.suffix);
       }
     }
+    exports.MyEnv = MyEnv;
     const fooDeclare = folio.test.declare();
     exports.fooTest = fooDeclare.test;
+    exports.fooDefine = fooDeclare.define;
     const barDeclare = folio.test.declare();
     exports.barTest = barDeclare.test;
-    folio.runTests({
-      tag: 'suite1',
-      defines: [
-        fooDeclare.define(new MyEnv('-env1')),
-        barDeclare.define(new MyEnv('-env2')),
-      ],
-    });
-    folio.runTests({
-      tag: 'suite2',
-      defines: [
-        fooDeclare.define(new MyEnv('-env3')),
-        barDeclare.define(new MyEnv('-env4')),
-      ],
-    });
+    exports.barDefine = barDeclare.define;
+  `,
+  'folio.config.ts': `
+    import { barDefine, fooDefine, MyEnv } from './helper';
+    module.exports = { projects: [
+      {
+        tag: 'suite1',
+        defines: [
+          fooDefine(new MyEnv('-env1')),
+          barDefine(new MyEnv('-env2')),
+        ],
+      },
+      {
+        tag: 'suite2',
+        defines: [
+          fooDefine(new MyEnv('-env3')),
+          barDefine(new MyEnv('-env4')),
+        ],
+      },
+    ] };
   `,
   'a.test.js': `
-    const {fooTest, barTest} = require('./folio.config');
+    const {fooTest, barTest} = require('./helper');
     fooTest('should work', async ({foo}) => {
       global.logs.push('fooTest');
       expect(foo).toBe('bar');
@@ -132,7 +137,7 @@ test('should teardown env after timeout', async ({ runInlineTest }, testInfo) =>
   const file = testInfo.outputPath('log.txt');
   require('fs').writeFileSync(file, '', 'utf8');
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'a.spec.ts': `
       class MyEnv {
         async afterAll() {
           require('fs').appendFileSync(process.env.TEST_FILE, 'afterAll\\n', 'utf8');
@@ -141,11 +146,8 @@ test('should teardown env after timeout', async ({ runInlineTest }, testInfo) =>
           require('fs').appendFileSync(process.env.TEST_FILE, 'afterEach\\n', 'utf8');
         }
       }
-      export const test = folio.test.extend(new MyEnv());
-      folio.runTests();
-    `,
-    'a.spec.ts': `
-      import { test } from './folio.config';
+      const test = folio.test.extend(new MyEnv());
+
       test('test', async ({}) => {
         await new Promise(() => {});
       });
@@ -159,7 +161,7 @@ test('should teardown env after timeout', async ({ runInlineTest }, testInfo) =>
 
 test('should initialize env once across files', async ({ runInlineTest }) => {
   const { passed, failed, output } = await runInlineTest({
-    'folio.config.js': `
+    'helper.js': `
       global.logs = [];
       class MyEnv {
         async beforeAll() {
@@ -171,16 +173,15 @@ test('should initialize env once across files', async ({ runInlineTest }) => {
         }
       }
       exports.test = folio.test.extend(new MyEnv());
-      folio.runTests();
     `,
     'a.test.js': `
-      const {test} = require('./folio.config');
+      const {test} = require('./helper');
       test('should work', async ({}) => {
         global.logs.push('test1');
       });
     `,
     'b.test.js': `
-      const {test} = require('./folio.config');
+      const {test} = require('./helper');
       test('should work', async ({}) => {
         global.logs.push('test2');
       });
@@ -193,7 +194,7 @@ test('should initialize env once across files', async ({ runInlineTest }) => {
 
 test('should run sync env methods and hooks', async ({ runInlineTest }) => {
   const { passed } = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       class Env {
         beforeAll() {
           this.counter = 0;
@@ -208,10 +209,9 @@ test('should run sync env methods and hooks', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.test.extend(new Env());
-      folio.runTests();
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = require('./helper');
       let init = false;
       test.beforeAll(() => {
         init = true;
@@ -235,6 +235,7 @@ test('should run sync env methods and hooks', async ({ runInlineTest }) => {
 test('should not create a new worker for environment with beforeEach only', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
+      const { test } = folio;
       test('base test', async ({}, testInfo) => {
         expect(testInfo.workerIndex).toBe(0);
       });
@@ -249,6 +250,7 @@ test('should not create a new worker for environment with beforeEach only', asyn
       });
     `,
     'b.test.ts': `
+      const { test } = folio;
       const test2 = test.extend({
         beforeEach() {
           console.log('beforeEach-b');
@@ -273,6 +275,7 @@ test('should not create a new worker for environment with beforeEach only', asyn
 test('should create a new worker for environment with afterAll', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
+      const { test } = folio;
       test('base test', async ({}, testInfo) => {
         expect(testInfo.workerIndex).toBe(0);
       });
@@ -287,6 +290,7 @@ test('should create a new worker for environment with afterAll', async ({ runInl
       });
     `,
     'b.test.ts': `
+      const { test } = folio;
       const test2 = test.extend({
         beforeEach() {
           console.log('beforeEach-b');
@@ -305,6 +309,7 @@ test('should create a new worker for environment with afterAll', async ({ runInl
 test('should run tests in order', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
+      const { test } = folio;
       test('test1', async ({}, testInfo) => {
         expect(testInfo.workerIndex).toBe(0);
         console.log('\\n%%test1');
@@ -341,28 +346,32 @@ test('should run tests in order', async ({ runInlineTest }) => {
 
 test('should not create a new worker for extend+declare+extend', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       const declared = folio.test.extend({
         beforeAll() {},
       }).declare();
       export const test = declared.test.extend({
         beforeEach() {},
       });
-      folio.runTests({
+      export const define = declared.define;
+    `,
+    'folio.config.ts': `
+      import { define } from './helper';
+      module.exports = {
         defines: [
-          declared.define({ beforeAll() {} })
+          define({ beforeAll() {} })
         ],
-      });
+      };
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
       test('testa', async ({}, testInfo) => {
         expect(testInfo.workerIndex).toBe(0);
         console.log('testa');
       });
     `,
     'b.test.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
       test('testb', async ({}, testInfo) => {
         expect(testInfo.workerIndex).toBe(0);
         console.log('testb');

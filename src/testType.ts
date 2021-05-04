@@ -18,7 +18,8 @@ import { expect } from './expect';
 import { currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuite } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation } from './util';
-import { Config, DefinedEnv, Env, TestInfo, TestType } from './types';
+import { Env, TestInfo, TestType } from './types';
+import { DefinedEnv } from './configs';
 
 Error.stackTraceLimit = 15;
 

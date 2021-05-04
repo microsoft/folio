@@ -21,6 +21,7 @@ test('should run in parallel', async ({ runInlineTest }) => {
     '1.spec.ts': `
       import * as fs from 'fs';
       import * as path from 'path';
+      const { test } = folio;
       test('succeeds', async ({}, testInfo) => {
         expect(testInfo.workerIndex).toBe(0);
         // First test waits for the second to start to work around the race.
@@ -34,6 +35,7 @@ test('should run in parallel', async ({ runInlineTest }) => {
     '2.spec.ts': `
       import * as fs from 'fs';
       import * as path from 'path';
+      const { test } = folio;
       test('succeeds', async ({}, testInfo) => {
         // First test waits for the second to start to work around the race.
         fs.mkdirSync(testInfo.config.outputDir, { recursive: true });
@@ -49,6 +51,7 @@ test('should run in parallel', async ({ runInlineTest }) => {
 test('should reuse worker for multiple tests', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('succeeds', async ({}, testInfo) => {
         expect(testInfo.workerIndex).toBe(0);
       });
@@ -69,13 +72,10 @@ test('should reuse worker for multiple tests', async ({ runInlineTest }) => {
 test('should not reuse worker for different suites', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.test;
-      folio.runTests();
-      folio.runTests();
-      folio.runTests();
+      module.exports = { projects: [{}, {}, {}] };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       test('succeeds', async ({}, testInfo) => {
         console.log('workerIndex-' + testInfo.workerIndex);
       });

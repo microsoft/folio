@@ -19,6 +19,7 @@ import { test, expect } from './config';
 test('basics should work', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
+      const { test } = folio;
       test.describe('suite', () => {
         test.beforeEach(async () => {});
         test('my test', async({}, testInfo) => {
@@ -35,6 +36,7 @@ test('basics should work', async ({runTSC}) => {
 test('can pass sync functions everywhere', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
+      const { test } = folio;
       test.beforeEach(() => {});
       test.afterEach(() => {});
       test.beforeAll(() => {});
@@ -48,6 +50,7 @@ test('can pass sync functions everywhere', async ({runTSC}) => {
 test('can return anything from hooks', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
+      const { test } = folio;
       test.beforeEach(() => '123');
       test.afterEach(() => 123);
       test.beforeAll(() => [123]);
@@ -59,32 +62,36 @@ test('can return anything from hooks', async ({runTSC}) => {
 
 test('test.declare should check types', async ({runTSC}) => {
   const result = await runTSC({
-    'folio.config.ts': `
+    'helper.ts': `
       export const test = folio.test;
       const declared = test.declare<{ foo: string }>();
+      export const define = declared.define;
       export const test1 = declared.test;
       export const test2 = test1.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) }; } });
-
-      folio.runTests({});
-      folio.runTests({
-        defines: [ declared.define({ beforeEach: () => { return { foo: 'foo' }; } }) ],
-      });
-
-      folio.runTests({
-        // @ts-expect-error
-        defines: [ declared.define({ beforeEach: () => { return { foo: 42 }; } }) ],
-      });
-
-      folio.runTests({
-        // @ts-expect-error
-        defines: [ test2 ],
-      });
-
       // @ts-expect-error
       export const test3 = test1.extend({ beforeEach: ({ bar }) => { return {}; } });
     `,
+    'folio.config.ts': `
+      import { define } from './helper';
+      const configs: folio.Config[] = [];
+      configs.push({});
+      configs.push({
+        defines: [ define({ beforeEach: () => { return { foo: 'foo' }; } }) ],
+      });
+
+      configs.push({
+        // @ts-expect-error
+        defines: [ define({ beforeEach: () => { return { foo: 42 }; } }) ],
+      });
+
+      configs.push({
+        // @ts-expect-error
+        defines: [ test2 ],
+      });
+      module.exports = configs;
+    `,
     'a.spec.ts': `
-      import { test, test1, test2, test3 } from './folio.config';
+      import { test, test1, test2, test3 } from './helper';
       // @ts-expect-error
       test('my test', async ({ foo }) => {});
       test1('my test', async ({ foo }) => {});
@@ -100,7 +107,7 @@ test('test.declare should check types', async ({runTSC}) => {
 
 test('test.extend should infer types from methods', async ({runTSC}) => {
   const result = await runTSC({
-    'folio.config.ts': `
+    'helper.ts': `
       export const test1 = folio.test.extend({
         beforeAll: ({}, workerInfo) => { return { yes: true }; },
         beforeEach: ({}, testInfo) => { return { foo: 42, bar: 'bar' }; },
@@ -113,7 +120,7 @@ test('test.extend should infer types from methods', async ({runTSC}) => {
       });
     `,
     'a.spec.ts': `
-      import { test1, test2 } from './folio.config';
+      import { test1, test2 } from './helper';
       test1.beforeAll(({ yes }) => {
         let x: boolean = yes;
       });

@@ -103,7 +103,7 @@ class JUnitReporter extends EmptyReporter {
     const entry: XMLEntry = {
       name: 'testsuite',
       attributes: {
-        name: path.relative(this.config.testDir, suite.file),
+        name: path.relative(this.config.rootDir, suite.file),
         timestamp: this.timestamp,
         hostname: '',
         tests,
@@ -123,7 +123,7 @@ class JUnitReporter extends EmptyReporter {
       name: 'testcase',
       attributes: {
         name: test.spec.fullTitle(),
-        classname: path.relative(this.config.testDir, test.spec.file) + ' ' + test.spec.parent.fullTitle(),
+        classname: path.relative(this.config.rootDir, test.spec.file) + ' ' + test.spec.parent.fullTitle(),
         time: (test.results.reduce((acc, value) => acc + value.duration, 0)) / 1000
       },
       children: []

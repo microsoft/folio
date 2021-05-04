@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-import type { Config, TestStatus, TestError } from './types';
+import { ConfigOverrides, FullConfig } from './configs';
+import type { TestStatus, TestError } from './types';
 export type { TestStatus } from './types';
 
+export type SerializedLoaderData = {
+  defaultConfig: FullConfig;
+  overrides: ConfigOverrides;
+  configFile: string;
+};
 export type WorkerInitParams = {
   workerIndex: number;
   repeatEachIndex: number;
   runListIndex: number;
-  loader: {
-    configs: (string | Config)[];
-    overrides: Config[];
-  };
+  loader: SerializedLoaderData;
 };
 
 export type TestBeginPayload = {

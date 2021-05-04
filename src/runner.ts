@@ -22,7 +22,7 @@ import { default as ignore } from 'fstream-ignore';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
 import { Env, Reporter } from './types';
-import { createMatcher, monotonicTime, raceAgainstDeadline, wrapInPromise } from './util';
+import { createMatcher, monotonicTime, raceAgainstDeadline } from './util';
 import { Suite, TestVariation } from './test';
 import { Loader, RunList } from './loader';
 import { Multiplexer } from './reporters/multiplexer';
@@ -39,40 +39,46 @@ type RunResult = 'passed' | 'failed' | 'sigint' | 'forbid-only' | 'no-tests' | '
 
 export class Runner {
   private _loader: Loader;
+  private _reporter: Reporter;
+  private _didBegin = false;
 
   constructor(loader: Loader) {
     this._loader = loader;
+    this._reporter = this._createReporter();
   }
 
-  private _createReporter(runList: RunList) {
+  private _createReporter() {
     const reporters: Reporter[] = [];
-    const configReporters = runList.config.reporter;
-    for (const r of Array.isArray(configReporters) ? configReporters : [configReporters]) {
-      if (r === 'dot')
-        reporters.push(new DotReporter());
-      else if (r === 'line')
-        reporters.push(new LineReporter());
-      else if (r === 'list')
-        reporters.push(new ListReporter());
-      else if (r === 'json')
-        reporters.push(new JSONReporter());
-      else if (r === 'junit')
-        reporters.push(new JUnitReporter());
-      else if (r === 'null')
-        reporters.push(new EmptyReporter());
-      else if ('name' in r && r.name === 'junit')
+    const defaultReporters = {
+      dot: DotReporter,
+      line: LineReporter,
+      list: ListReporter,
+      json: JSONReporter,
+      junit: JUnitReporter,
+      null: EmptyReporter,
+    };
+    for (const r of this._loader.fullConfig().reporter) {
+      if (typeof r === 'string') {
+        if (r in defaultReporters) {
+          reporters.push(new defaultReporters[r]());
+        } else {
+          const p = path.resolve(process.cwd(), r);
+          reporters.push(new (require(p).default)());
+        }
+      } else if ('name' in r && r.name === 'junit') {
         reporters.push(new JUnitReporter(r));
-      else if ('name' in r && r.name === 'json')
+      } else if ('name' in r && r.name === 'json') {
         reporters.push(new JSONReporter(r));
-      else
-        reporters.push(r);
+      } else {
+        throw new Error(`Unsupported reporter "${r}"`);
+      }
     }
     return new Multiplexer(reporters);
   }
 
-  private _generateTests(runList: RunList, fileSuites: Suite[]): Suite {
-    const rootSuite = new Suite('');
-    const grepMatcher = createMatcher(runList.config.grep);
+  private _generateTests(runList: RunList, fileSuites: Suite[]) {
+    const config = this._loader.fullConfig();
+    const grepMatcher = createMatcher(config.grep);
     const hashes = runList.hashTestTypes();
 
     // Options that are used in beforeAll produce a new worker.
@@ -99,37 +105,46 @@ export class Runner {
       return optionsHashMap.get(suite);
     };
 
-    for (let i = 0; i < runList.config.repeatEach; ++i) {
-      for (const fileSuite of fileSuites) {
-        const suite = fileSuite._clone();
-        const specs = suite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
-        let suiteHasTests = false;
-        for (const spec of specs) {
-          if (!hashes.has(spec._testType))
-            continue;
-          const envs = runList.resolveEnvs(spec._testType);
-          const optionsHash = findOptionsHash(envs, spec.parent!);
-          const hash = hashes.get(spec._testType);
+    for (const fileSuite of fileSuites) {
+      const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
+      for (const spec of specs) {
+        if (!hashes.has(spec._testType))
+          continue;
+        const envs = runList.resolveEnvs(spec._testType);
+        const optionsHash = findOptionsHash(envs, spec.parent!);
+        const hash = hashes.get(spec._testType);
+        for (let i = 0; i < runList.project.repeatEach; ++i) {
           const testVariation: TestVariation = {
             tags: runList.tags,
-            retries: runList.config.retries,
-            outputDir: runList.config.outputDir,
+            retries: runList.project.retries,
+            outputDir: runList.project.outputDir,
             repeatEachIndex: i,
             runListIndex: runList.index,
-            workerHash: `${hash}#options-${optionsHash}#repeat-${i}`,
+            workerHash: `${hash}#run-${runList.index}#options-${optionsHash}#repeat-${i}`,
             variationId: `#run-${runList.index}#repeat-${i}`,
           };
           spec._appendTest(testVariation);
-          suiteHasTests = true;
         }
-        if (suiteHasTests)
-          rootSuite._addSuite(suite);
       }
     }
-    return rootSuite;
   }
 
   async run(list: boolean, testFileFilter: string[], tagFilter?: string[]): Promise<RunResult> {
+    const config = this._loader.fullConfig();
+    const globalDeadline = config.globalTimeout ? config.globalTimeout + monotonicTime() : undefined;
+    const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFileFilter, tagFilter), globalDeadline);
+    if (timedOut) {
+      if (!this._didBegin)
+        this._reporter.onBegin(config, new Suite(''));
+      this._reporter.onTimeout(config.globalTimeout);
+      return 'failed';
+    }
+    return result;
+  }
+
+  async _run(list: boolean, testFileFilter: string[], tagFilter?: string[]): Promise<RunResult> {
+    const config = this._loader.fullConfig();
+
     const runLists = this._loader.runLists().filter(runList => {
       return !tagFilter || runList.tags.some(tag => tagFilter.includes(tag));
     });
@@ -137,131 +152,87 @@ export class Runner {
     const files = new Map<RunList, string[]>();
     const allTestFiles = new Set<string>();
     for (const runList of runLists) {
-      const testDir = runList.config.testDir;
+      const testDir = runList.project.testDir;
       if (!fs.existsSync(testDir))
         throw new Error(`${testDir} does not exist`);
       if (!fs.statSync(testDir).isDirectory())
         throw new Error(`${testDir} is not a directory`);
-      const allFiles = await collectFiles(runList.config.testDir);
-      const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(runList.config.testMatch), createMatcher(runList.config.testIgnore));
+      const allFiles = await collectFiles(runList.project.testDir);
+      const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(runList.project.testMatch), createMatcher(runList.project.testIgnore));
       files.set(runList, testFiles);
       testFiles.forEach(file => allTestFiles.add(file));
     }
 
-    let globalSetupCounter = 0;
+    if (config.globalSetup)
+      await this._loader.loadGlobalHook(config.globalSetup)();
     try {
-      for (const runList of runLists) {
-        if (!await this._runGlobalHook(runList.config.globalSetup, runList.config.globalTimeout, 'global setup'))
-          return 'failed';
-        globalSetupCounter++;
-      }
-
       for (const file of allTestFiles)
         this._loader.loadTestFile(file);
 
       const rootSuite = new Suite('');
       for (const fileSuite of this._loader.fileSuites().values())
         rootSuite._addSuite(fileSuite);
+      if (config.forbidOnly && rootSuite._hasOnly())
+        return 'forbid-only';
       filterOnly(rootSuite);
+
       const fileSuites = new Map<string, Suite>();
       for (const fileSuite of rootSuite.suites)
         fileSuites.set(fileSuite.file, fileSuite);
 
-      const suites = new Map<RunList, Suite>();
       const outputDirs = new Set<string>();
       for (const runList of runLists) {
         const fileSuitesForRunList = files.get(runList).map(file => fileSuites.get(file)).filter(Boolean);
-        const suite = this._generateTests(runList, fileSuitesForRunList);
-        if (runList.config.forbidOnly && suite._hasOnly())
-          return 'forbid-only';
-        if (suite.totalTestCount()) {
-          suites.set(runList, suite);
-          outputDirs.add(runList.config.outputDir);
-        }
+        this._generateTests(runList, fileSuitesForRunList);
+        outputDirs.add(runList.project.outputDir);
       }
-      if (!suites.size)
+
+      const total = rootSuite.totalTestCount();
+      if (!total)
         return 'no-tests';
 
       await Promise.all(Array.from(outputDirs).map(outputDir => removeFolderAsync(outputDir).catch(e => {})));
 
-      let hasFailures = false;
-      for (const [runList, suite] of suites) {
-        const reporter = this._createReporter(runList);
-        const globalDeadline = runList.config.globalTimeout ? runList.config.globalTimeout + monotonicTime() : undefined;
-        const { result, timedOut } = await raceAgainstDeadline(this._runSection(runList, reporter, list, suite), globalDeadline);
-        if (timedOut) {
-          reporter.onTimeout(runList.config.globalTimeout);
-          return 'failed';
-        }
-        if (result === 'sigint')
-          return 'sigint';
-        if (result === 'failed')
-          hasFailures = true;
+      let sigint = false;
+      let sigintCallback: () => void;
+      const sigIntPromise = new Promise<void>(f => sigintCallback = f);
+      const sigintHandler = () => {
+        process.off('SIGINT', sigintHandler);
+        sigint = true;
+        sigintCallback();
+      };
+      process.on('SIGINT', sigintHandler);
+
+      if (process.stdout.isTTY) {
+        const workers = new Set();
+        rootSuite.findTest(test => {
+          workers.add(test.spec.file + test._variation.workerHash);
+        });
+        console.log();
+        const jobs = Math.min(config.workers, workers.size);
+        const shard = config.shard;
+        const shardDetails = shard ? `, shard ${shard.current + 1} of ${shard.total}` : '';
+        console.log(`Running ${total} test${total > 1 ? 's' : ''} using ${jobs} worker${jobs > 1 ? 's' : ''}${shardDetails}`);
       }
-      return hasFailures ? 'failed' : 'passed';
+
+      this._reporter.onBegin(config, rootSuite);
+      this._didBegin = true;
+      let hasWorkerErrors = false;
+      if (!list) {
+        const dispatcher = new Dispatcher(this._loader, rootSuite, this._reporter);
+        await Promise.race([dispatcher.run(), sigIntPromise]);
+        await dispatcher.stop();
+        hasWorkerErrors = dispatcher.hasWorkerErrors();
+      }
+      this._reporter.onEnd();
+
+      if (sigint)
+        return 'sigint';
+      return hasWorkerErrors || rootSuite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
     } finally {
-      let teardownSuccess = true;
-      for (let index = globalSetupCounter - 1; index >= 0; index--) {
-        if (!await this._runGlobalHook(runLists[index].config.globalTeardown, runLists[index].config.globalTimeout, 'global teardown'))
-          teardownSuccess = false;
-      }
-      if (!teardownSuccess)
-        return 'failed';
+      if (config.globalTeardown)
+        await this._loader.loadGlobalHook(config.globalTeardown)();
     }
-  }
-
-  private async _runGlobalHook(file: string | null, timeout: number, title: string) {
-    if (!file)
-      return true;
-    const hook = this._loader.loadGlobalHook(file);
-    const globalSetupDeadline = timeout ? timeout + monotonicTime() : undefined;
-    const { timedOut } = await raceAgainstDeadline(wrapInPromise(hook()), globalSetupDeadline);
-    if (timedOut) {
-      if (process.stdout.isTTY)
-        console.log(`Timed out waiting ${timeout / 1000}s for the ${title}`);
-      return false;
-    }
-    return true;
-  }
-
-  private async _runSection(runList: RunList, reporter: Reporter, list: boolean, rootSuite: Suite): Promise<'passed' | 'failed' | 'sigint'> {
-    const total = rootSuite.totalTestCount();
-
-    let sigint = false;
-    let sigintCallback: () => void;
-    const sigIntPromise = new Promise<void>(f => sigintCallback = f);
-    const sigintHandler = () => {
-      process.off('SIGINT', sigintHandler);
-      sigint = true;
-      sigintCallback();
-    };
-    process.on('SIGINT', sigintHandler);
-
-    if (process.stdout.isTTY) {
-      const workers = new Set();
-      rootSuite.findTest(test => {
-        workers.add(test.spec.file + test._variation.workerHash);
-      });
-      console.log();
-      const jobs = Math.min(runList.config.workers, workers.size);
-      const shard = runList.config.shard;
-      const shardDetails = shard ? `, shard ${shard.current + 1} of ${shard.total}` : '';
-      console.log(`Running ${total} test${total > 1 ? 's' : ''} using ${jobs} worker${jobs > 1 ? 's' : ''}${shardDetails}`);
-    }
-
-    reporter.onBegin(runList.config, rootSuite);
-    let hasWorkerErrors = false;
-    if (!list) {
-      const dispatcher = new Dispatcher(this._loader, rootSuite, reporter, runList);
-      await Promise.race([dispatcher.run(), sigIntPromise]);
-      await dispatcher.stop();
-      hasWorkerErrors = dispatcher.hasWorkerErrors();
-    }
-    reporter.onEnd();
-
-    if (sigint)
-      return 'sigint';
-    return hasWorkerErrors || rootSuite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
   }
 }
 

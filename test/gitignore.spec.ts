@@ -20,9 +20,11 @@ test('should respect .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a.spec.js`,
     'a.spec.js': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'b.spec.js': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `
   });
@@ -34,9 +36,11 @@ test('should respect nested .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a/.gitignore': `a.spec.js`,
     'a/a.spec.js': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'a/b.spec.js': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `
   });
@@ -48,9 +52,11 @@ test('should respect enclosing .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a/a.spec.js`,
     'a/a.spec.js': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'a/b.spec.js': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `
   });
@@ -62,9 +68,11 @@ test('should respect enclosing .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '.gitignore': `a/a.spec.js`,
     'a/a.spec.js': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'a/b.spec.js': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `
   });

@@ -18,16 +18,15 @@ import { test, expect } from './config';
 
 test('test modifiers should work', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       export const test = folio.test.extend({
         beforeAll() {
           return { foo: true };
         }
       });
-      folio.runTests();
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
 
       test('passed1', async ({foo}) => {
       });
@@ -137,16 +136,15 @@ test('test modifiers should work', async ({ runInlineTest }) => {
 
 test('test modifiers should check types', async ({runTSC}) => {
   const result = await runTSC({
-    'folio.config.ts': `
+    'helper.ts': `
       export const test = folio.test.extend({
         beforeAll() {
           return { foo: true };
         }
       });
-      folio.runTests();
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
 
       test('passed1', async ({foo}) => {
         test.skip();

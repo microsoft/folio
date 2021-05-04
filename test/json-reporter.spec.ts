@@ -19,6 +19,7 @@ import { test, expect } from './config';
 test('should support spec.ok', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('math works!', async ({}) => {
         expect(1 + 1).toBe(2);
       });

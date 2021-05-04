@@ -18,7 +18,7 @@ import { test, expect } from './config';
 
 test('should run tests with different test options in the same worker', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       global.logs = [];
       class MyEnv {
         async beforeEach(args) {
@@ -26,10 +26,9 @@ test('should run tests with different test options in the same worker', async ({
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      folio.runTests();
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
       test('test', ({ foo }, testInfo) => {
         expect(foo).toBe('foo');
         expect(testInfo.workerIndex).toBe(0);
@@ -58,7 +57,7 @@ test('should run tests with different test options in the same worker', async ({
 
 test('should run tests with different worker options', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       class MyEnv {
         hasBeforeAllOptions(options) {
           return 'foo' in options;
@@ -68,10 +67,9 @@ test('should run tests with different worker options', async ({ runInlineTest })
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      folio.runTests();
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
       test('test', ({ foo }, testInfo) => {
         expect(foo).toBe(undefined);
         expect(testInfo.workerIndex).toBe(0);

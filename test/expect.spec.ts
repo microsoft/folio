@@ -18,7 +18,7 @@ import { test, expect } from './config';
 
 test('should be able to extend the expect matchers with test.extend in the folio config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       folio.expect.extend({
         toBeWithinRange(received, floor, ceiling) {
           const pass = received >= floor && received <= ceiling;
@@ -37,10 +37,9 @@ test('should be able to extend the expect matchers with test.extend in the folio
         },
       });
       export const test = folio.test;
-      folio.runTests();
     `,
     'expect-test.spec.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
       test('numeric ranges', () => {
         test.expect(100).toBeWithinRange(90, 110);
         test.expect(101).not.toBeWithinRange(0, 100);
@@ -54,6 +53,7 @@ test('should be able to extend the expect matchers with test.extend in the folio
 test('should work with default expect prototype functions', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
+      const { test } = folio;
       const expected = [1, 2, 3, 4, 5, 6];
       test.expect([4, 1, 6, 7, 3, 5, 2, 5, 4, 6]).toEqual(
         expect.arrayContaining(expected),
@@ -66,6 +66,7 @@ test('should work with default expect prototype functions', async ({runTSC}) => 
 test('should work with default expect matchers', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
+      const { test } = folio;
       test.expect(42).toBe(42);
     `
   });
@@ -84,6 +85,7 @@ test('should work with jest-community/jest-extended', async ({runTSC}) => {
       }
     `,
     'a.spec.ts': `
+      const { test } = folio;
       test.expect('').toBeEmpty();
       test.expect('hello').not.toBeEmpty();
       test.expect([]).toBeEmpty();
@@ -107,6 +109,7 @@ test('should work with custom folio namespace', async ({runTSC}) => {
       }
     `,
     'a.spec.ts': `
+      const { test } = folio;
       test.expect.extend({
         toBeWithinRange() { },
       });

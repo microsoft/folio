@@ -19,6 +19,7 @@ import { test, expect } from './config';
 test('should work directly', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('test 1', async ({}, testInfo) => {
         expect(testInfo.title).toBe('test 1');
       });
@@ -32,17 +33,16 @@ test('should work directly', async ({ runInlineTest }) => {
 
 test('should work via env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       class MyEnv {
         async beforeEach(args, testInfo) {
           return { title: testInfo.title };
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      folio.runTests();
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = require('./helper');
       test('test 1', async ({title}) => {
         expect(title).toBe('test 1');
       });

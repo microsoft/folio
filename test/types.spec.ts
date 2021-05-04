@@ -19,6 +19,7 @@ import { test, expect } from './config';
 test('sanity', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
+      const { test } = folio;
       // @ts-expect-error
       test.foo();
     `
@@ -26,10 +27,10 @@ test('sanity', async ({runTSC}) => {
   expect(result.exitCode).toBe(0);
 });
 
-test('runTests should check types of options', async ({runTSC}) => {
+test('folio.Config should check types of options', async ({runTSC}) => {
   const result = await runTSC({
-    'folio.config.ts': `
-      type MyOptions = { foo: string, bar: number };
+    'helper.ts': `
+      export type MyOptions = { foo: string, bar: number };
       export const test = folio.test.extend({
         hasBeforeAllOptions(options: MyOptions) {
           return false;
@@ -43,32 +44,38 @@ test('runTests should check types of options', async ({runTSC}) => {
           return { foo: '42' };
         }
       }
-      folio.runTests({ options: { foo: '42', bar: 42 } });
-      folio.runTests<MyOptions>({ options: { foo: '42', bar: 42 } });
-      folio.runTests({ options: { foo: '42', bar: 42 }, timeout: 100 });
+    `,
+    'folio.config.ts': `
+      import { MyOptions } from './helper';
+      const configs1: folio.Config[] = [];
+      configs1.push({ options: { foo: '42', bar: 42 } });
+      configs1.push({ options: { foo: '42', bar: 42 }, timeout: 100 });
+
+      const configs2: folio.Config<MyOptions>[] = [];
+      configs2.push({ options: { foo: '42', bar: 42 } });
       // @ts-expect-error
       folio.runTests({ options: { foo: '42', bar: 42 } }, {});
       // @ts-expect-error
-      folio.runTests<MyOptions>({ options: { foo: '42' } });
+      configs2.push({ options: { foo: '42' } });
       // @ts-expect-error
-      folio.runTests<MyOptions>({ options: { bar: '42' } });
+      configs2.push({ options: { bar: '42' } });
       // @ts-expect-error
-      folio.runTests<MyOptions>({ options: { bar: 42 } });
+      configs2.push({ options: { bar: 42 } });
       // @ts-expect-error
-      folio.runTests<MyOptions>(new Env2());
+      configs2.push(new Env2());
       // @ts-expect-error
-      folio.runTests<MyOptions>({ options: { foo: 42, bar: 42 } });
+      configs2.push({ options: { foo: 42, bar: 42 } });
       // @ts-expect-error
-      folio.runTests<MyOptions>({ beforeAll: async () => { return {}; } });
+      configs2.push({ beforeAll: async () => { return {}; } });
       // TODO: next line should not compile.
-      folio.runTests<MyOptions>({ timeout: 100 });
+      configs2.push({ timeout: 100 });
       // @ts-expect-error
-      folio.runTests<MyOptions>('alias');
+      configs2.push('alias');
       // TODO: next line should not compile.
-      folio.runTests<MyOptions>({});
+      configs2.push({});
     `,
     'a.spec.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
       test('my test', async ({ a, b }) => {
         b += parseInt(a);
       });
@@ -77,17 +84,17 @@ test('runTests should check types of options', async ({runTSC}) => {
   expect(result.exitCode).toBe(0);
 });
 
-test('runTests should allow void/empty options', async ({runTSC}) => {
+test('folio.Config should allow void/empty options', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
-      export const test = folio.test;
-      folio.runTests({});
-      folio.runTests({ timeout: 100 });
-      folio.runTests();
-      folio.runTests({ options: { foo: 42 }});
+      const configs: folio.Config[] = [];
+      configs.push({});
+      configs.push({ timeout: 100 });
+      configs.push();
+      configs.push({ options: { foo: 42 }});
     `,
     'a.spec.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('my test', async () => {
       });
     `
@@ -97,10 +104,10 @@ test('runTests should allow void/empty options', async ({runTSC}) => {
 
 test('test.extend should check types', async ({runTSC}) => {
   const result = await runTSC({
-    'folio.config.ts': `
+    'helper.ts': `
       const declared = folio.test.declare<{ foo: string }>();
       export const test = declared.test;
-      class FooEnv {
+      export class FooEnv {
         beforeEach() {
           return { foo: '17' };
         }
@@ -114,17 +121,21 @@ test('test.extend should check types', async ({runTSC}) => {
       export const test2 = test1.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
       // @ts-expect-error
       export const test3 = test.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
-
-      folio.runTests({
-        defines: [ declared.define(new FooEnv()) ]
+      export const define = declared.define;
+    `,
+    'folio.config.ts': `
+      import { define, FooEnv } from './helper';
+      const configs: folio.Config[] = [];
+      configs.push({
+        defines: [ define(new FooEnv()) ]
       });
-      folio.runTests({
+      configs.push({
         // @ts-expect-error
-        defines: [ declared.define(new BarEnv()) ]
+        defines: [ define(new BarEnv()) ]
       });
     `,
     'a.spec.ts': `
-      import { test, test1, test2 } from './folio.config';
+      import { test, test1, test2 } from './helper';
       test('my test', async ({ foo }) => {});
       // @ts-expect-error
       test('my test', async ({ bar }) => {});

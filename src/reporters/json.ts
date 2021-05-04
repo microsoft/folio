@@ -66,8 +66,7 @@ class JSONReporter extends EmptyReporter {
     outputReport({
       config: {
         ...this.config,
-        outputDir: toPosixPath(this.config.outputDir),
-        testDir: toPosixPath(this.config.testDir),
+        rootDir: toPosixPath(this.config.rootDir),
       },
       suites: this.suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s),
       errors: this._errors
@@ -80,7 +79,7 @@ class JSONReporter extends EmptyReporter {
     const suites = suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s);
     return {
       title: suite.title,
-      file: toPosixPath(path.relative(this.config.testDir, suite.file)),
+      file: toPosixPath(path.relative(this.config.rootDir, suite.file)),
       line: suite.line,
       column: suite.column,
       specs: suite.specs.map(test => this._serializeTestSpec(test)),
@@ -93,7 +92,7 @@ class JSONReporter extends EmptyReporter {
       title: spec.title,
       ok: spec.ok(),
       tests: spec.tests.map(r => this._serializeTest(r)),
-      file: toPosixPath(path.relative(this.config.testDir, spec.file)),
+      file: toPosixPath(path.relative(this.config.rootDir, spec.file)),
       line: spec.line,
       column: spec.column,
     };
@@ -124,19 +123,13 @@ class JSONReporter extends EmptyReporter {
 }
 
 function outputReport(report: ReportFormat, outputFile: string | undefined) {
+  const reportString = JSON.stringify(report, undefined, 2);
   outputFile = outputFile || process.env[`FOLIO_JSON_OUTPUT_NAME`];
   if (outputFile) {
-    try {
-      // TODO: hack
-      const existing = JSON.parse(fs.readFileSync(outputFile, 'utf-8')) as ReportFormat;
-      report.suites = [...existing.suites, ...report.suites];
-      report.errors = [...existing.errors, ...report.errors];
-    } catch (e) {
-    }
     fs.mkdirSync(path.dirname(outputFile), { recursive: true });
-    fs.writeFileSync(outputFile, JSON.stringify(report, undefined, 2));
+    fs.writeFileSync(outputFile, reportString);
   } else {
-    console.log(JSON.stringify(report, undefined, 2));
+    console.log(reportString);
   }
 }
 

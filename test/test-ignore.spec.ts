@@ -18,12 +18,15 @@ import { test, expect } from './config';
 
 const tests = {
   'a.test.ts': `
+    const { test } = folio;
     test('pass', ({}) => {});
   `,
   'b.test.ts': `
+    const { test } = folio;
     test('pass', ({}) => {});
   `,
   'c.test.ts': `
+    const { test } = folio;
     test('pass', ({}) => {});
   `
 };
@@ -35,26 +38,38 @@ test('should run all three tests', async ({ runInlineTest }) => {
 });
 
 test('should ignore a test', async ({ runInlineTest }) => {
-  const result = await runInlineTest(tests, { 'test-ignore': 'b.test.ts' });
+  const result = await runInlineTest({
+    ...tests,
+    'folio.config.ts': `
+      module.exports = { testIgnore: 'b.test.ts' };
+    `,
+  });
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
 });
 
 test('should ignore a folder', async ({ runInlineTest }) => {
   const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { testIgnore: 'folder/**' };
+    `,
     'a.test.ts': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'folder/a.test.ts': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'folder/b.test.ts': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'folder/c.test.ts': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `
-  }, { 'test-ignore': 'folder/**' });
+  });
   expect(result.passed).toBe(1);
   expect(result.exitCode).toBe(0);
 });
@@ -62,15 +77,19 @@ test('should ignore a folder', async ({ runInlineTest }) => {
 test('should ignore a node_modules', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'node_modules/a.test.ts': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'node_modules/b.test.ts': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'folder/c.test.ts': `
+      const { test } = folio;
       test('pass', ({}) => {});
     `
   });
@@ -79,13 +98,23 @@ test('should ignore a node_modules', async ({ runInlineTest }) => {
 });
 
 test('should filter tests', async ({ runInlineTest }) => {
-  const result = await runInlineTest(tests, { 'test-ignore': 'c.test.*' });
+  const result = await runInlineTest({
+    ...tests,
+    'folio.config.ts': `
+      module.exports = { testIgnore: 'c.test.*' };
+    `,
+  });
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
 });
 
 test('should use a different test match', async ({ runInlineTest }) => {
-  const result = await runInlineTest(tests, { 'test-match': '[a|b].test.ts' });
+  const result = await runInlineTest({
+    ...tests,
+    'folio.config.ts': `
+      module.exports = { testMatch: '[a|b].test.ts' };
+    `,
+  });
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
 });
@@ -93,19 +122,18 @@ test('should use a different test match', async ({ runInlineTest }) => {
 test('should use an array for testMatch', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.test;
-      folio.runTests({ testMatch: ['b.test.ts', /^a.*TS$/i] });
+      module.exports = { testMatch: ['b.test.ts', /^a.*TS$/i] };
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'b.test.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('pass', ({}) => {});
     `,
     'c.test.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('pass', ({}) => {});
     `
   });

@@ -14,39 +14,10 @@
  * limitations under the License.
  */
 
+import { DefinedEnv, FullConfig, FullProject } from './configs';
 import type { Expect } from './expectType';
 
-type ReporterDescription =
-  'dot' |
-  'line' |
-  'list' |
-  'junit' | { name: 'junit', outputFile?: string, stripANSIControlSequences?: boolean } |
-  'json' | { name: 'json', outputFile?: string } |
-  'null' |
-  Reporter;
-
-export interface Config {
-  forbidOnly?: boolean;
-  globalSetup?: string | null;
-  globalTeardown?: string | null;
-  globalTimeout?: number;
-  grep?: RegExp | RegExp[];
-  maxFailures?: number;
-  outputDir?: string;
-  repeatEach?: number;
-  reporter?: ReporterDescription | ReporterDescription[];
-  retries?: number;
-  quiet?: boolean;
-  shard?: { total: number, current: number } | null;
-  snapshotDir?: string;
-  testDir?: string;
-  testIgnore?: string | RegExp | (string | RegExp)[];
-  testMatch?: string | RegExp | (string | RegExp)[];
-  timeout?: number;
-  updateSnapshots?: boolean;
-  workers?: number;
-}
-export type FullConfig = Required<Config>;
+export type { Project, FullProject, Config, FullConfig } from './configs';
 
 interface TestModifier<TestArgs> {
   skip(): void;
@@ -84,6 +55,7 @@ export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
 export interface WorkerInfo {
   config: FullConfig;
+  project: FullProject;
   workerIndex: number;
 }
 
@@ -145,11 +117,6 @@ export interface TestType<TestArgs, WorkerArgs, Options, DeclaredTestArgs, Decla
     test: TestType<TestArgs & T & W, WorkerArgs & W, Options, T, W>;
     define(env: Env<T, W, O, TestArgs & Options, WorkerArgs & Options>): DefinedEnv;
   };
-}
-
-export interface DefinedEnv {
-  // Just a tag type.
-  __tag: 'defined-env';
 }
 
 type MaybePromise<T> = T | Promise<T>;

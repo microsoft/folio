@@ -20,6 +20,7 @@ test('handle long test names', async ({ runInlineTest }) => {
   const title = 'title'.repeat(30);
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('${title}', async ({}) => {
         expect(1).toBe(0);
       });

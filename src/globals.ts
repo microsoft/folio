@@ -16,7 +16,6 @@
 
 import type { TestInfo } from './types';
 import { Suite } from './test';
-import { RunListConfig } from './loader';
 
 let currentTestInfoValue: TestInfo | null = null;
 export function setCurrentTestInfo(testInfo: TestInfo | null) {
@@ -32,16 +31,4 @@ export function setCurrentlyLoadingFileSuite(suite: Suite | undefined) {
 }
 export function currentlyLoadingFileSuite() {
   return currentFileSuite;
-}
-
-export interface ConfigFileAPI {
-  addRunList(config: RunListConfig): void;
-}
-
-let configFile: ConfigFileAPI | undefined;
-export function setCurrentlyLoadingConfigFile(file: ConfigFileAPI | undefined) {
-  configFile = file;
-}
-export function currentlyLoadingConfigFile() {
-  return configFile;
 }

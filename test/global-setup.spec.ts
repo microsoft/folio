@@ -20,11 +20,10 @@ test('globalSetup and globalTeardown should work', async ({ runInlineTest }) => 
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
       import * as path from 'path';
-      export const test = folio.test;
-      folio.runTests({
+      module.exports = {
         globalSetup: path.join(__dirname, 'globalSetup.ts'),
         globalTeardown: path.join(__dirname, 'globalTeardown.ts'),
-      });
+      };
     `,
     'globalSetup.ts': `
       module.exports = async () => {
@@ -39,7 +38,7 @@ test('globalSetup and globalTeardown should work', async ({ runInlineTest }) => 
       };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       test('should work', async ({}, testInfo) => {
         expect(process.env.FOO).toBe('42');
       });
@@ -53,11 +52,10 @@ test('globalTeardown runs after failures', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({
     'folio.config.ts': `
       import * as path from 'path';
-      export const test = folio.test;
-      folio.runTests({
+      module.exports = {
         globalSetup: path.join(__dirname, 'globalSetup.ts'),
         globalTeardown: path.join(__dirname, 'globalTeardown.ts'),
-      });
+      };
     `,
     'globalSetup.ts': `
       module.exports = async () => {
@@ -72,7 +70,7 @@ test('globalTeardown runs after failures', async ({ runInlineTest }) => {
       };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       test('should work', async ({}, testInfo) => {
         expect(process.env.FOO).toBe('43');
       });
@@ -86,12 +84,11 @@ test('globalTeardown does not run when globalSetup times out', async ({ runInlin
   const result = await runInlineTest({
     'folio.config.ts': `
       import * as path from 'path';
-      export const test = folio.test;
-      folio.runTests({
+      module.exports = {
         globalSetup: path.join(__dirname, 'globalSetup.ts'),
         globalTeardown: path.join(__dirname, 'globalTeardown.ts'),
         globalTimeout: 1000,
-      });
+      };
     `,
     'globalSetup.ts': `
       module.exports = async () => {
@@ -104,7 +101,7 @@ test('globalTeardown does not run when globalSetup times out', async ({ runInlin
       };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       test('should not run', async ({}, testInfo) => {
       });
     `,
@@ -121,10 +118,9 @@ test('globalSetup should be run before requiring tests', async ({ runInlineTest 
   const { passed } = await runInlineTest({
     'folio.config.ts': `
       import * as path from 'path';
-      export const test = folio.test;
-      folio.runTests({
+      module.exports = {
         globalSetup: path.join(__dirname, 'globalSetup.ts'),
-      });
+      };
     `,
     'globalSetup.ts': `
       module.exports = async () => {
@@ -132,7 +128,7 @@ test('globalSetup should be run before requiring tests', async ({ runInlineTest 
       };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       let value = JSON.parse(process.env.FOO);
       test('should work', async ({}) => {
         expect(value).toEqual({ foo: 'bar' });
@@ -146,10 +142,9 @@ test('globalSetup should work with sync function', async ({ runInlineTest }) => 
   const { passed } = await runInlineTest({
     'folio.config.ts': `
       import * as path from 'path';
-      export const test = folio.test;
-      folio.runTests({
+      module.exports = {
         globalSetup: path.join(__dirname, 'globalSetup.ts'),
-      });
+      };
     `,
     'globalSetup.ts': `
       module.exports = () => {
@@ -157,7 +152,7 @@ test('globalSetup should work with sync function', async ({ runInlineTest }) => 
       };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       let value = JSON.parse(process.env.FOO);
       test('should work', async ({}) => {
         expect(value).toEqual({ foo: 'bar' });
@@ -171,15 +166,15 @@ test('globalSetup should throw when passed non-function', async ({ runInlineTest
   const { output } = await runInlineTest({
     'folio.config.ts': `
       import * as path from 'path';
-      export const test = folio.test;
-      folio.runTests({
+      module.exports = {
         globalSetup: path.join(__dirname, 'globalSetup.ts'),
-      });
+      };
     `,
     'globalSetup.ts': `
       module.exports = 42;
     `,
     'a.test.js': `
+      const { test } = folio;
       test('should work', async ({}) => {
       });
     `,

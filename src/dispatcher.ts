@@ -38,17 +38,15 @@ export class Dispatcher {
   private _queue: DispatcherEntry[] = [];
   private _stopCallback: () => void;
   readonly _loader: Loader;
-  readonly _config: FullConfig;
   private _suite: Suite;
   private _reporter: Reporter;
   private _hasWorkerErrors = false;
   private _isStopped = false;
   private _failureCount = 0;
 
-  constructor(loader: Loader, suite: Suite, reporter: Reporter, runList: RunList) {
+  constructor(loader: Loader, suite: Suite, reporter: Reporter) {
     this._loader = loader;
     this._reporter = reporter;
-    this._config = runList.config;
 
     this._suite = suite;
     for (const suite of this._suite.suites) {
@@ -61,7 +59,7 @@ export class Dispatcher {
     this._queue = this._filesSortedByWorkerHash();
 
     // Shard tests.
-    const shard = this._config.shard;
+    const shard = this._loader.fullConfig().shard;
     if (shard) {
       let total = this._suite.totalTestCount();
       const shardSize = Math.ceil(total / shard.total);
@@ -212,7 +210,7 @@ export class Dispatcher {
       if (this._freeWorkers.length)
         return Promise.resolve(this._freeWorkers.pop());
       // Create a new worker.
-      if (this._workers.size < this._config.workers)
+      if (this._workers.size < this._loader.fullConfig().workers)
         return this._createWorker(entry);
       return null;
     };
@@ -298,7 +296,7 @@ export class Dispatcher {
     result.status = status;
     if (result.status !== 'skipped' && result.status !== test.expectedStatus)
       ++this._failureCount;
-    const maxFailures = this._config.maxFailures;
+    const maxFailures = this._loader.fullConfig().maxFailures;
     if (!maxFailures || this._failureCount <= maxFailures)
       this._reporter.onTestEnd(test, result);
     if (maxFailures && this._failureCount === maxFailures)

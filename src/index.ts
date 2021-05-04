@@ -17,18 +17,7 @@
 
 import type { TestType } from './types';
 import { rootTestType } from './testType';
-import { currentlyLoadingConfigFile } from './globals';
-import { errorWithCallLocation } from './util';
-import { RunListConfig } from './loader';
 
 export * from './types';
 export { expect } from './expect';
 export const test: TestType<{}, {}, {}, {}, {}> = rootTestType.test;
-
-export function runTests<Options = {}>(config?: RunListConfig<Options>) {
-  const configFile = currentlyLoadingConfigFile();
-  if (!configFile)
-    throw errorWithCallLocation(`runTests() can only be called in a configuration file.`);
-  // TODO: add config validation.
-  configFile.addRunList(config || {});
-}

@@ -18,17 +18,16 @@ import { test, expect } from './config';
 
 test('should run env afterEach on timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       class MyEnv {
         async afterEach({}, testInfo) {
           console.log('STATUS:' + testInfo.status);
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      folio.runTests();
     `,
     'c.spec.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
       test('works', async ({}) => {
         await new Promise(f => setTimeout(f, 100000));
       });
@@ -42,6 +41,7 @@ test('should run env afterEach on timeout', async ({ runInlineTest }) => {
 test('should respect test.setTimeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.ts': `
+      const { test } = folio;
       test('fails', async ({}) => {
         await new Promise(f => setTimeout(f, 1500));
       });
@@ -71,6 +71,7 @@ test('should respect test.setTimeout', async ({ runInlineTest }) => {
 test('should timeout when calling test.setTimeout too late', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.ts': `
+      const { test } = folio;
       test('fails', async ({}) => {
         await new Promise(f => setTimeout(f, 500));
         test.setTimeout(100);
@@ -87,6 +88,7 @@ test('should timeout when calling test.setTimeout too late', async ({ runInlineT
 test('should respect test.slow', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.ts': `
+      const { test } = folio;
       test('fails', async ({}) => {
         await new Promise(f => setTimeout(f, 1500));
       });
