@@ -27,6 +27,8 @@ type ReporterDescription =
 
 export interface Config {
   forbidOnly?: boolean;
+  globalSetup?: string | null;
+  globalTeardown?: string | null;
   globalTimeout?: number;
   grep?: RegExp | RegExp[];
   maxFailures?: number;

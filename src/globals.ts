@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import type { Config, Reporter, TestInfo } from './types';
+import type { Config, TestInfo } from './types';
 import type { RunList } from './testType';
-import { errorWithCallLocation } from './util';
 import { Suite } from './test';
 
 let currentTestInfoValue: TestInfo | null = null;
@@ -37,8 +36,6 @@ export function currentlyLoadingFileSuite() {
 
 export interface ConfigFileAPI {
   setConfig(config: Config): void;
-  globalSetup(globalSetupFunction: () => any): void;
-  globalTeardown(globalTeardownFunction: () => any): void;
   addRunList(runList: RunList): void;
 }
 
