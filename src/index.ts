@@ -45,8 +45,7 @@ export function globalTeardown(globalTeardownFunction: () => any) {
   configFile.globalTeardown(globalTeardownFunction);
 }
 
-type OptionsForEnv<T> = T extends TestType<infer T, infer W, infer O, infer DT, infer DW> ? O : never;
-export function runTests<T = typeof test>(config?: RunListConfig<OptionsForEnv<T>>) {
+export function runTests<Options = {}>(config?: RunListConfig<Options>) {
   const configFile = currentlyLoadingConfigFile();
   if (!configFile)
     throw errorWithCallLocation(`runTests() can only be called in a configuration file.`);
