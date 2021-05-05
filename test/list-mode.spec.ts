@@ -20,15 +20,15 @@ import { test, expect } from './config';
 test('should have relative always-posix paths', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('math works!', async ({}) => {
         expect(1 + 1).toBe(2);
       });
     `
   }, { 'list': true });
   expect(result.exitCode).toBe(0);
-  expect(result.report.config.testDir.indexOf(path.win32.sep)).toBe(-1);
-  expect(result.report.config.outputDir.indexOf(path.win32.sep)).toBe(-1);
+  expect(result.report.config.rootDir.indexOf(path.win32.sep)).toBe(-1);
   expect(result.report.suites[0].specs[0].file).toBe('a.test.js');
-  expect(result.report.suites[0].specs[0].line).toBe(5);
+  expect(result.report.suites[0].specs[0].line).toBe(6);
   expect(result.report.suites[0].specs[0].column).toBe(7);
 });

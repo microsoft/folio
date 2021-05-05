@@ -21,6 +21,7 @@ import { test, expect } from './config';
 test('should include repeat token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
+      const { test } = folio;
       test('test', ({}, testInfo) => {
         if (testInfo.repeatEachIndex)
           expect(testInfo.outputPath('')).toContain('repeat' + testInfo.repeatEachIndex);
@@ -36,6 +37,7 @@ test('should include repeat token', async ({runInlineTest}) => {
 test('should include retry token', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
+      const { test } = folio;
       test('test', ({}, testInfo) => {
         expect(testInfo.outputPath('')).toContain('retry' + testInfo.retry);
         expect(testInfo.retry).toBe(2);
@@ -49,11 +51,10 @@ test('should include retry token', async ({runInlineTest}) => {
 test('should include tag', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.test;
-      folio.runTests({ tag: 'my-title' });
+      module.exports = { tag: 'my-title' };
     `,
     'a.spec.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       test('test', ({}, testInfo) => {
         expect(testInfo.outputPath('')).toContain('my-title');
       });
@@ -78,12 +79,13 @@ test('should remove output paths', async ({runInlineTest}, testInfo) => {
 
   const result = await runInlineTest({
     'folio.config.js': `
-      exports.test = folio.test;
-      folio.runTests({ outputDir: ${JSON.stringify(paths[0])} });
-      folio.runTests({ outputDir: ${JSON.stringify(paths[2])} });
+      module.exports = { projects: [
+        { outputDir: ${JSON.stringify(paths[0])} },
+        { outputDir: ${JSON.stringify(paths[2])} },
+      ] };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       test('my test', ({}, testInfo) => {});
     `
   }, { output: '' });

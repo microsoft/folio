@@ -30,8 +30,8 @@ export interface SerializedSuite {
 
 export type ReportFormat = {
   config: FullConfig;
-  errors?: TestError[];
-  suites?: SerializedSuite[];
+  errors: TestError[];
+  suites: SerializedSuite[];
 };
 
 function toPosixPath(aPath: string): string {
@@ -66,8 +66,7 @@ class JSONReporter extends EmptyReporter {
     outputReport({
       config: {
         ...this.config,
-        outputDir: toPosixPath(this.config.outputDir),
-        testDir: toPosixPath(this.config.testDir),
+        rootDir: toPosixPath(this.config.rootDir),
       },
       suites: this.suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s),
       errors: this._errors
@@ -80,7 +79,7 @@ class JSONReporter extends EmptyReporter {
     const suites = suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s);
     return {
       title: suite.title,
-      file: toPosixPath(path.relative(this.config.testDir, suite.file)),
+      file: toPosixPath(path.relative(this.config.rootDir, suite.file)),
       line: suite.line,
       column: suite.column,
       specs: suite.specs.map(test => this._serializeTestSpec(test)),
@@ -93,7 +92,7 @@ class JSONReporter extends EmptyReporter {
       title: spec.title,
       ok: spec.ok(),
       tests: spec.tests.map(r => this._serializeTest(r)),
-      file: toPosixPath(path.relative(this.config.testDir, spec.file)),
+      file: toPosixPath(path.relative(this.config.rootDir, spec.file)),
       line: spec.line,
       column: spec.column,
     };

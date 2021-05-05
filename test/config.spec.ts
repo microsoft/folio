@@ -18,15 +18,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { test, expect } from './config';
 
-test('should be able to redefine config', async ({ runInlineTest }) => {
+test('should be able to define config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      folio.setConfig({ timeout: 12345 });
-      export const test = folio.test;
-      folio.runTests();
+      module.exports = { timeout: 12345 };
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('pass', async ({}, testInfo) => {
         expect(testInfo.timeout).toBe(12345);
       });
@@ -37,23 +35,58 @@ test('should be able to redefine config', async ({ runInlineTest }) => {
   expect(result.passed).toBe(1);
 });
 
+test('should prioritize project timeout', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { timeout: 500, projects: [{ timeout: 10000}, {}] };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', async ({}, testInfo) => {
+        await new Promise(f => setTimeout(f, 1500));
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(1);
+  expect(result.passed).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain('Timeout of 500ms exceeded.');
+});
+
+test('should prioritize command line timeout over project timeout', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { projects: [{ timeout: 10000}] };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', async ({}, testInfo) => {
+        await new Promise(f => setTimeout(f, 1500));
+      });
+    `
+  }, { timeout: '500' });
+
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain('Timeout of 500ms exceeded.');
+});
+
 test('should read config from --config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my.config.ts': `
       import * as path from 'path';
-      folio.setConfig({
+      module.exports = {
         testDir: path.join(__dirname, 'dir'),
-      });
-      export const test = folio.test;
-      folio.runTests();
+      };
     `,
     'a.test.ts': `
-      import { test } from './my.config';
+      const { test } = folio;
       test('ignored', async ({}) => {
       });
     `,
     'dir/b.test.ts': `
-      import { test } from '../my.config';
+      const { test } = folio;
       test('run', async ({}) => {
       });
     `,
@@ -62,22 +95,21 @@ test('should read config from --config', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
   expect(result.report.suites.length).toBe(1);
-  expect(result.report.suites[0].file).toBe('b.test.ts');
+  expect(result.report.suites[0].file).toBe('dir/b.test.ts');
 });
 
 test('should default testDir to the config file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'dir/my.config.ts': `
-      export const test = folio.test;
-      folio.runTests();
+      module.exports = {};
     `,
     'a.test.ts': `
-      import { test } from './dir/my.config';
+      const { test } = folio;
       test('ignored', async ({}) => {
       });
     `,
     'dir/b.test.ts': `
-      import { test } from './my.config';
+      const { test } = folio;
       test('run', async ({}) => {
       });
     `,
@@ -93,17 +125,15 @@ test('should be able to set reporters', async ({ runInlineTest }, testInfo) => {
   const reportFile = testInfo.outputPath('my-report.json');
   const result = await runInlineTest({
     'folio.config.ts': `
-      folio.setConfig({
+      module.exports = {
         reporter: [
           { name: 'json', outputFile: ${JSON.stringify(reportFile)} },
           'list',
         ]
-      });
-      export const test = folio.test;
-      folio.runTests();
+      };
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('pass', async () => {
       });
     `
@@ -118,17 +148,18 @@ test('should support different testDirs', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       import * as path from 'path';
-      export const test = folio.test;
-      folio.runTests({ testDir: __dirname });
-      folio.runTests({ testDir: path.join(__dirname, 'dir') });
+      module.exports = { projects: [
+        { testDir: __dirname },
+        { testDir: path.join(__dirname, 'dir') },
+      ] };
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('runs once', async ({}) => {
       });
     `,
     'dir/b.test.ts': `
-      import { test } from '../folio.config';
+      const { test } = folio;
       test('runs twice', async ({}) => {
       });
     `,
@@ -142,4 +173,20 @@ test('should support different testDirs', async ({ runInlineTest }) => {
 
   expect(result.report.suites[1].specs[0].tests.length).toBe(2);
   expect(result.report.suites[1].specs[0].title).toBe('runs twice');
+});
+
+test('should throw for testDir when projects are defined', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { testDir: __dirname, projects: [{}] };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', async ({}, testInfo) => {
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('When using projects, passing "testDir" is not supported');
 });

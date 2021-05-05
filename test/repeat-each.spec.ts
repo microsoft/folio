@@ -19,6 +19,7 @@ import { test, expect } from './config';
 test('should repeat from command line', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
+      const { test } = folio;
       test('test', ({}, testInfo) => {
         console.log('REPEAT ' + testInfo.repeatEachIndex);
         expect(1).toBe(1);
@@ -36,12 +37,13 @@ test('should repeat from command line', async ({runInlineTest}) => {
 test('should repeat based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
-      exports.test = folio.test;
-      folio.runTests({ tag: 'no-repeats' });
-      folio.runTests({ repeatEach: 2, tag: 'two-repeats' });
+      module.exports = { projects: [
+        { tag: 'no-repeats' },
+        { repeatEach: 2, tag: 'two-repeats' },
+      ] };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       test('my test', ({}, testInfo) => {});
     `
   });

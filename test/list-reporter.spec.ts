@@ -19,12 +19,13 @@ import { test, expect, stripAscii } from './config';
 test('render each test with tags', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.test;
-      folio.runTests({ tag: 'foo' });
-      folio.runTests({ tag: 'bar' });
+      module.exports = { projects: [
+        { tag: 'foo' },
+        { tag: 'bar' },
+      ] };
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('fails', async ({}) => {
         expect(1).toBe(0);
       });

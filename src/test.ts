@@ -19,16 +19,15 @@ import type { TestTypeImpl } from './testType';
 
 class Base {
   title: string;
-  file: string;
-  line: number;
-  column: number;
+  file: string = '';
+  line: number = 0;
+  column: number = 0;
   parent?: Suite;
 
   _only = false;
 
-  constructor(title: string, parent?: Suite) {
+  constructor(title: string) {
     this.title = title;
-    this.parent = parent;
   }
 
   titlePath(): string[] {
@@ -50,12 +49,11 @@ export class Spec extends Base implements types.Spec {
   _ordinalInFile: number;
   _testType: TestTypeImpl;
 
-  constructor(title: string, fn: Function, suite: Suite, ordinalInFile: number, testType: TestTypeImpl) {
-    super(title, suite);
+  constructor(title: string, fn: Function, ordinalInFile: number, testType: TestTypeImpl) {
+    super(title);
     this.fn = fn;
     this._ordinalInFile = ordinalInFile;
     this._testType = testType;
-    suite._addSpec(this);
   }
 
   ok(): boolean {
@@ -79,12 +77,6 @@ export class Suite extends Base implements types.Suite {
   _options: any;
   _entries: (Suite | Spec)[] = [];
   _hooks: { type: string, fn: Function } [] = [];
-
-  constructor(title: string, parent?: Suite) {
-    super(title, parent);
-    if (parent)
-      parent._addSuite(this);
-  }
 
   _clear() {
     this.suites = [];

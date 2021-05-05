@@ -18,6 +18,7 @@ import { test, expect } from './config';
 
 const files = {
   'match-grep/b.test.ts': `
+    const { test } = folio;
     test('test AA', () => {
       expect(1 + 1).toBe(2);
     });
@@ -31,6 +32,7 @@ const files = {
     });
   `,
   'match-grep/fdir/c.test.ts': `
+    const { test } = folio;
     test('test AA', () => {
       expect(1 + 1).toBe(2);
     });
@@ -44,6 +46,7 @@ const files = {
     });
   `,
   'match-grep/adir/a.test.ts': `
+    const { test } = folio;
     test('test AA', () => {
       expect(1 + 1).toBe(2);
     });

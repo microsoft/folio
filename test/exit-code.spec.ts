@@ -24,6 +24,7 @@ function monotonicTime(): number {
 test('should collect stdio', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'stdio.spec.js': `
+      const { test } = folio;
       test('stdio', () => {
         process.stdout.write('stdout text');
         process.stdout.write(Buffer.from('stdout buffer'));
@@ -60,6 +61,7 @@ test('should work with typescript', async ({ runInlineTest }) => {
     'typescript.spec.ts': `
       import './global-foo';
 
+      const { test } = folio;
       test('should find global foo', () => {
         expect(global['foo']).toBe(true);
       });
@@ -74,14 +76,16 @@ test('should work with typescript', async ({ runInlineTest }) => {
 });
 
 test('should repeat each', async ({ runInlineTest }) => {
-  const { exitCode, report } = await runInlineTest({
+  const { exitCode, report, passed } = await runInlineTest({
     'one-success.spec.js': `
+      const { test } = folio;
       test('succeeds', () => {
         expect(1 + 1).toBe(2);
       });
     `
   }, { 'repeat-each': 3 });
   expect(exitCode).toBe(0);
+  expect(passed).toBe(3);
   expect(report.suites.length).toBe(1);
   expect(report.suites[0].specs.length).toBe(1);
   expect(report.suites[0].specs[0].tests.length).toBe(3);
@@ -90,6 +94,7 @@ test('should repeat each', async ({ runInlineTest }) => {
 test('should allow flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('flake', async ({}, testInfo) => {
         expect(testInfo.retry).toBe(1);
       });
@@ -102,6 +107,7 @@ test('should allow flaky', async ({ runInlineTest }) => {
 test('should fail on unexpected pass', async ({ runInlineTest }) => {
   const { exitCode, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
+      const { test } = folio;
       test('succeeds', () => {
         test.fail();
         expect(1 + 1).toBe(2);
@@ -117,6 +123,7 @@ test('should respect global timeout', async ({ runInlineTest }) => {
   const now = monotonicTime();
   const { exitCode, output } = await runInlineTest({
     'one-timeout.spec.js': `
+      const { test } = folio;
       test('timeout', async () => {
         await new Promise(f => setTimeout(f, 10000));
       });
@@ -128,13 +135,23 @@ test('should respect global timeout', async ({ runInlineTest }) => {
 });
 
 test('should exit with code 1 if the specified folder does not exist', async ({runInlineTest}) => {
-  const result = await runInlineTest({}, { 'test-dir': '111111111111.js' });
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { testDir: '111111111111.js' };
+    `,
+  });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`111111111111.js does not exist`);
 });
 
 test('should exit with code 1 if passed a file name', async ({runInlineTest}) => {
-  const result = await runInlineTest({'test.spec.js': ''}, { 'test-dir': 'test.spec.js' });
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { testDir: 'test.spec.js' };
+    `,
+    'test.spec.js': `
+    `,
+  });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`test.spec.js is not a directory`);
 });

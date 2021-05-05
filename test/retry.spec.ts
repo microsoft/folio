@@ -19,6 +19,7 @@ import { test, expect, stripAscii } from './config';
 test('should retry failures', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'retry-failures.spec.js': `
+      const { test } = folio;
       test('flake', async ({}, testInfo) => {
         // Passes on the second run.
         expect(testInfo.retry).toBe(1);
@@ -39,13 +40,13 @@ test('should retry failures', async ({ runInlineTest }) => {
 test('should retry based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
-      folio.setConfig({ retries: 1 });
-      exports.test = folio.test;
-      folio.runTests({ retries: 0, tag: 'no-retries' });
-      folio.runTests({ retries: 2, tag: 'two-retries' });
+      module.exports = { projects: [
+        { retries: 0, tag: 'no-retries' },
+        { retries: 2, tag: 'two-retries' },
+      ] };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = folio;
       test('pass', ({}, testInfo) => {
         // Passes on the third run.
         expect(testInfo.retry).toBe(2);
@@ -62,6 +63,7 @@ test('should retry based on config', async ({ runInlineTest }) => {
 test('should retry timeout', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'one-timeout.spec.js': `
+      const { test } = folio;
       test('timeout', async () => {
         await new Promise(f => setTimeout(f, 10000));
       });
@@ -76,6 +78,7 @@ test('should retry timeout', async ({ runInlineTest }) => {
 test('should fail on unexpected pass with retries', async ({ runInlineTest }) => {
   const { exitCode, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
+      const { test } = folio;
       test('succeeds', () => {
         test.fail();
         expect(1 + 1).toBe(2);
@@ -90,6 +93,7 @@ test('should fail on unexpected pass with retries', async ({ runInlineTest }) =>
 test('should not retry unexpected pass', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'unexpected-pass.spec.js': `
+      const { test } = folio;
       test('succeeds', () => {
         test.fail();
         expect(1 + 1).toBe(2);
@@ -105,6 +109,7 @@ test('should not retry unexpected pass', async ({ runInlineTest }) => {
 test('should not retry expected failure', async ({ runInlineTest }) => {
   const { exitCode, passed, failed, output } = await runInlineTest({
     'expected-failure.spec.js': `
+      const { test } = folio;
       test('fails', () => {
         test.fail();
         expect(1 + 1).toBe(3);
@@ -124,6 +129,7 @@ test('should not retry expected failure', async ({ runInlineTest }) => {
 test('should retry unhandled rejection', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'unhandled-rejection.spec.js': `
+      const { test } = folio;
       test('unhandled rejection', async () => {
         setTimeout(() => {
           throw new Error('Unhandled rejection in the test');
@@ -142,6 +148,7 @@ test('should retry unhandled rejection', async ({ runInlineTest }) => {
 test('should retry beforeAll failure', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.spec.js': `
+      const { test } = folio;
       test.beforeAll(async () => {
         throw new Error('BeforeAll is bugged!');
       });
@@ -158,17 +165,16 @@ test('should retry beforeAll failure', async ({ runInlineTest }) => {
 
 test('should retry env.beforeAll failure', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       class MyEnv {
         async beforeAll() {
           throw new Error('env.beforeAll is bugged!');
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      folio.runTests();
     `,
     'a.spec.ts': `
-      import { test } from './folio.config';
+      import { test } from './helper';
       test('passing test', async () => {
       });
     `

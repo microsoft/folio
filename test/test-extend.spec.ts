@@ -18,7 +18,7 @@ import { test, expect } from './config';
 
 test('test.extend should work', async ({ runInlineTest }) => {
   const { output, passed } = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       global.logs = [];
       export class MyEnv {
         constructor(suffix) {
@@ -42,16 +42,19 @@ test('test.extend should work', async ({ runInlineTest }) => {
       }
       const declared = folio.test.declare();
       export const base = declared.test;
-      folio.runTests({ defines: [ declared.define(new MyEnv('-base1')) ] });
-      folio.runTests({ defines: [ declared.define(new MyEnv('-base2')) ] });
+      export const define = declared.define;
     `,
-    'helper.ts': `
-      import { base, MyEnv } from './folio.config';
-      export const test1 = base.extend(new MyEnv('-e1'));
-      export const test2 = base.extend(new MyEnv('-e2'));
+    'folio.config.ts': `
+      import { define, MyEnv } from './helper';
+      module.exports = { projects: [
+        { defines: [ define(new MyEnv('-base1')) ] },
+        { defines: [ define(new MyEnv('-base2')) ] },
+      ] };
     `,
-    'a.test.js': `
-      const { test1, test2 } = require('./helper');
+    'a.test.ts': `
+      import { base, MyEnv } from './helper';
+      const test1 = base.extend(new MyEnv('-e1'));
+      const test2 = base.extend(new MyEnv('-e2'));
       test1('should work', async ({foo}) => {
         global.logs.push('test1');
         expect(foo).toBe('bar');
@@ -111,7 +114,7 @@ test('test.extend should work', async ({ runInlineTest }) => {
 
 test('test.extend should work with plain object syntax', async ({ runInlineTest }) => {
   const { output, passed } = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       export const test = folio.test.extend({
         async beforeEach() {
           this.foo = 'bar';
@@ -121,10 +124,9 @@ test('test.extend should work with plain object syntax', async ({ runInlineTest 
           console.log('afterEach=' + this.foo + ';' + testInfo.title);
         },
       });
-      folio.runTests();
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = require('./helper');
       test('test1', async ({foo}) => {
         expect(foo).toBe('bar');
       });
@@ -136,7 +138,7 @@ test('test.extend should work with plain object syntax', async ({ runInlineTest 
 
 test('test.extend should chain worker and test args', async ({ runInlineTest }) => {
   const { output, passed } = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       global.logs = [];
       export class Env1 {
         async beforeAll() {
@@ -189,12 +191,16 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
       }
       const declared = folio.test.extend(new Env1()).declare();
       export const test = declared.test.extend(new Env3());
-      folio.runTests({
-        defines: [ declared.define(new Env2()) ],
-      });
+      export const define = declared.define;
+    `,
+    'folio.config.ts': `
+      import { define, Env2 } from './helper';
+      module.exports = {
+        defines: [ define(new Env2()) ],
+      };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = require('./helper');
       test('should work', async ({t1, t2, t3, w1}) => {
         global.logs.push('test-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3 + ',w1=' + w1);
       });
@@ -220,7 +226,7 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
 
 test('env.options should work', async ({ runInlineTest }) => {
   const { exitCode, passed } = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       export class Env1 {
         async beforeAll(options) {
           return { bar: options.foo + '2' };
@@ -232,10 +238,12 @@ test('env.options should work', async ({ runInlineTest }) => {
         }
       }
       export const test = folio.test.extend(new Env1()).extend(new Env2());
-      folio.runTests({ options: { foo: 'foo' } });
+    `,
+    'folio.config.ts': `
+      module.exports = { options: { foo: 'foo' } };
     `,
     'a.test.js': `
-      const { test } = require('./folio.config');
+      const { test } = require('./helper');
       let value;
       test.beforeAll(({ foo, bar, baz }) => {
         value = 'foo=' + foo + ';bar=' + bar + ';baz=' + baz;

@@ -18,16 +18,12 @@ import { test, expect } from './config';
 
 test('should access error in env', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
-      export const test = folio.test.extend({
+    'test-error-visible-in-env.spec.ts': `
+      const test = folio.test.extend({
         async afterEach({}, testInfo) {
           console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
         }
       });
-      folio.runTests();
-    `,
-    'test-error-visible-in-env.spec.ts': `
-      import { test } from './folio.config';
       test('ensure env handles test error', async ({}) => {
         expect(true).toBe(false);
       });
@@ -42,20 +38,16 @@ test('should access error in env', async ({ runInlineTest }) => {
 
 test('should access data in env', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
-    'folio.config.ts': `
-      export const test = folio.test.extend({
+    'test-data-visible-in-env.spec.ts': `
+      const test = folio.test.extend({
         async afterEach({}, testInfo) {
           testInfo.data['myname'] = 'myvalue';
         }
       });
-      folio.runTests();
-    `,
-    'test-data-visible-in-env.spec.ts': `
-      import { test } from './folio.config';
       test('ensure env can set data', async ({}, testInfo) => {
         console.log('console.log');
         console.error('console.error');
-        expect(testInfo.config.testDir).toBeTruthy();
+        expect(testInfo.config.rootDir).toBeTruthy();
         expect(testInfo.file).toContain('test-data-visible-in-env');
       });
     `
@@ -70,13 +62,15 @@ test('should access data in env', async ({ runInlineTest }) => {
 test('should report tags in result', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.test;
-      folio.runTests({ tag: ['foo', 'bar'] });
-      folio.runTests({ tag: 'some tag' });
+      module.exports = {
+        projects: [
+          { tag: ['foo', 'bar'] },
+          { tag: 'some tag' },
+        ],
+      };
     `,
     'test-data-visible-in-env.spec.ts': `
-      import { test } from './folio.config';
-      test('some test', async ({}, testInfo) => {
+      folio.test('some test', async ({}, testInfo) => {
       });
     `
   });

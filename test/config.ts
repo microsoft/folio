@@ -55,8 +55,7 @@ async function writeFiles(testInfo: folio.TestInfo, files: Files) {
     files = {
       ...files,
       'folio.config.ts': `
-        export const test = folio.test;
-        folio.runTests();
+        module.exports = {};
       `,
     };
   }
@@ -66,19 +65,8 @@ async function writeFiles(testInfo: folio.TestInfo, files: Files) {
     await fs.promises.mkdir(path.dirname(fullName), { recursive: true });
     const isTypeScriptSourceFile = name.endsWith('ts') && !name.endsWith('d.ts');
     const header = isTypeScriptSourceFile ? headerTS : headerJS;
-    const testHeader = header + `const { expect } = folio;`;
     if (/(spec|test)\.(js|ts)$/.test(name)) {
-      let fileHeader = testHeader + '\n';
-      if (!hasConfig) {
-        const configPath = path.join(baseDir, 'folio.config');
-        let relativePath = path.relative(path.dirname(fullName), configPath);
-        if (os.platform() === 'win32')
-          relativePath = relativePath.replace(/\\/g, '/');
-        if (isTypeScriptSourceFile)
-          fileHeader = testHeader + `import { test } from './${relativePath}';\n`;
-        else
-          fileHeader = testHeader + `const { test } = require('./${relativePath}');\n`;
-      }
+      const fileHeader = header + 'const { expect } = folio;\n';
       await fs.promises.writeFile(fullName, fileHeader + files[name]);
     } else if (/\.(js|ts)$/.test(name) && !name.endsWith('d.ts')) {
       await fs.promises.writeFile(fullName, header + files[name]);
@@ -157,10 +145,21 @@ async function runFolio(baseDir: string, params: any, env: any): Promise<RunResu
       process.stdout.write(String(chunk));
   });
   const status = await new Promise<number>(x => testProcess.on('close', x));
-  const passed = (/(\d+) passed/.exec(output.toString()) || [])[1] || '0';
-  const failed = (/(\d+) failed/.exec(output.toString()) || [])[1] || '0';
-  const flaky = (/(\d+) flaky/.exec(output.toString()) || [])[1] || '0';
-  const skipped = (/(\d+) skipped/.exec(output.toString()) || [])[1] || '0';
+
+  const outputString = output.toString();
+  const summary = (re: RegExp) => {
+    let result = 0;
+    let match = re.exec(outputString);
+    while (match) {
+      result += (+match[1]);
+      match = re.exec(outputString);
+    }
+    return result;
+  };
+  const passed = summary(/(\d+) passed/g);
+  const failed = summary(/(\d+) failed/g);
+  const flaky = summary(/(\d+) flaky/g);
+  const skipped = summary(/(\d+) skipped/g);
   let report;
   try {
     report = JSON.parse(fs.readFileSync(reportFile).toString());
@@ -186,10 +185,10 @@ async function runFolio(baseDir: string, params: any, env: any): Promise<RunResu
   return {
     exitCode: status,
     output,
-    passed: parseInt(passed, 10),
-    failed: parseInt(failed, 10),
-    flaky: parseInt(flaky, 10),
-    skipped: parseInt(skipped, 10),
+    passed,
+    failed,
+    flaky,
+    skipped,
     report,
     results,
   };

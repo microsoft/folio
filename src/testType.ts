@@ -18,7 +18,8 @@ import { expect } from './expect';
 import { currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuite } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation } from './util';
-import { DefinedEnv, Env, TestInfo, TestType } from './types';
+import { Env, TestInfo, TestType } from './types';
+import { DefinedEnv } from './configs';
 
 Error.stackTraceLimit = 15;
 
@@ -61,10 +62,11 @@ export class TestTypeImpl {
     const ordinalInFile = countByFile.get(suite.file) || 0;
     countByFile.set(location.file, ordinalInFile + 1);
 
-    const spec = new Spec(title, fn, suite, ordinalInFile, this);
+    const spec = new Spec(title, fn, ordinalInFile, this);
     spec.file = location.file;
     spec.line = location.line;
     spec.column = location.column;
+    suite._addSpec(spec);
 
     if (type === 'only')
       spec._only = true;
@@ -76,10 +78,11 @@ export class TestTypeImpl {
       throw errorWithCallLocation(`Suite can only be defined in a test file.`);
     const location = callLocation(suite.file);
 
-    const child = new Suite(title, suite);
+    const child = new Suite(title);
     child.file = suite.file;
     child.line = location.line;
     child.column = location.column;
+    suite._addSuite(child);
 
     if (type === 'only')
       child._only = true;
@@ -141,10 +144,10 @@ export class TestTypeImpl {
   }
 }
 
-class DeclaredEnv {
+export class DeclaredEnv {
 }
 
-class DefinedEnvImpl implements DefinedEnv {
+export class DefinedEnvImpl implements DefinedEnv {
   __tag = 'defined-env' as const;
   declared: DeclaredEnv;
   env: Env;
@@ -152,76 +155,6 @@ class DefinedEnvImpl implements DefinedEnv {
   constructor(declared: DeclaredEnv, env: Env) {
     this.declared = declared;
     this.env = env;
-  }
-}
-
-export type RunListConfig<WorkerOptions = {}> = {
-  options?: WorkerOptions;
-  outputDir?: string;
-  repeatEach?: number;
-  retries?: number;
-  tag?: string | string[];
-  testDir?: string;
-  timeout?: number;
-  defines?: DefinedEnv[];
-};
-
-export class RunList {
-  index = 0;
-  tags: string[];
-  options: any;
-  config: {
-    outputDir?: string;
-    repeatEach?: number;
-    retries?: number;
-    testDir?: string;
-    timeout?: number;
-  };
-  defines = new Map<DeclaredEnv, Env>();
-
-  constructor(config: RunListConfig) {
-    const tag = 'tag' in config ? config.tag : [];
-    this.tags = Array.isArray(tag) ? tag : [tag];
-    this.options = config.options;
-    this.config = {
-      timeout: config.timeout,
-      repeatEach: config.repeatEach,
-      retries: config.retries,
-      testDir: config.testDir,
-      outputDir: config.outputDir,
-    };
-    for (const define of config.defines || []) {
-      const impl = define as DefinedEnvImpl;
-      this.defines.set(impl.declared, impl.env);
-    }
-  }
-
-  hashTestTypes() {
-    const result = new Map<TestTypeImpl, string>();
-    const visit = (t: TestTypeImpl, lastWithForkingEnv: TestTypeImpl) => {
-      const envs = this.resolveEnvs(t);
-      if (envs.length) {
-        const env = envs[envs.length - 1];
-        // Fork if we get an environment with worker-level hooks,
-        // or if we have a spot for declared environment to be filled during runWith.
-        if (!env || env.beforeAll || env.afterAll)
-          lastWithForkingEnv = t;
-      }
-      let envHash = result.get(lastWithForkingEnv);
-      if (!envHash) {
-        envHash = String(result.size);
-        result.set(lastWithForkingEnv, envHash);
-      }
-      result.set(t, envHash);
-      for (const child of t.children)
-        visit(child, lastWithForkingEnv);
-    };
-    visit(rootTestType, rootTestType);
-    return result;
-  }
-
-  resolveEnvs(testType: TestTypeImpl): Env[] {
-    return testType.envs.map(e => e instanceof DeclaredEnv ? this.defines.get(e) || {} : e);
   }
 }
 

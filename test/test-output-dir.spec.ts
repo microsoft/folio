@@ -19,6 +19,7 @@ import { test, expect } from './config';
 test('should work and remove empty dir', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my-test.spec.js': `
+      const { test } = folio;
       test('test 1', async ({}, testInfo) => {
         if (testInfo.retry) {
           expect(testInfo.outputDir).toContain(require('path').join('my-test', 'test-1-retry1'));
@@ -47,7 +48,7 @@ test('should work and remove empty dir', async ({ runInlineTest }) => {
 
 test('should include the tag', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       class Env {
         constructor(snapshotPathSegment) {
           this._snapshotPathSegment = snapshotPathSegment;
@@ -59,12 +60,16 @@ test('should include the tag', async ({ runInlineTest }) => {
       }
       export const test = folio.test.extend(new Env('snapshots1'));
       export const test2 = folio.test.extend(new Env('snapshots2'));
-      folio.runTests({ tag: 'foo' });
-      folio.runTests({ tag: 'foo' });
-      folio.runTests({ tag: ['a', 'b'] });
+    `,
+    'folio.config.ts': `
+      module.exports = { projects: [
+        { tag: 'foo' },
+        { tag: 'foo' },
+        { tag: ['a', 'b'] },
+      ] };
     `,
     'my-test.spec.js': `
-      const { test, test2 } = require('./folio.config');
+      const { test, test2 } = require('./helper');
       test('test 1', async ({}, testInfo) => {
         console.log(testInfo.outputPath('bar.txt').replace(/\\\\/g, '/'));
         console.log(testInfo.snapshotPath('bar.txt').replace(/\\\\/g, '/'));

@@ -18,16 +18,13 @@ import { test, expect, stripAscii } from './config';
 
 test('should handle env afterEach timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
-      export const test = folio.test.extend({
+    'a.spec.ts': `
+      const test = folio.test.extend({
         async afterEach() {
           await new Promise(f => setTimeout(f, 100000));
         }
       });
-      folio.runTests();
-    `,
-    'a.spec.ts': `
-      import { test } from './folio.config';
+
       test('env timeout', async ({}) => {
         expect(1).toBe(1);
       });
@@ -44,16 +41,13 @@ test('should handle env afterEach timeout', async ({ runInlineTest }) => {
 
 test('should handle env afterAll timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
-      export const test = folio.test.extend({
+    'a.spec.ts': `
+      const test = folio.test.extend({
         async afterAll() {
           await new Promise(f => setTimeout(f, 100000));
         }
       });
-      folio.runTests();
-    `,
-    'a.spec.ts': `
-      import { test } from './folio.config';
+
       test('fails', async ({}) => {
       });
     `
@@ -64,16 +58,13 @@ test('should handle env afterAll timeout', async ({ runInlineTest }) => {
 
 test('should handle env beforeEach error', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
-      export const test = folio.test.extend({
+    'a.spec.ts': `
+      const test = folio.test.extend({
         async beforeEach() {
           throw new Error('Worker failed');
         }
       });
-      folio.runTests();
-    `,
-    'a.spec.ts': `
-      import { test } from './folio.config';
+
       test('fails', async ({}) => {
       });
     `
@@ -85,16 +76,13 @@ test('should handle env beforeEach error', async ({ runInlineTest }) => {
 
 test('should handle env afterAll error', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
-      export const test = folio.test.extend({
+    'a.spec.ts': `
+      const test = folio.test.extend({
         async afterAll() {
           throw new Error('Worker failed');
         }
       });
-      folio.runTests();
-    `,
-    'a.spec.ts': `
-      import { test } from './folio.config';
+
       test('pass', async ({}) => {
         expect(true).toBe(true);
       });
@@ -107,11 +95,11 @@ test('should handle env afterAll error', async ({ runInlineTest }) => {
 test('should throw when test() is called in config file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      export const test = folio.test;
-      test('hey', () => {});
+      folio.test('hey', () => {});
+      module.exports = {};
     `,
     'a.test.ts': `
-      import { test } from './folio.config';
+      const { test } = folio;
       test('test', async ({}) => {
       });
     `,
@@ -121,7 +109,7 @@ test('should throw when test() is called in config file', async ({ runInlineTest
 
 test('should run afterAll from mulitple envs when one throws', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'a.test.ts': `
       class MyEnv1 {
         async afterAll() {
           throw new Error('Bad env');
@@ -132,11 +120,8 @@ test('should run afterAll from mulitple envs when one throws', async ({ runInlin
           console.log('env2-afterAll');
         }
       }
-      export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
-      folio.runTests();
-    `,
-    'a.test.ts': `
-      import { test } from './folio.config';
+      const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
+
       test('test', async ({}) => {
       });
     `,
@@ -145,26 +130,9 @@ test('should run afterAll from mulitple envs when one throws', async ({ runInlin
   expect(result.output).toContain('env2-afterAll');
 });
 
-test('can only call runTests in config file', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'folio.config.ts': `
-      export const test = folio.test;
-      folio.runTests();
-    `,
-    'a.test.ts': `
-      import { test } from './folio.config';
-      folio.runTests();
-      test('test', async ({}) => {
-      });
-    `,
-  });
-  expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('runTests() can only be called in a configuration file');
-});
-
 test('should not run afterAll when did not run beforeAll', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'a.test.ts': `
       class MyEnv1 {
         async beforeAll() {
           console.log('beforeAll-1');
@@ -182,16 +150,12 @@ test('should not run afterAll when did not run beforeAll', async ({ runInlineTes
           console.log('afterAll-2');
         }
       }
-      export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
-      folio.runTests();
-      folio.setConfig({ timeout: 1000 });
-    `,
-    'a.test.ts': `
-      import { test } from './folio.config';
+      const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
+
       test('test', async ({}) => {
       });
     `,
-  });
+  }, { timeout: '1000' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('beforeAll-1');
   expect(result.output).not.toContain('afterAll-1');
@@ -201,7 +165,7 @@ test('should not run afterAll when did not run beforeAll', async ({ runInlineTes
 
 test('should not run afterEach when did not run beforeEach', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'a.test.ts': `
       class MyEnv1 {
         async beforeEach() {
           console.log('beforeEach-1');
@@ -219,16 +183,12 @@ test('should not run afterEach when did not run beforeEach', async ({ runInlineT
           console.log('afterEach-2');
         }
       }
-      export const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
-      folio.runTests();
-      folio.setConfig({ timeout: 1000 });
-    `,
-    'a.test.ts': `
-      import { test } from './folio.config';
+      const test = folio.test.extend(new MyEnv1()).extend(new MyEnv2());
+
       test('test', async ({}) => {
       });
     `,
-  });
+  }, { timeout: '1000' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('beforeEach-1');
   expect(result.output).not.toContain('afterEach-1');
@@ -238,16 +198,13 @@ test('should not run afterEach when did not run beforeEach', async ({ runInlineT
 
 test('should skip inside env.beforeEach', async ({ runInlineTest }) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
-      export const test = folio.test.extend({
+    'a.test.ts': `
+      const test = folio.test.extend({
         beforeEach({}, testInfo) {
           testInfo.skip();
         }
       });
-      folio.runTests();
-    `,
-    'a.test.ts': `
-      import { test } from './folio.config';
+
       test('skipped', async ({}) => {
       });
     `,

@@ -18,9 +18,9 @@ import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
 import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, TestStatus, WorkerInitParams } from './ipc';
-import { TestResult, Reporter } from './types';
+import { TestResult, Reporter, FullConfig } from './types';
 import { Suite, Test } from './test';
-import { Loader } from './loader';
+import { Loader, RunList } from './loader';
 
 type DispatcherEntry = {
   runPayload: RunPayload;
@@ -59,7 +59,7 @@ export class Dispatcher {
     this._queue = this._filesSortedByWorkerHash();
 
     // Shard tests.
-    const shard = this._loader.config().shard;
+    const shard = this._loader.fullConfig().shard;
     if (shard) {
       let total = this._suite.totalTestCount();
       const shardSize = Math.ceil(total / shard.total);
@@ -210,7 +210,7 @@ export class Dispatcher {
       if (this._freeWorkers.length)
         return Promise.resolve(this._freeWorkers.pop());
       // Create a new worker.
-      if (this._workers.size < this._loader.config().workers)
+      if (this._workers.size < this._loader.fullConfig().workers)
         return this._createWorker(entry);
       return null;
     };
@@ -296,7 +296,7 @@ export class Dispatcher {
     result.status = status;
     if (result.status !== 'skipped' && result.status !== test.expectedStatus)
       ++this._failureCount;
-    const maxFailures = this._loader.config().maxFailures;
+    const maxFailures = this._loader.fullConfig().maxFailures;
     if (!maxFailures || this._failureCount <= maxFailures)
       this._reporter.onTestEnd(test, result);
     if (maxFailures && this._failureCount === maxFailures)

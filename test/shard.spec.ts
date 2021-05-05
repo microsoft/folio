@@ -18,6 +18,7 @@ import { test, expect } from './config';
 
 const tests = {
   'a.spec.ts': `
+      const { test } = folio;
     test('test1', async () => {
       console.log('test1-done');
     });
@@ -29,6 +30,7 @@ const tests = {
     });
   `,
   'b.spec.ts': `
+      const { test } = folio;
     test('test4', async () => {
       console.log('test4-done');
     });

@@ -19,6 +19,7 @@ import { test, expect } from './config';
 test('should get top level stdio', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'a.spec.js': `
+      const { test } = folio;
       console.log('\\n%% top level stdout');
       console.error('\\n%% top level stderr');
       test('is a test', () => {
@@ -39,7 +40,7 @@ test('should get top level stdio', async ({runInlineTest}) => {
 
 test('should get stdio from env afterAll', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    'folio.config.ts': `
+    'helper.ts': `
       class MyEnv {
         async beforeAll() {
           console.log('\\n%% worker setup');
@@ -49,10 +50,9 @@ test('should get stdio from env afterAll', async ({runInlineTest}) => {
         }
       }
       export const test = folio.test.extend(new MyEnv());
-      folio.runTests();
     `,
     'a.spec.js': `
-      const { test } = require('./folio.config');
+      const { test } = require('./helper');
       test('is a test', async ({fixture}) => {});
     `
   });

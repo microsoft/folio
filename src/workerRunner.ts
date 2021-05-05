@@ -17,13 +17,12 @@
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError } from './util';
+import { mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError, wrapInPromise } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
-import { Loader } from './loader';
+import { Loader, RunList } from './loader';
 import { Spec, Suite, Test, TestVariation } from './test';
 import { Env, FullConfig, TestInfo, WorkerInfo } from './types';
-import { RunList } from './testType';
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
@@ -42,7 +41,6 @@ export class WorkerRunner extends EventEmitter {
   private _isStopped: any;
   _currentTest: { testId: string, testInfo: TestInfo } | null = null;
   private _file: string;
-  private _config: FullConfig;
 
   constructor(params: WorkerInitParams) {
     super();
@@ -63,7 +61,7 @@ export class WorkerRunner extends EventEmitter {
     // TODO: separate timeout for afterAll?
     const result = await raceAgainstDeadline(this._envRunner.runAfterAll(), this._deadline());
     if (result.timedOut)
-      throw new Error(`Timeout of ${this._config.timeout}ms exceeded while shutting down environment`);
+      throw new Error(`Timeout of ${this._runList.project.timeout}ms exceeded while shutting down environment`);
   }
 
   unhandledError(error: Error | any) {
@@ -82,15 +80,14 @@ export class WorkerRunner extends EventEmitter {
   }
 
   private _deadline() {
-    return this._config.timeout ? monotonicTime() + this._config.timeout : undefined;
+    return this._runList.project.timeout ? monotonicTime() + this._runList.project.timeout : undefined;
   }
 
   private _loadIfNeeded() {
     if (this._loader)
       return;
 
-    this._loader = new Loader();
-    this._loader.deserialize(this._params.loader);
+    this._loader = Loader.deserialize(this._params.loader);
     this._runList = this._loader.runLists()[this._params.runListIndex];
 
     const tags = this._runList.tags.join('-');
@@ -102,10 +99,10 @@ export class WorkerRunner extends EventEmitter {
     if (this._outputPathSegment)
       this._outputPathSegment = '-' + this._outputPathSegment;
 
-    this._config = this._loader.config(this._runList);
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
-      config: { ...this._config },
+      project: this._runList.project,
+      config: this._loader.fullConfig(),
     };
   }
 
@@ -123,7 +120,7 @@ export class WorkerRunner extends EventEmitter {
     const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, workerOptions), this._deadline());
     this._workerArgs = result.result;
     if (result.timedOut) {
-      this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while initializing environment`));
+      this._fatalError = serializeError(new Error(`Timeout of ${this._runList.project.timeout}ms exceeded while initializing environment`));
       this._reportDoneAndStop();
     }
     this._envInitialized = true;
@@ -140,8 +137,8 @@ export class WorkerRunner extends EventEmitter {
     fileSuite.findSpec(spec => {
       const testVariation: TestVariation = {
         tags: this._runList.tags,
-        retries: this._config.retries,
-        outputDir: this._config.outputDir,
+        retries: this._runList.project.retries,
+        outputDir: this._runList.project.outputDir,
         repeatEachIndex: this._params.repeatEachIndex,
         runListIndex: this._runList.index,
         workerHash: `does-not-matter`,
@@ -180,7 +177,7 @@ export class WorkerRunner extends EventEmitter {
       // TODO: separate timeout for beforeAll?
       const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerArgs, this._workerInfo)), this._deadline());
       if (result.timedOut) {
-        this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while running beforeAll hook`));
+        this._fatalError = serializeError(new Error(`Timeout of ${this._runList.project.timeout}ms exceeded while running beforeAll hook`));
         this._reportDoneAndStop();
       }
     }
@@ -198,7 +195,7 @@ export class WorkerRunner extends EventEmitter {
       // TODO: separate timeout for afterAll?
       const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerArgs, this._workerInfo)), this._deadline());
       if (result.timedOut) {
-        this._fatalError = serializeError(new Error(`Timeout of ${this._config.timeout}ms exceeded while running afterAll hook`));
+        this._fatalError = serializeError(new Error(`Timeout of ${this._runList.project.timeout}ms exceeded while running afterAll hook`));
         this._reportDoneAndStop();
       }
     }
@@ -216,8 +213,7 @@ export class WorkerRunner extends EventEmitter {
     const startTime = monotonicTime();
     let deadlineRunner: DeadlineRunner<any> | undefined;
 
-    const config = this._workerInfo.config;
-    const relativePath = path.relative(config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
+    const relativePath = path.relative(this._runList.project.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
     const sanitizedTitle = spec.title.replace(/[^\w\d]+/g, '-');
     const relativeTestPath = path.join(relativePath, sanitizedTitle);
     const testId = test._id;
@@ -227,7 +223,7 @@ export class WorkerRunner extends EventEmitter {
         suffix += '-retry' + entry.retry;
       if (this._params.repeatEachIndex)
         suffix += '-repeat' + this._params.repeatEachIndex;
-      return path.join(config.outputDir, relativeTestPath + suffix);
+      return path.join(this._runList.project.outputDir, relativeTestPath + suffix);
     })();
     const testInfo: TestInfo = {
       ...this._workerInfo,
@@ -244,7 +240,7 @@ export class WorkerRunner extends EventEmitter {
       status: 'passed',
       stdout: [],
       stderr: [],
-      timeout: this._config.timeout,
+      timeout: this._runList.project.timeout,
       data: {},
       snapshotPathSegment: '',
       outputDir: baseOutputDir,
@@ -253,7 +249,7 @@ export class WorkerRunner extends EventEmitter {
         return path.join(baseOutputDir, ...pathSegments);
       },
       snapshotPath: (...pathSegments: string[]): string => {
-        const basePath = path.join(config.testDir, config.snapshotDir, relativeTestPath, testInfo.snapshotPathSegment);
+        const basePath = path.join(this._runList.project.testDir, this._runList.project.snapshotDir, relativeTestPath, testInfo.snapshotPathSegment);
         return path.join(basePath, ...pathSegments);
       },
       skip: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'skip', arg, description),
@@ -457,7 +453,7 @@ export class WorkerRunner extends EventEmitter {
       parents.push(suite);
     const testOptions = parents.reverse().reduce((options, suite) => {
       return mergeObjects(options, suite._options);
-    }, this._runList.options);
+    }, this._runList.project.options);
     return testOptions;
   }
 }
@@ -510,10 +506,6 @@ function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', 
 }
 
 class SkipError extends Error {
-}
-
-async function wrapInPromise(value: any) {
-  return value;
 }
 
 class EnvRunner {

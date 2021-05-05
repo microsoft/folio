@@ -20,6 +20,7 @@ import { test, expect, stripAscii } from './config';
 test('render expected', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('one', async ({}) => {
         expect(1).toBe(1);
       });
@@ -32,6 +33,7 @@ test('render expected', async ({ runInlineTest }) => {
 test('render unexpected', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('one', async ({}) => {
         expect(1).toBe(0);
       });
@@ -44,6 +46,7 @@ test('render unexpected', async ({ runInlineTest }) => {
 test('render unexpected after retry', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('one', async ({}) => {
         expect(1).toBe(0);
       });
@@ -58,6 +61,7 @@ test('render unexpected after retry', async ({ runInlineTest }) => {
 test('render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
+      const { test } = folio;
       test('one', async ({}, testInfo) => {
         expect(testInfo.retry).toBe(3);
       });
