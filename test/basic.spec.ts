@@ -15,6 +15,7 @@
  */
 
 import { test, expect } from './config';
+import * as path from 'path';
 
 test('should fail', async ({ runInlineTest }) => {
   const result = await runInlineTest({
@@ -235,4 +236,18 @@ test('should focus test from one runTests', async ({ runInlineTest }) => {
   expect(failed).toBe(0);
   expect(skipped).toBe(0);
   expect(exitCode).toBe(0);
+});
+
+test('should work with default export', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'file.spec.ts': `
+      import t from ${JSON.stringify(path.join(__dirname, '..'))};
+      t('passed', () => {
+        t.expect(1 + 1).toBe(2);
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+  expect(result.failed).toBe(0);
 });

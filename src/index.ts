@@ -21,3 +21,4 @@ import { rootTestType } from './testType';
 export * from './types';
 export { expect } from './expect';
 export const test: TestType<{}, {}, {}, {}, {}> = rootTestType.test;
+export default test;
