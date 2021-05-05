@@ -18,12 +18,12 @@
     "prepublishOnly": "rm -rf out && npm run build"
   },
   "dependencies": {
-    "@babel/code-frame": "^7.10.4",
-    "@babel/core": "^7.11.4",
+    "@babel/code-frame": "^7.12.13",
+    "@babel/core": "^7.14.0",
     "@babel/plugin-proposal-class-properties": "^7.10.4",
     "@babel/plugin-proposal-private-property-in-object": "^7.14.0",
-    "@babel/preset-env": "^7.11.0",
-    "@babel/preset-typescript": "^7.10.4",
+    "@babel/preset-env": "^7.14.1",
+    "@babel/preset-typescript": "^7.13.0",
     "colors": "^1.4.0",
     "commander": "^6.1.0",
     "debug": "^4.1.5",
@@ -40,7 +40,7 @@
     "stack-utils": "^2.0.2"
   },
   "devDependencies": {
-    "@types/babel__core": "^7.1.9",
+    "@types/babel__core": "^7.1.14",
     "@types/micromatch": "^4.0.1",
     "@types/minimatch": "^3.0.3",
     "@types/xml2js": "^0.4.5",
