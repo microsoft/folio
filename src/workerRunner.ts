@@ -90,12 +90,11 @@ export class WorkerRunner extends EventEmitter {
     this._loader = Loader.deserialize(this._params.loader);
     this._runList = this._loader.runLists()[this._params.runListIndex];
 
-    const tags = this._runList.tags.join('-');
-    const sameTags = this._loader.runLists().filter(runList => runList.tags.join('-') === tags);
-    if (sameTags.length > 1)
-      this._outputPathSegment = tags + (sameTags.indexOf(this._runList) + 1);
+    const sameName = this._loader.runLists().filter(runList => runList.project.name === this._runList.project.name);
+    if (sameName.length > 1)
+      this._outputPathSegment = this._runList.project.name + (sameName.indexOf(this._runList) + 1);
     else
-      this._outputPathSegment = tags;
+      this._outputPathSegment = this._runList.project.name;
     if (this._outputPathSegment)
       this._outputPathSegment = '-' + this._outputPathSegment;
 
@@ -136,7 +135,7 @@ export class WorkerRunner extends EventEmitter {
     let anySpec: Spec | undefined;
     fileSuite.findSpec(spec => {
       const testVariation: TestVariation = {
-        tags: this._runList.tags,
+        projectName: this._runList.project.name,
         retries: this._runList.project.retries,
         outputDir: this._runList.project.outputDir,
         repeatEachIndex: this._params.repeatEachIndex,

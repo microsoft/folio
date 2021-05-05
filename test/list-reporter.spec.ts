@@ -16,12 +16,12 @@
 
 import { test, expect, stripAscii } from './config';
 
-test('render each test with tags', async ({ runInlineTest }) => {
+test('render each test with project name', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       module.exports = { projects: [
-        { tag: 'foo' },
-        { tag: 'bar' },
+        { name: 'foo' },
+        { name: 'bar' },
       ] };
     `,
     'a.test.ts': `

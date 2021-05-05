@@ -46,7 +46,7 @@ test('should work and remove empty dir', async ({ runInlineTest }) => {
   expect(result.results[1].retry).toBe(1);
 });
 
-test('should include the tag', async ({ runInlineTest }) => {
+test('should include the project name', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `
       class Env {
@@ -63,9 +63,9 @@ test('should include the tag', async ({ runInlineTest }) => {
     `,
     'folio.config.ts': `
       module.exports = { projects: [
-        { tag: 'foo' },
-        { tag: 'foo' },
-        { tag: ['a', 'b'] },
+        { name: 'foo' },
+        { name: 'foo' },
+        { name: 'bar' },
       ] };
     `,
     'my-test.spec.js': `
@@ -98,10 +98,10 @@ test('should include the tag', async ({ runInlineTest }) => {
   expect(result.output).toContain('test-results/my-test/test-1-foo2-retry1/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
 
-  // test1, run with a,b
-  expect(result.output).toContain('test-results/my-test/test-1-a-b/bar.txt');
+  // test1, run with bar
+  expect(result.output).toContain('test-results/my-test/test-1-bar/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
-  expect(result.output).toContain('test-results/my-test/test-1-a-b-retry1/bar.txt');
+  expect(result.output).toContain('test-results/my-test/test-1-bar-retry1/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
 
   // test2, run with foo #1
@@ -112,7 +112,7 @@ test('should include the tag', async ({ runInlineTest }) => {
   expect(result.output).toContain('test-results/my-test/test-2-foo2/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots2/bar.txt');
 
-  // test2, run with a,b
-  expect(result.output).toContain('test-results/my-test/test-2-a-b/bar.txt');
+  // test2, run with bar
+  expect(result.output).toContain('test-results/my-test/test-2-bar/bar.txt');
   expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots2/bar.txt');
 });

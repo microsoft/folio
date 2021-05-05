@@ -59,13 +59,13 @@ test('should access data in env', async ({ runInlineTest }) => {
   expect(testResult.stderr).toEqual([{ text: 'console.error\n' }]);
 });
 
-test('should report tags in result', async ({ runInlineTest }) => {
+test('should report projectName in result', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'folio.config.ts': `
       module.exports = {
         projects: [
-          { tag: ['foo', 'bar'] },
-          { tag: 'some tag' },
+          { name: 'foo' },
+          {},
         ],
       };
     `,
@@ -74,7 +74,7 @@ test('should report tags in result', async ({ runInlineTest }) => {
       });
     `
   });
-  expect(report.suites[0].specs[0].tests[0].tags).toEqual(['foo', 'bar']);
-  expect(report.suites[0].specs[0].tests[1].tags).toEqual(['some tag']);
+  expect(report.suites[0].specs[0].tests[0].projectName).toBe('foo');
+  expect(report.suites[0].specs[0].tests[1].projectName).toBe('');
   expect(exitCode).toBe(0);
 });

@@ -160,7 +160,7 @@ export interface Test {
   expectedStatus: TestStatus;
   timeout: number;
   annotations: { type: string, description?: string }[];
-  tags: string[];
+  projectName: string;
   retries: number;
   status(): 'skipped' | 'expected' | 'unexpected' | 'flaky';
   ok(): boolean;

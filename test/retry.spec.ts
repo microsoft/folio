@@ -41,8 +41,8 @@ test('should retry based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       module.exports = { projects: [
-        { retries: 0, tag: 'no-retries' },
-        { retries: 2, tag: 'two-retries' },
+        { retries: 0, name: 'no-retries' },
+        { retries: 2, name: 'two-retries' },
       ] };
     `,
     'a.test.js': `

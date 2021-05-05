@@ -37,7 +37,7 @@ export interface Project<Options = {}> {
   repeatEach?: number;
   retries?: number;
   snapshotDir?: string;
-  tag?: string | string[]; // TODO: figure out tags vs displayName.
+  name?: string;
   testDir?: string;
   testIgnore?: string | RegExp | (string | RegExp)[];
   testMatch?: string | RegExp | (string | RegExp)[];

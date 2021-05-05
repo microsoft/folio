@@ -87,14 +87,14 @@ const multipleEnvs = {
     import { barDefine, fooDefine, MyEnv } from './helper';
     module.exports = { projects: [
       {
-        tag: 'suite1',
+        name: 'suite1',
         defines: [
           fooDefine(new MyEnv('-env1')),
           barDefine(new MyEnv('-env2')),
         ],
       },
       {
-        tag: 'suite2',
+        name: 'suite2',
         defines: [
           fooDefine(new MyEnv('-env3')),
           barDefine(new MyEnv('-env4')),
@@ -125,8 +125,8 @@ test('multiple envs and suites should work', async ({ runInlineTest }) => {
   expect(output).toContain('beforeAll-env4\nbeforeEach-env4\nbarTest\nafterEach-env4\nafterAll-env4');
 });
 
-test('should filter by tag', async ({ runInlineTest }) => {
-  const { passed, failed, output } = await runInlineTest(multipleEnvs, { tag: ['suite2'] });
+test('should filter by project', async ({ runInlineTest }) => {
+  const { passed, failed, output } = await runInlineTest(multipleEnvs, { project: 'suite2' });
   expect(passed).toBe(2);
   expect(failed).toBe(0);
   expect(output).toContain('beforeAll-env3\nbeforeEach-env3\nfooTest\nafterEach-env3\nafterAll-env3');

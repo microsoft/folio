@@ -62,7 +62,7 @@ export class Spec extends Base implements types.Spec {
 
   _appendTest(variation: TestVariation) {
     const test = new Test(this);
-    test.tags = variation.tags;
+    test.projectName = variation.projectName;
     test.retries = variation.retries;
     test._variation = variation;
     test._id = `${this._ordinalInFile}@${this.file}${variation.variationId}`;
@@ -161,7 +161,7 @@ export class Suite extends Base implements types.Suite {
 }
 
 export type TestVariation = {
-  tags: string[];
+  projectName: string;
   retries: number;
   outputDir: string;
   repeatEachIndex: number;
@@ -178,7 +178,7 @@ export class Test implements types.Test {
   expectedStatus: types.TestStatus = 'passed';
   timeout = 0;
   annotations: { type: string, description?: string }[] = [];
-  tags: string[] = [];
+  projectName = '';
   retries = 0;
 
   _id: string;

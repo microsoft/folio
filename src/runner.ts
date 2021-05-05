@@ -115,7 +115,7 @@ export class Runner {
         const hash = hashes.get(spec._testType);
         for (let i = 0; i < runList.project.repeatEach; ++i) {
           const testVariation: TestVariation = {
-            tags: runList.tags,
+            projectName: runList.project.name,
             retries: runList.project.retries,
             outputDir: runList.project.outputDir,
             repeatEachIndex: i,
@@ -129,10 +129,10 @@ export class Runner {
     }
   }
 
-  async run(list: boolean, testFileFilter: string[], tagFilter?: string[]): Promise<RunResult> {
+  async run(list: boolean, testFileFilter: string[], projectName?: string): Promise<RunResult> {
     const config = this._loader.fullConfig();
     const globalDeadline = config.globalTimeout ? config.globalTimeout + monotonicTime() : undefined;
-    const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFileFilter, tagFilter), globalDeadline);
+    const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFileFilter, projectName), globalDeadline);
     if (timedOut) {
       if (!this._didBegin)
         this._reporter.onBegin(config, new Suite(''));
@@ -142,11 +142,11 @@ export class Runner {
     return result;
   }
 
-  async _run(list: boolean, testFileFilter: string[], tagFilter?: string[]): Promise<RunResult> {
+  async _run(list: boolean, testFileFilter: string[], projectName?: string): Promise<RunResult> {
     const config = this._loader.fullConfig();
 
     const runLists = this._loader.runLists().filter(runList => {
-      return !tagFilter || runList.tags.some(tag => tagFilter.includes(tag));
+      return !projectName || runList.project.name === projectName;
     });
 
     const files = new Map<RunList, string[]>();

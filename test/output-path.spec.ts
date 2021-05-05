@@ -48,10 +48,10 @@ test('should include retry token', async ({runInlineTest}) => {
   expect(result.flaky).toBe(1);
 });
 
-test('should include tag', async ({runInlineTest}) => {
+test('should include project name', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      module.exports = { tag: 'my-title' };
+      module.exports = { name: 'my-title' };
     `,
     'a.spec.js': `
       const { test } = folio;

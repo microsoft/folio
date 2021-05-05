@@ -38,8 +38,8 @@ test('should repeat based on config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.js': `
       module.exports = { projects: [
-        { tag: 'no-repeats' },
-        { repeatEach: 2, tag: 'two-repeats' },
+        { name: 'no-repeats' },
+        { repeatEach: 2, name: 'two-repeats' },
       ] };
     `,
     'a.test.js': `
@@ -49,6 +49,6 @@ test('should repeat based on config', async ({ runInlineTest }) => {
   });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(3);
-  const tags = result.report.suites[0].specs[0].tests.map(test => test.tags[0]);
-  expect(tags).toEqual(['no-repeats', 'two-repeats', 'two-repeats']);
+  const names = result.report.suites[0].specs[0].tests.map(test => test.projectName);
+  expect(names).toEqual(['no-repeats', 'two-repeats', 'two-repeats']);
 });
