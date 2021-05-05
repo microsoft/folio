@@ -53,7 +53,7 @@ export class Loader {
     try {
       // TODO: add config validation.
       this._config = require(file);
-      for (const key of ['defines', 'options', 'snapshotDir', 'tag', 'testDir', 'testIgnore', 'testMatch']) {
+      for (const key of ['defines', 'options', 'snapshotDir', 'name', 'testDir', 'testIgnore', 'testMatch']) {
         if (('projects' in this._config) && (key in this._config))
           throw new Error(`When using projects, passing "${key}" is not supported`);
       }
@@ -149,7 +149,7 @@ export class Loader {
       repeatEach: takeFirst(this._configOverrides.repeatEach, project.repeatEach, this._config.repeatEach, 1),
       retries: takeFirst(this._configOverrides.retries, project.retries, this._config.retries, 0),
       snapshotDir: project.snapshotDir || '__snapshots__',
-      tag: project.tag || [],
+      name: project.name || '',
       testDir: project.testDir || defaultTestDir,
       testIgnore: project.testIgnore || 'node_modules/**',
       testMatch: project.testMatch || '**/?(*.)+(spec|test).[jt]s',
@@ -161,14 +161,12 @@ export class Loader {
 
 export class RunList {
   index: number;
-  tags: string[];
   project: FullProject;
   defines = new Map<DeclaredEnv, Env>();
 
   constructor(project: FullProject, index: number) {
     this.project = project;
     this.index = index;
-    this.tags = Array.isArray(project.tag) ? project.tag : [project.tag];
     for (const define of project.defines) {
       const impl = define as DefinedEnvImpl;
       this.defines.set(impl.declared, impl.env);

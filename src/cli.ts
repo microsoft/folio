@@ -76,8 +76,7 @@ async function runTests(command: any) {
   }
 
   const runner = new Runner(loader);
-  const tagFilter = command.tag && command.tag.length ? command.tag : undefined;
-  const result = await runner.run(!!command.list, command.args, tagFilter);
+  const result = await runner.run(!!command.list, command.args, command.project || undefined);
 
   // Calling process.exit() might truncate large stdout/stderr output.
   // See https://github.com/nodejs/node/issues/6456.
@@ -124,7 +123,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters} (default: "${process.env.CI ? 'dot' : 'line'}")`)
       .option('--retries <retries>', `Specify retry count (default: 0)`)
       .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
-      .option('--tag <tag...>', `Only run tests tagged with one of the specified tags (default: all tests)`)
+      .option('--project <project-name>', `Only run tests from the specified project (default: run all projects)`)
       .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: 10000)`)
       .option('-u, --update-snapshots', `Whether to update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
       .option('-x', `Stop after the first failure`);
