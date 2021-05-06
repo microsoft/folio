@@ -62,12 +62,16 @@ export function installTransform(): () => void {
     const result = babel.transformFileSync(filename, {
       babelrc: false,
       configFile: false,
+      assumptions: {
+        // Without this, babel defines a top level function that
+        // breaks playwright evaluates.
+        setPublicClassFields: true,
+      },
       presets: [
         ['@babel/preset-typescript', { onlyRemoveTypeImports: true }],
       ],
       plugins: [
         ['@babel/plugin-proposal-class-properties'],
-        ['@babel/plugin-proposal-private-methods'],
         ['@babel/plugin-proposal-numeric-separator'],
         ['@babel/plugin-proposal-logical-assignment-operators'],
         ['@babel/plugin-proposal-nullish-coalescing-operator'],
@@ -81,7 +85,7 @@ export function installTransform(): () => void {
         ['@babel/plugin-proposal-dynamic-import'],
       ],
       sourceMaps: 'both',
-    });
+    } as babel.TransformOptions);
     if (result.code) {
       fs.mkdirSync(path.dirname(cachePath), {recursive: true});
       if (result.map)
