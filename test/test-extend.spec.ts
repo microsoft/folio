@@ -40,15 +40,13 @@ test('test.extend should work', async ({ runInlineTest }) => {
           global.logs.push('afterEach' + this.suffix);
         }
       }
-      const declared = folio.test.declare();
-      export const base = declared.test;
-      export const define = declared.define;
+      export const base = folio.test.declare();
     `,
     'folio.config.ts': `
-      import { define, MyEnv } from './helper';
+      import { base, MyEnv } from './helper';
       module.exports = { projects: [
-        { defines: [ define(new MyEnv('-base1')) ] },
-        { defines: [ define(new MyEnv('-base2')) ] },
+        { define: { test: base, env: new MyEnv('-base1') } },
+        { define: { test: base, env: new MyEnv('-base2') } },
       ] };
     `,
     'a.test.ts': `
@@ -189,14 +187,13 @@ test('test.extend should chain worker and test args', async ({ runInlineTest }) 
           global.logs.push('afterEach3-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
         }
       }
-      const declared = folio.test.extend(new Env1()).declare();
-      export const test = declared.test.extend(new Env3());
-      export const define = declared.define;
+      export const declared = folio.test.extend(new Env1()).declare();
+      export const test = declared.extend(new Env3());
     `,
     'folio.config.ts': `
-      import { define, Env2 } from './helper';
+      import { declared, Env2 } from './helper';
       module.exports = {
-        defines: [ define(new Env2()) ],
+        define: { test: declared, env: new Env2() },
       };
     `,
     'a.test.js': `

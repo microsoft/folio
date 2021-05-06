@@ -17,10 +17,10 @@
 import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, TestStatus, WorkerInitParams } from './ipc';
-import { TestResult, Reporter, FullConfig } from './types';
+import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, WorkerInitParams } from './ipc';
+import { TestResult, Reporter, TestStatus } from './types';
 import { Suite, Test } from './test';
-import { Loader, RunList } from './loader';
+import { Loader } from './loader';
 
 type DispatcherEntry = {
   runPayload: RunPayload;

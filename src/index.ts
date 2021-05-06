@@ -18,7 +18,13 @@
 import type { TestType } from './types';
 import { rootTestType } from './testType';
 
-export * from './types';
+// Configuration types.
+export type { Project, FullProject, Config, FullConfig } from './types';
+// Environment types.
+export type { WorkerInfo, TestInfo, Env } from './types';
+// Reporter types.
+export type { TestStatus, Suite, Spec, Test, TestResult, TestError, Reporter } from './types';
+
 export { expect } from './expect';
-export const test: TestType<{}, {}, {}, {}, {}> = rootTestType.test;
+export const test: TestType<{}, {}, {}> = rootTestType.test;
 export default test;

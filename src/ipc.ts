@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { ConfigOverrides, FullConfig } from './configs';
-import type { TestStatus, TestError } from './types';
-export type { TestStatus } from './types';
+import type { ConfigOverrides, FullConfig, TestStatus, TestError } from './types';
 
 export type SerializedLoaderData = {
   defaultConfig: FullConfig;
