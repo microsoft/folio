@@ -59,16 +59,6 @@ export class Spec extends Base implements types.Spec {
   ok(): boolean {
     return !this.tests.find(r => !r.ok());
   }
-
-  _appendTest(variation: TestVariation) {
-    const test = new Test(this);
-    test.projectName = variation.projectName;
-    test.retries = variation.retries;
-    test._variation = variation;
-    test._id = `${this._ordinalInFile}@${this.file}${variation.variationId}`;
-    this.tests.push(test);
-    return test;
-  }
 }
 
 export class Suite extends Base implements types.Suite {
@@ -160,16 +150,6 @@ export class Suite extends Base implements types.Suite {
   }
 }
 
-export type TestVariation = {
-  projectName: string;
-  retries: number;
-  outputDir: string;
-  repeatEachIndex: number;
-  runListIndex: number;
-  workerHash: string;
-  variationId: string;
-};
-
 export class Test implements types.Test {
   spec: Spec;
   results: types.TestResult[] = [];
@@ -181,8 +161,10 @@ export class Test implements types.Test {
   projectName = '';
   retries = 0;
 
-  _id: string;
-  _variation: TestVariation;
+  _id = '';
+  _repeatEachIndex = 0;
+  _projectIndex = 0;
+  _workerHash = '';
 
   constructor(spec: Spec) {
     this.spec = spec;

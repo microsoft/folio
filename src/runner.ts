@@ -21,10 +21,10 @@ import * as path from 'path';
 import { default as ignore } from 'fstream-ignore';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { Env, Reporter } from './types';
+import { Reporter } from './types';
 import { createMatcher, monotonicTime, raceAgainstDeadline } from './util';
-import { Suite, TestVariation } from './test';
-import { Loader, RunList } from './loader';
+import { Suite } from './test';
+import { Loader } from './loader';
 import { Multiplexer } from './reporters/multiplexer';
 import DotReporter from './reporters/dot';
 import LineReporter from './reporters/line';
@@ -32,6 +32,7 @@ import ListReporter from './reporters/list';
 import JSONReporter from './reporters/json';
 import JUnitReporter from './reporters/junit';
 import EmptyReporter from './reporters/empty';
+import { ProjectImpl } from './project';
 
 const removeFolderAsync = promisify(rimraf);
 
@@ -76,59 +77,6 @@ export class Runner {
     return new Multiplexer(reporters);
   }
 
-  private _generateTests(runList: RunList, fileSuites: Suite[]) {
-    const config = this._loader.fullConfig();
-    const grepMatcher = createMatcher(config.grep);
-    const hashes = runList.hashTestTypes();
-
-    // Options that are used in beforeAll produce a new worker.
-    const optionsHashMap = new Map<Suite, string>();
-    const findOptionsHash = (envs: Env[], suite: Suite | undefined): string => {
-      if (!suite)
-        return '';
-
-      let hasBeforeAllOptions = false;
-      if (suite._options) {
-        for (const env of envs) {
-          if (env.hasBeforeAllOptions)
-            hasBeforeAllOptions = hasBeforeAllOptions || env.hasBeforeAllOptions(suite._options);
-        }
-      }
-      if (!hasBeforeAllOptions)
-        return findOptionsHash(envs, suite.parent);
-
-      if (!optionsHashMap.has(suite)) {
-        const hash = String(optionsHashMap.size);
-        optionsHashMap.set(suite, hash);
-        return hash;
-      }
-      return optionsHashMap.get(suite);
-    };
-
-    for (const fileSuite of fileSuites) {
-      const specs = fileSuite._allSpecs().filter(spec => grepMatcher(spec.fullTitle()));
-      for (const spec of specs) {
-        if (!hashes.has(spec._testType))
-          continue;
-        const envs = runList.resolveEnvs(spec._testType);
-        const optionsHash = findOptionsHash(envs, spec.parent!);
-        const hash = hashes.get(spec._testType);
-        for (let i = 0; i < runList.project.repeatEach; ++i) {
-          const testVariation: TestVariation = {
-            projectName: runList.project.name,
-            retries: runList.project.retries,
-            outputDir: runList.project.outputDir,
-            repeatEachIndex: i,
-            runListIndex: runList.index,
-            workerHash: `${hash}#run-${runList.index}#options-${optionsHash}#repeat-${i}`,
-            variationId: `#run-${runList.index}#repeat-${i}`,
-          };
-          spec._appendTest(testVariation);
-        }
-      }
-    }
-  }
-
   async run(list: boolean, testFileFilter: string[], projectName?: string): Promise<RunResult> {
     const config = this._loader.fullConfig();
     const globalDeadline = config.globalTimeout ? config.globalTimeout + monotonicTime() : undefined;
@@ -145,21 +93,21 @@ export class Runner {
   async _run(list: boolean, testFileFilter: string[], projectName?: string): Promise<RunResult> {
     const config = this._loader.fullConfig();
 
-    const runLists = this._loader.runLists().filter(runList => {
-      return !projectName || runList.project.name === projectName;
+    const projects = this._loader.projects().filter(project => {
+      return !projectName || project.config.name === projectName;
     });
 
-    const files = new Map<RunList, string[]>();
+    const files = new Map<ProjectImpl, string[]>();
     const allTestFiles = new Set<string>();
-    for (const runList of runLists) {
-      const testDir = runList.project.testDir;
+    for (const project of projects) {
+      const testDir = project.config.testDir;
       if (!fs.existsSync(testDir))
         throw new Error(`${testDir} does not exist`);
       if (!fs.statSync(testDir).isDirectory())
         throw new Error(`${testDir} is not a directory`);
-      const allFiles = await collectFiles(runList.project.testDir);
-      const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(runList.project.testMatch), createMatcher(runList.project.testIgnore));
-      files.set(runList, testFiles);
+      const allFiles = await collectFiles(project.config.testDir);
+      const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(project.config.testMatch), createMatcher(project.config.testIgnore));
+      files.set(project, testFiles);
       testFiles.forEach(file => allTestFiles.add(file));
     }
 
@@ -181,10 +129,18 @@ export class Runner {
         fileSuites.set(fileSuite.file, fileSuite);
 
       const outputDirs = new Set<string>();
-      for (const runList of runLists) {
-        const fileSuitesForRunList = files.get(runList).map(file => fileSuites.get(file)).filter(Boolean);
-        this._generateTests(runList, fileSuitesForRunList);
-        outputDirs.add(runList.project.outputDir);
+      const grepMatcher = createMatcher(config.grep);
+      for (const project of projects) {
+        for (const file of files.get(project)) {
+          const fileSuite = fileSuites.get(file);
+          if (!fileSuite)
+            continue;
+          for (const spec of fileSuite._allSpecs()) {
+            if (grepMatcher(spec.fullTitle()))
+              project.generateTests(spec);
+          }
+        }
+        outputDirs.add(project.config.outputDir);
       }
 
       const total = rootSuite.totalTestCount();
@@ -206,7 +162,7 @@ export class Runner {
       if (process.stdout.isTTY) {
         const workers = new Set();
         rootSuite.findTest(test => {
-          workers.add(test.spec.file + test._variation.workerHash);
+          workers.add(test.spec.file + test._workerHash);
         });
         console.log();
         const jobs = Math.min(config.workers, workers.size);

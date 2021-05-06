@@ -24,7 +24,7 @@ export type SerializedLoaderData = {
 export type WorkerInitParams = {
   workerIndex: number;
   repeatEachIndex: number;
-  runListIndex: number;
+  projectIndex: number;
   loader: SerializedLoaderData;
 };
 
