@@ -95,7 +95,7 @@ test('should read config from --config', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
   expect(result.report.suites.length).toBe(1);
-  expect(result.report.suites[0].file).toBe('dir/b.test.ts');
+  expect(result.report.suites[0].file).toBe('b.test.ts');
 });
 
 test('should default testDir to the config file', async ({ runInlineTest }) => {
@@ -175,10 +175,10 @@ test('should support different testDirs', async ({ runInlineTest }) => {
   expect(result.report.suites[1].specs[0].title).toBe('runs twice');
 });
 
-test('should throw for testDir when projects are defined', async ({ runInlineTest }) => {
+test('should throw for define when projects are present', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      module.exports = { testDir: __dirname, projects: [{}] };
+      module.exports = { define: [], projects: [{}] };
     `,
     'a.test.ts': `
       const { test } = folio;
@@ -188,7 +188,7 @@ test('should throw for testDir when projects are defined', async ({ runInlineTes
   });
 
   expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('When using projects, passing "testDir" is not supported');
+  expect(result.output).toContain('When using projects, passing "define" is not supported');
 });
 
 test('should allow export default form the config file', async ({ runInlineTest }) => {
@@ -207,4 +207,34 @@ test('should allow export default form the config file', async ({ runInlineTest 
   expect(result.exitCode).toBe(1);
   expect(result.failed).toBe(1);
   expect(result.output).toContain('Timeout of 1000ms exceeded.');
+});
+
+test('should allow root testDir and use it for relative paths', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'config/config.ts': `
+      import * as path from 'path';
+      module.exports = {
+        testDir: path.join(__dirname, '..'),
+        projects: [{ testDir: path.join(__dirname, '..', 'dir') }]
+      };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('fails', async ({}, testInfo) => {
+        expect(1 + 1).toBe(3);
+      });
+    `,
+    'dir/a.test.ts': `
+      const { test } = folio;
+      test('fails', async ({}, testInfo) => {
+        expect(1 + 1).toBe(3);
+      });
+    `,
+  }, { config: path.join('config', 'config.ts') });
+
+  expect(result.exitCode).toBe(1);
+  expect(result.passed).toBe(0);
+  expect(result.skipped).toBe(0);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain(`1) ${path.join('dir', 'a.test.ts')}:6:7 › fails`);
 });
