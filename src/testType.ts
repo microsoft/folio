@@ -26,11 +26,13 @@ const countByFile = new Map<string, number>();
 
 export class TestTypeImpl {
   readonly children = new Set<TestTypeImpl>();
+  readonly parent: TestTypeImpl | undefined;
   readonly envs: (Env | DeclaredEnv)[];
   readonly test: TestType<any, any, any>;
 
-  constructor(envs: (Env | DeclaredEnv)[]) {
+  constructor(envs: (Env | DeclaredEnv)[], parent: TestTypeImpl | undefined) {
     this.envs = envs;
+    this.parent = parent;
 
     const test: any = this._spec.bind(this, 'default');
     test.expect = expect;
@@ -127,14 +129,14 @@ export class TestTypeImpl {
   }
 
   private _extend(env?: Env) {
-    const child = new TestTypeImpl([...this.envs, env || {}]);
+    const child = new TestTypeImpl([...this.envs, env || {}], this);
     this.children.add(child);
     return child.test;
   }
 
   private _declare() {
     const declared = new DeclaredEnv();
-    const child = new TestTypeImpl([...this.envs, declared]);
+    const child = new TestTypeImpl([...this.envs, declared], this);
     declared.testType = child;
     this.children.add(child);
     return child.test;
@@ -145,4 +147,4 @@ export class DeclaredEnv {
   testType: TestTypeImpl;
 }
 
-export const rootTestType = new TestTypeImpl([]);
+export const rootTestType = new TestTypeImpl([], undefined);

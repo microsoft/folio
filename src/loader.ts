@@ -15,13 +15,13 @@
  */
 
 import { installTransform } from './transform';
-import type { Env, FullConfig, Config, TestType, ConfigOverrides, FullProject, Project, ReporterDescription } from './types';
+import type { FullConfig, Config, ConfigOverrides, FullProject, Project, ReporterDescription } from './types';
 import { errorWithCallLocation, prependErrorMessage } from './util';
 import { setCurrentlyLoadingFileSuite } from './globals';
 import { Suite } from './test';
-import { DeclaredEnv, rootTestType, TestTypeImpl } from './testType';
 import { SerializedLoaderData } from './ipc';
 import * as path from 'path';
+import { ProjectImpl } from './project';
 
 export class Loader {
   private _defaultConfig: FullConfig;
@@ -29,7 +29,7 @@ export class Loader {
   private _fullConfig: FullConfig;
   private _config: Config = {};
   private _configFile: string = '';
-  private _runLists: RunList[] = [];
+  private _projects: ProjectImpl[] = [];
   private _fileSuites = new Map<string, Suite>();
 
   constructor(defaultConfig: FullConfig, configOverrides: ConfigOverrides) {
@@ -77,7 +77,7 @@ export class Loader {
       this._fullConfig.workers = takeFirst(this._configOverrides.workers, this._config.workers, this._defaultConfig.workers);
 
       for (const project of projects)
-        this._addRunList(project, configDir);
+        this._addProject(project, configDir);
       this._configFile = file;
     } catch (e) {
       prependErrorMessage(e, `Error while reading ${file}:\n`);
@@ -126,8 +126,8 @@ export class Loader {
     return this._fullConfig;
   }
 
-  runLists() {
-    return this._runLists;
+  projects() {
+    return this._projects;
   }
 
   fileSuites() {
@@ -142,63 +142,21 @@ export class Loader {
     };
   }
 
-  private _addRunList(project: Project, defaultTestDir: string) {
+  private _addProject(projectConfig: Project, defaultTestDir: string) {
     const fullProject: FullProject = {
-      define: project.define || [],
-      options: project.options || {},
-      outputDir: takeFirst(this._configOverrides.outputDir, project.outputDir, this._config.outputDir, path.resolve(process.cwd(), 'test-results')),
-      repeatEach: takeFirst(this._configOverrides.repeatEach, project.repeatEach, this._config.repeatEach, 1),
-      retries: takeFirst(this._configOverrides.retries, project.retries, this._config.retries, 0),
-      snapshotDir: project.snapshotDir || '__snapshots__',
-      name: project.name || '',
-      testDir: takeFirst(project.testDir, this._config.testDir, defaultTestDir),
-      testIgnore: project.testIgnore || 'node_modules/**',
-      testMatch: project.testMatch || '**/?(*.)+(spec|test).[jt]s',
-      timeout: takeFirst(this._configOverrides.timeout, project.timeout, this._config.timeout, 10000),
+      define: projectConfig.define || [],
+      options: projectConfig.options || {},
+      outputDir: takeFirst(this._configOverrides.outputDir, projectConfig.outputDir, this._config.outputDir, path.resolve(process.cwd(), 'test-results')),
+      repeatEach: takeFirst(this._configOverrides.repeatEach, projectConfig.repeatEach, this._config.repeatEach, 1),
+      retries: takeFirst(this._configOverrides.retries, projectConfig.retries, this._config.retries, 0),
+      snapshotDir: projectConfig.snapshotDir || '__snapshots__',
+      name: projectConfig.name || '',
+      testDir: takeFirst(projectConfig.testDir, this._config.testDir, defaultTestDir),
+      testIgnore: projectConfig.testIgnore || 'node_modules/**',
+      testMatch: projectConfig.testMatch || '**/?(*.)+(spec|test).[jt]s',
+      timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, 10000),
     };
-    this._runLists.push(new RunList(fullProject, this._runLists.length));
-  }
-}
-
-export class RunList {
-  index: number;
-  project: FullProject;
-  defines = new Map<TestType<any, any, any>, Env>();
-
-  constructor(project: FullProject, index: number) {
-    this.project = project;
-    this.index = index;
-    this.defines = new Map();
-    for (const { test, env } of Array.isArray(project.define) ? project.define : [project.define])
-      this.defines.set(test, env);
-  }
-
-  hashTestTypes() {
-    const result = new Map<TestTypeImpl, string>();
-    const visit = (t: TestTypeImpl, lastWithForkingEnv: TestTypeImpl) => {
-      const envs = this.resolveEnvs(t);
-      if (envs.length) {
-        const env = envs[envs.length - 1];
-        // Fork if we get an environment with worker-level hooks,
-        // or if we have a spot for declared environment to be filled during runWith.
-        if (!env || env.beforeAll || env.afterAll)
-          lastWithForkingEnv = t;
-      }
-      let envHash = result.get(lastWithForkingEnv);
-      if (!envHash) {
-        envHash = String(result.size);
-        result.set(lastWithForkingEnv, envHash);
-      }
-      result.set(t, envHash);
-      for (const child of t.children)
-        visit(child, lastWithForkingEnv);
-    };
-    visit(rootTestType, rootTestType);
-    return result;
-  }
-
-  resolveEnvs(testType: TestTypeImpl): Env[] {
-    return testType.envs.map(e => e instanceof DeclaredEnv ? this.defines.get(e.testType.test) || {} : e);
+    this._projects.push(new ProjectImpl(fullProject, this._projects.length));
   }
 }
 

@@ -26,7 +26,7 @@ type DispatcherEntry = {
   runPayload: RunPayload;
   hash: string;
   repeatEachIndex: number;
-  runListIndex: number;
+  projectIndex: number;
 };
 
 export class Dispatcher {
@@ -85,10 +85,10 @@ export class Dispatcher {
       const file = fileSuite.file;
       for (const spec of fileSuite._allSpecs()) {
         for (const test of spec.tests) {
-          let entriesByFile = entriesByWorkerHashAndFile.get(test._variation.workerHash);
+          let entriesByFile = entriesByWorkerHashAndFile.get(test._workerHash);
           if (!entriesByFile) {
             entriesByFile = new Map();
-            entriesByWorkerHashAndFile.set(test._variation.workerHash, entriesByFile);
+            entriesByWorkerHashAndFile.set(test._workerHash, entriesByFile);
           }
           let entry = entriesByFile.get(file);
           if (!entry) {
@@ -97,9 +97,9 @@ export class Dispatcher {
                 entries: [],
                 file,
               },
-              repeatEachIndex: test._variation.repeatEachIndex,
-              runListIndex: test._variation.runListIndex,
-              hash: test._variation.workerHash,
+              repeatEachIndex: test._repeatEachIndex,
+              projectIndex: test._projectIndex,
+              hash: test._workerHash,
             };
             entriesByFile.set(file, entry);
           }
@@ -347,7 +347,7 @@ class Worker extends EventEmitter {
     const params: WorkerInitParams = {
       workerIndex: this.index,
       repeatEachIndex: entry.repeatEachIndex,
-      runListIndex: entry.runListIndex,
+      projectIndex: entry.projectIndex,
       loader: this.runner._loader.serialize(),
     };
     this.process.send({ method: 'init', params });
