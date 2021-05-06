@@ -54,14 +54,14 @@ export class Loader {
       this._config = require(file);
       if ('default' in this._config)
         this._config = this._config['default'];
-      for (const key of ['define', 'options', 'snapshotDir', 'name', 'testDir', 'testIgnore', 'testMatch']) {
+      for (const key of ['define', 'options', 'snapshotDir', 'name', 'testIgnore', 'testMatch']) {
         if (('projects' in this._config) && (key in this._config))
           throw new Error(`When using projects, passing "${key}" is not supported`);
       }
       const projects: Project[] = 'projects' in this._config ? this._config.projects : [this._config];
       const configDir = path.dirname(file);
 
-      this._fullConfig.rootDir = configDir;
+      this._fullConfig.rootDir = this._config.testDir || configDir;
       this._fullConfig.forbidOnly = takeFirst(this._configOverrides.forbidOnly, this._config.forbidOnly, this._defaultConfig.forbidOnly);
       this._fullConfig.globalSetup = takeFirst(this._config.globalSetup, this._defaultConfig.globalSetup);
       this._fullConfig.globalTeardown = takeFirst(this._config.globalTeardown, this._defaultConfig.globalTeardown);
@@ -151,7 +151,7 @@ export class Loader {
       retries: takeFirst(this._configOverrides.retries, project.retries, this._config.retries, 0),
       snapshotDir: project.snapshotDir || '__snapshots__',
       name: project.name || '',
-      testDir: project.testDir || defaultTestDir,
+      testDir: takeFirst(project.testDir, this._config.testDir, defaultTestDir),
       testIgnore: project.testIgnore || 'node_modules/**',
       testMatch: project.testMatch || '**/?(*.)+(spec|test).[jt]s',
       timeout: takeFirst(this._configOverrides.timeout, project.timeout, this._config.timeout, 10000),
