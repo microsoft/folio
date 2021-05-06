@@ -20,6 +20,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import type { ReportFormat } from '../src/reporters/json';
+import rimraf from 'rimraf';
+import { promisify } from 'util';
+const removeFolderAsync = promisify(rimraf);
 
 type RunResult = {
   exitCode: number,
@@ -125,11 +128,13 @@ async function runFolio(baseDir: string, params: any, env: any): Promise<RunResu
   );
   if (additionalArgs)
     args.push(...additionalArgs);
+  const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'folio-test-cache-'));
   const testProcess = spawn('node', args, {
     env: {
       ...process.env,
       ...env,
       FOLIO_JSON_OUTPUT_NAME: reportFile,
+      FOLIO_CACHE_DIR: cacheDir,
     },
     cwd: baseDir
   });
@@ -145,6 +150,7 @@ async function runFolio(baseDir: string, params: any, env: any): Promise<RunResu
       process.stdout.write(String(chunk));
   });
   const status = await new Promise<number>(x => testProcess.on('close', x));
+  await removeFolderAsync(cacheDir);
 
   const outputString = output.toString();
   const summary = (re: RegExp) => {

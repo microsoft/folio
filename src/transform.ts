@@ -23,7 +23,7 @@ import * as babel from '@babel/core';
 import * as sourceMapSupport from 'source-map-support';
 
 const version = 3;
-const cacheDir = path.join(os.tmpdir(), 'playwright-transform-cache');
+const cacheDir = process.env.FOLIO_CACHE_DIR || path.join(os.tmpdir(), 'playwright-transform-cache');
 const sourceMaps: Map<string, string> = new Map();
 
 sourceMapSupport.install({
@@ -56,18 +56,29 @@ export function installTransform(): () => void {
     sourceMaps.set(filename, sourceMapPath);
     if (fs.existsSync(codePath))
       return fs.readFileSync(codePath, 'utf8');
-
+    // We don't use any browserslist data, but babel checks it anyway.
+    // Silence the annoying warning.
+    process.env.BROWSERSLIST_IGNORE_OLD_DATA = 'true';
     const result = babel.transformFileSync(filename, {
       babelrc: false,
       configFile: false,
       presets: [
-        ['@babel/preset-env', { targets: { node: '10.17.0' }, loose: false }],
-        ['@babel/preset-typescript', { onlyRemoveTypeImports: true, loose: false }],
+        ['@babel/preset-typescript', { onlyRemoveTypeImports: true }],
       ],
       plugins: [
-        ['@babel/plugin-proposal-private-methods', { loose: false }],
-        ['@babel/plugin-proposal-class-properties', { loose: false }],
-        ['@babel/plugin-proposal-private-property-in-object', {loose: false }],
+        ['@babel/plugin-proposal-class-properties'],
+        ['@babel/plugin-proposal-private-methods'],
+        ['@babel/plugin-proposal-numeric-separator'],
+        ['@babel/plugin-proposal-logical-assignment-operators'],
+        ['@babel/plugin-proposal-nullish-coalescing-operator'],
+        ['@babel/plugin-proposal-optional-chaining'],
+        ['@babel/plugin-syntax-json-strings'],
+        ['@babel/plugin-syntax-optional-catch-binding'],
+        ['@babel/plugin-syntax-async-generators'],
+        ['@babel/plugin-syntax-object-rest-spread'],
+        ['@babel/plugin-proposal-export-namespace-from'],
+        ['@babel/plugin-transform-modules-commonjs'],
+        ['@babel/plugin-proposal-dynamic-import'],
       ],
       sourceMaps: 'both',
     });
