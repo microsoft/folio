@@ -190,3 +190,21 @@ test('should throw for testDir when projects are defined', async ({ runInlineTes
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('When using projects, passing "testDir" is not supported');
 });
+
+test('should allow export default form the config file', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      export default { timeout: 1000 };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('fails', async ({}, testInfo) => {
+        await new Promise(f => setTimeout(f, 2000));
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain('Timeout of 1000ms exceeded.');
+});
