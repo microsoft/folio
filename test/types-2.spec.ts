@@ -64,29 +64,33 @@ test('test.declare should check types', async ({runTSC}) => {
   const result = await runTSC({
     'helper.ts': `
       export const test = folio.test;
-      const declared = test.declare<{ foo: string }>();
-      export const define = declared.define;
-      export const test1 = declared.test;
+      export const test1 = test.declare<{ foo: string }>();
       export const test2 = test1.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) }; } });
       // @ts-expect-error
       export const test3 = test1.extend({ beforeEach: ({ bar }) => { return {}; } });
     `,
     'folio.config.ts': `
-      import { define } from './helper';
+      import { test1 } from './helper';
       const configs: folio.Config[] = [];
       configs.push({});
       configs.push({
-        defines: [ define({ beforeEach: () => { return { foo: 'foo' }; } }) ],
+        define: {
+          test: test1,
+          env: { beforeEach: () => { return { foo: 12 }; } }
+        },
+      });
+
+      configs.push({
+        define: {
+          test: test1,
+          // @ts-expect-error
+          env: { foo: 'bar' },
+        },
       });
 
       configs.push({
         // @ts-expect-error
-        defines: [ define({ beforeEach: () => { return { foo: 42 }; } }) ],
-      });
-
-      configs.push({
-        // @ts-expect-error
-        defines: [ test2 ],
+        define: { test: {}, env: {} },
       });
       module.exports = configs;
     `,

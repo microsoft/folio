@@ -76,28 +76,24 @@ const multipleEnvs = {
       }
     }
     exports.MyEnv = MyEnv;
-    const fooDeclare = folio.test.declare();
-    exports.fooTest = fooDeclare.test;
-    exports.fooDefine = fooDeclare.define;
-    const barDeclare = folio.test.declare();
-    exports.barTest = barDeclare.test;
-    exports.barDefine = barDeclare.define;
+    exports.fooTest = folio.test.declare();
+    exports.barTest = folio.test.declare();
   `,
   'folio.config.ts': `
-    import { barDefine, fooDefine, MyEnv } from './helper';
+    import { fooTest, barTest, MyEnv } from './helper';
     module.exports = { projects: [
       {
         name: 'suite1',
-        defines: [
-          fooDefine(new MyEnv('-env1')),
-          barDefine(new MyEnv('-env2')),
+        define: [
+          { test: fooTest, env: new MyEnv('-env1') },
+          { test: barTest, env: new MyEnv('-env2') },
         ],
       },
       {
         name: 'suite2',
-        defines: [
-          fooDefine(new MyEnv('-env3')),
-          barDefine(new MyEnv('-env4')),
+        define: [
+          { test: fooTest, env: new MyEnv('-env3') },
+          { test: barTest, env: new MyEnv('-env4') },
         ],
       },
     ] };
@@ -347,20 +343,18 @@ test('should run tests in order', async ({ runInlineTest }) => {
 test('should not create a new worker for extend+declare+extend', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `
-      const declared = folio.test.extend({
+      export const declared = folio.test.extend({
         beforeAll() {},
       }).declare();
-      export const test = declared.test.extend({
+      export const test = declared.extend({
         beforeEach() {},
       });
-      export const define = declared.define;
     `,
     'folio.config.ts': `
-      import { define } from './helper';
+      import { declared } from './helper';
+      const env = { beforeAll() {} };
       module.exports = {
-        defines: [
-          define({ beforeAll() {} })
-        ],
+        define: { test: declared, env },
       };
     `,
     'a.test.ts': `

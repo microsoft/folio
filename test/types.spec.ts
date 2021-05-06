@@ -105,34 +105,11 @@ test('folio.Config should allow void/empty options', async ({runTSC}) => {
 test('test.extend should check types', async ({runTSC}) => {
   const result = await runTSC({
     'helper.ts': `
-      const declared = folio.test.declare<{ foo: string }>();
-      export const test = declared.test;
-      export class FooEnv {
-        beforeEach() {
-          return { foo: '17' };
-        }
-      }
-      class BarEnv {
-        beforeEach() {
-          return { foo: 17 };
-        }
-      }
+      export const test = folio.test.declare<{ foo: string }>();
       export const test1 = test.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) + 42 }; } });
       export const test2 = test1.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
       // @ts-expect-error
       export const test3 = test.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
-      export const define = declared.define;
-    `,
-    'folio.config.ts': `
-      import { define, FooEnv } from './helper';
-      const configs: folio.Config[] = [];
-      configs.push({
-        defines: [ define(new FooEnv()) ]
-      });
-      configs.push({
-        // @ts-expect-error
-        defines: [ define(new BarEnv()) ]
-      });
     `,
     'a.spec.ts': `
       import { test, test1, test2 } from './helper';

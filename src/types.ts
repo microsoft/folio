@@ -14,10 +14,81 @@
  * limitations under the License.
  */
 
-import { DefinedEnv, FullConfig, FullProject } from './configs';
 import type { Expect } from './expectType';
 
-export type { Project, FullProject, Config, FullConfig } from './configs';
+export type ReporterDescription =
+  'dot' |
+  'line' |
+  'list' |
+  'junit' | { name: 'junit', outputFile?: string, stripANSIControlSequences?: boolean } |
+  'json' | { name: 'json', outputFile?: string } |
+  'null' |
+  string;
+
+export type Shard = { total: number, current: number } | null;
+
+type EnvDefine = { test: TestType<any, any, any>, env: Env };
+
+export interface Project<Options = {}> {
+  define?: EnvDefine | EnvDefine[];
+  options?: Options;
+  outputDir?: string;
+  repeatEach?: number;
+  retries?: number;
+  snapshotDir?: string;
+  name?: string;
+  testDir?: string;
+  testIgnore?: string | RegExp | (string | RegExp)[];
+  testMatch?: string | RegExp | (string | RegExp)[];
+  timeout?: number;
+}
+export type FullProject<Options = {}> = Required<Project<Options>>;
+
+export interface Config<Options = {}> extends Project<Options> {
+  forbidOnly?: boolean;
+  globalSetup?: string | null;
+  globalTeardown?: string | null;
+  globalTimeout?: number;
+  grep?: RegExp | RegExp[];
+  maxFailures?: number;
+  projects?: Project[];
+  reporter?: ReporterDescription | ReporterDescription[];
+  quiet?: boolean;
+  shard?: Shard;
+  updateSnapshots?: boolean;
+  workers?: number;
+}
+
+export interface FullConfig {
+  forbidOnly: boolean;
+  globalSetup: string | null;
+  globalTeardown: string | null;
+  globalTimeout: number;
+  grep: RegExp | RegExp[];
+  maxFailures: number;
+  reporter: ReporterDescription[];
+  rootDir: string;
+  quiet: boolean;
+  shard: Shard;
+  updateSnapshots: boolean;
+  workers: number;
+}
+
+export interface ConfigOverrides {
+  forbidOnly?: boolean;
+  globalTimeout?: number;
+  grep?: RegExp | RegExp[];
+  maxFailures?: number;
+  repeatEach?: number;
+  outputDir?: string;
+  retries?: number;
+  reporter?: ReporterDescription[];
+  quiet?: boolean;
+  shard?: Shard;
+  timeout?: number;
+  updateSnapshots?: boolean;
+  workers?: number;
+}
 
 interface TestModifier<TestArgs> {
   skip(): void;
@@ -97,7 +168,7 @@ interface TestFunction<TestArgs> {
   (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
 }
 
-export interface TestType<TestArgs, WorkerArgs, Options, DeclaredTestArgs, DeclaredWorkerArgs> extends TestFunction<TestArgs>, TestModifier<TestArgs> {
+export interface TestType<TestArgs, WorkerArgs, Options> extends TestFunction<TestArgs>, TestModifier<TestArgs> {
   only: TestFunction<TestArgs>;
   describe: SuiteFunction & {
     only: SuiteFunction;
@@ -111,17 +182,13 @@ export interface TestType<TestArgs, WorkerArgs, Options, DeclaredTestArgs, Decla
 
   expect: Expect;
 
-  extend(): TestType<TestArgs, WorkerArgs, Options, DeclaredTestArgs, DeclaredWorkerArgs>;
-  extend<T, W, O>(env: Env<T, W, O, TestArgs & Options, WorkerArgs & Options>): TestType<TestArgs & T & W, WorkerArgs & W, Options & O, DeclaredTestArgs, DeclaredWorkerArgs>;
-  declare<T = {}, W = {}, O = {}>(): {
-    test: TestType<TestArgs & T & W, WorkerArgs & W, Options, T, W>;
-    define(env: Env<T, W, O, TestArgs & Options, WorkerArgs & Options>): DefinedEnv;
-  };
+  extend(): TestType<TestArgs, WorkerArgs, Options>;
+  extend<T, W, O>(env: Env<T, W, O, TestArgs & Options, WorkerArgs & Options>): TestType<TestArgs & T & W, WorkerArgs & W, Options & O>;
+  declare<T = {}, W = {}, O = {}>(): TestType<TestArgs & T & W, WorkerArgs & W, Options & O>;
 }
 
 type MaybePromise<T> = T | Promise<T>;
-type MaybeVoidIf<T, R> = {} extends T ? R | void : R;
-type MaybeVoid<T> = MaybeVoidIf<T, T>;
+type MaybeVoid<T> = {} extends T ? T | void : T;
 
 export interface Env<TestArgs = {}, WorkerArgs = {}, Options = {}, PreviousTestArgs = {}, PreviousWorkerArgs = {}> {
   hasBeforeAllOptions?(options: Options): boolean;

@@ -15,13 +15,12 @@
  */
 
 import { installTransform } from './transform';
-import { Env, FullConfig, Config } from './types';
+import type { Env, FullConfig, Config, TestType, ConfigOverrides, FullProject, Project, ReporterDescription } from './types';
 import { errorWithCallLocation, prependErrorMessage } from './util';
 import { setCurrentlyLoadingFileSuite } from './globals';
 import { Suite } from './test';
-import { DeclaredEnv, DefinedEnvImpl, rootTestType, TestTypeImpl } from './testType';
+import { DeclaredEnv, rootTestType, TestTypeImpl } from './testType';
 import { SerializedLoaderData } from './ipc';
-import { ConfigOverrides, FullProject, Project, ReporterDescription } from './configs';
 import * as path from 'path';
 
 export class Loader {
@@ -143,7 +142,7 @@ export class Loader {
 
   private _addRunList(project: Project, defaultTestDir: string) {
     const fullProject: FullProject = {
-      defines: project.defines || [],
+      define: project.define || [],
       options: project.options || {},
       outputDir: takeFirst(this._configOverrides.outputDir, project.outputDir, this._config.outputDir, path.resolve(process.cwd(), 'test-results')),
       repeatEach: takeFirst(this._configOverrides.repeatEach, project.repeatEach, this._config.repeatEach, 1),
@@ -162,15 +161,14 @@ export class Loader {
 export class RunList {
   index: number;
   project: FullProject;
-  defines = new Map<DeclaredEnv, Env>();
+  defines = new Map<TestType<any, any, any>, Env>();
 
   constructor(project: FullProject, index: number) {
     this.project = project;
     this.index = index;
-    for (const define of project.defines) {
-      const impl = define as DefinedEnvImpl;
-      this.defines.set(impl.declared, impl.env);
-    }
+    this.defines = new Map();
+    for (const { test, env } of Array.isArray(project.define) ? project.define : [project.define])
+      this.defines.set(test, env);
   }
 
   hashTestTypes() {
@@ -198,7 +196,7 @@ export class RunList {
   }
 
   resolveEnvs(testType: TestTypeImpl): Env[] {
-    return testType.envs.map(e => e instanceof DeclaredEnv ? this.defines.get(e) || {} : e);
+    return testType.envs.map(e => e instanceof DeclaredEnv ? this.defines.get(e.testType.test) || {} : e);
   }
 }
 

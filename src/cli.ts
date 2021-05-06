@@ -20,7 +20,7 @@ import * as path from 'path';
 import { Runner } from './runner';
 import { FullConfig } from './types';
 import { Loader } from './loader';
-import { ConfigOverrides } from './configs';
+import { ConfigOverrides } from './types';
 
 const availableReporters = new Set(['dot', 'json', 'junit', 'line', 'list', 'null']);
 

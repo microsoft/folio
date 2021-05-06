@@ -19,7 +19,6 @@ import { currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuit
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation } from './util';
 import { Env, TestInfo, TestType } from './types';
-import { DefinedEnv } from './configs';
 
 Error.stackTraceLimit = 15;
 
@@ -28,7 +27,7 @@ const countByFile = new Map<string, number>();
 export class TestTypeImpl {
   readonly children = new Set<TestTypeImpl>();
   readonly envs: (Env | DeclaredEnv)[];
-  readonly test: TestType<any, any, any, any, any>;
+  readonly test: TestType<any, any, any>;
 
   constructor(envs: (Env | DeclaredEnv)[]) {
     this.envs = envs;
@@ -128,7 +127,7 @@ export class TestTypeImpl {
   }
 
   private _extend(env?: Env) {
-    const child = new TestTypeImpl([...this.envs, env]);
+    const child = new TestTypeImpl([...this.envs, env || {}]);
     this.children.add(child);
     return child.test;
   }
@@ -136,26 +135,14 @@ export class TestTypeImpl {
   private _declare() {
     const declared = new DeclaredEnv();
     const child = new TestTypeImpl([...this.envs, declared]);
+    declared.testType = child;
     this.children.add(child);
-    return {
-      test: child.test,
-      define: (env: Env) => new DefinedEnvImpl(declared, env),
-    };
+    return child.test;
   }
 }
 
 export class DeclaredEnv {
-}
-
-export class DefinedEnvImpl implements DefinedEnv {
-  __tag = 'defined-env' as const;
-  declared: DeclaredEnv;
-  env: Env;
-
-  constructor(declared: DeclaredEnv, env: Env) {
-    this.declared = declared;
-    this.env = env;
-  }
+  testType: TestTypeImpl;
 }
 
 export const rootTestType = new TestTypeImpl([]);
