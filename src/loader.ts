@@ -52,7 +52,9 @@ export class Loader {
     try {
       // TODO: add config validation.
       this._config = require(file);
-      for (const key of ['defines', 'options', 'snapshotDir', 'name', 'testDir', 'testIgnore', 'testMatch']) {
+      if ('default' in this._config)
+        this._config = this._config['default'];
+      for (const key of ['define', 'options', 'snapshotDir', 'name', 'testDir', 'testIgnore', 'testMatch']) {
         if (('projects' in this._config) && (key in this._config))
           throw new Error(`When using projects, passing "${key}" is not supported`);
       }
