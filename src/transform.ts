@@ -22,7 +22,7 @@ import * as pirates from 'pirates';
 import * as babel from '@babel/core';
 import * as sourceMapSupport from 'source-map-support';
 
-const version = 3;
+const version = 4;
 const cacheDir = process.env.FOLIO_CACHE_DIR || path.join(os.tmpdir(), 'playwright-transform-cache');
 const sourceMaps: Map<string, string> = new Map();
 
@@ -68,21 +68,21 @@ export function installTransform(): () => void {
         setPublicClassFields: true,
       },
       presets: [
-        ['@babel/preset-typescript', { onlyRemoveTypeImports: true }],
+        [require.resolve('@babel/preset-typescript'), { onlyRemoveTypeImports: true }],
       ],
       plugins: [
-        ['@babel/plugin-proposal-class-properties'],
-        ['@babel/plugin-proposal-numeric-separator'],
-        ['@babel/plugin-proposal-logical-assignment-operators'],
-        ['@babel/plugin-proposal-nullish-coalescing-operator'],
-        ['@babel/plugin-proposal-optional-chaining'],
-        ['@babel/plugin-syntax-json-strings'],
-        ['@babel/plugin-syntax-optional-catch-binding'],
-        ['@babel/plugin-syntax-async-generators'],
-        ['@babel/plugin-syntax-object-rest-spread'],
-        ['@babel/plugin-proposal-export-namespace-from'],
-        ['@babel/plugin-transform-modules-commonjs'],
-        ['@babel/plugin-proposal-dynamic-import'],
+        [require.resolve('@babel/plugin-proposal-class-properties')],
+        [require.resolve('@babel/plugin-proposal-numeric-separator')],
+        [require.resolve('@babel/plugin-proposal-logical-assignment-operators')],
+        [require.resolve('@babel/plugin-proposal-nullish-coalescing-operator')],
+        [require.resolve('@babel/plugin-proposal-optional-chaining')],
+        [require.resolve('@babel/plugin-syntax-json-strings')],
+        [require.resolve('@babel/plugin-syntax-optional-catch-binding')],
+        [require.resolve('@babel/plugin-syntax-async-generators')],
+        [require.resolve('@babel/plugin-syntax-object-rest-spread')],
+        [require.resolve('@babel/plugin-proposal-export-namespace-from')],
+        [require.resolve('@babel/plugin-transform-modules-commonjs')],
+        [require.resolve('@babel/plugin-proposal-dynamic-import')],
       ],
       sourceMaps: 'both',
     } as babel.TransformOptions);
