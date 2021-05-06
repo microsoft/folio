@@ -22,7 +22,7 @@ import * as pirates from 'pirates';
 import * as babel from '@babel/core';
 import * as sourceMapSupport from 'source-map-support';
 
-const version = 3;
+const version = 4;
 const cacheDir = process.env.FOLIO_CACHE_DIR || path.join(os.tmpdir(), 'playwright-transform-cache');
 const sourceMaps: Map<string, string> = new Map();
 
