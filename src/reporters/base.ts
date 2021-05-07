@@ -20,8 +20,7 @@ import fs from 'fs';
 import milliseconds from 'ms';
 import path from 'path';
 import StackUtils from 'stack-utils';
-import { TestStatus, Test, Suite, TestResult, TestError, Reporter } from '../types';
-import { FullConfig } from '../types';
+import { FullConfig, TestStatus, Test, Suite, TestResult, TestError, Reporter } from '../index';
 
 const stackUtils = new StackUtils();
 
@@ -77,19 +76,13 @@ export class BaseReporter implements Reporter  {
   private _printSlowTests() {
     const fileDurations = [...this.fileDurations.entries()];
     fileDurations.sort((a, b) => b[1] - a[1]);
-    let insertedGap = false;
     for (let i = 0; i < 10 && i < fileDurations.length; ++i) {
       const baseName = path.basename(fileDurations[i][0]);
       const duration = fileDurations[i][1];
       if (duration < 15000)
         break;
-      if (!insertedGap) {
-        insertedGap = true;
-        console.log();
-      }
       console.log(colors.yellow('  Slow test: ') + baseName + colors.yellow(` (${milliseconds(duration)})`));
     }
-    console.log();
   }
 
   epilogue(full: boolean) {
@@ -107,10 +100,14 @@ export class BaseReporter implements Reporter  {
       }
     });
 
-    if (expected)
-      console.log(colors.green(`  ${expected} passed`) + colors.dim(` (${milliseconds(this.duration)})`));
-    if (skipped)
-      console.log(colors.yellow(`  ${skipped} skipped`));
+    if (full && unexpected.length) {
+      console.log('');
+      this._printFailures(unexpected);
+    }
+
+    this._printSlowTests();
+
+    console.log('');
     if (unexpected.length) {
       console.log(colors.red(`  ${unexpected.length} failed`));
       this._printTestHeaders(unexpected);
@@ -119,14 +116,12 @@ export class BaseReporter implements Reporter  {
       console.log(colors.red(`  ${flaky.length} flaky`));
       this._printTestHeaders(flaky);
     }
+    if (skipped)
+      console.log(colors.yellow(`  ${skipped} skipped`));
+    if (expected)
+      console.log(colors.green(`  ${expected} passed`) + colors.dim(` (${milliseconds(this.duration)})`));
     if (this.timeout)
       console.log(colors.red(`  Timed out waiting ${this.timeout / 1000}s for the entire test run`));
-
-    if (full && unexpected.length) {
-      console.log('');
-      this._printFailures(unexpected);
-    }
-    this._printSlowTests();
   }
 
   private _printTestHeaders(tests: Test[]) {

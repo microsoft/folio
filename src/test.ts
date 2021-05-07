@@ -44,6 +44,7 @@ class Base {
 }
 
 export class Spec extends Base implements types.Spec {
+  suite: Suite;
   fn: Function;
   tests: Test[] = [];
   _ordinalInFile: number;
@@ -77,6 +78,7 @@ export class Suite extends Base implements types.Suite {
 
   _addSpec(spec: Spec) {
     spec.parent = this;
+    spec.suite = this;
     this.specs.push(spec);
     this._entries.push(spec);
   }
