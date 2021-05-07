@@ -16,6 +16,8 @@
 
 import fs from 'fs';
 import path from 'path';
+import rimraf from 'rimraf';
+import util from 'util';
 import { EventEmitter } from 'events';
 import { mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError, wrapInPromise } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
@@ -24,6 +26,8 @@ import { Loader } from './loader';
 import { Spec, Suite, Test } from './test';
 import { Env, TestInfo, WorkerInfo } from './types';
 import { ProjectImpl } from './project';
+
+const removeFolderAsync = util.promisify(rimraf);
 
 export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
@@ -203,19 +207,20 @@ export class WorkerRunner extends EventEmitter {
 
     const startTime = monotonicTime();
     let deadlineRunner: DeadlineRunner<any> | undefined;
-
-    const relativePath = path.relative(this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
-    const sanitizedTitle = spec.title.replace(/[^\w\d]+/g, '-');
-    const relativeTestPath = path.join(relativePath, sanitizedTitle);
     const testId = test._id;
+
+    const relativeTestFilePath = path.relative(this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
+    const sanitizedTitle = spec.title.replace(/[^\w\d]+/g, '-');
     const baseOutputDir = (() => {
-      let suffix = this._outputPathSegment;
+      const sanitizedRelativePath = relativeTestFilePath.replace(process.platform === 'win32' ? new RegExp('\\\\', 'g') : new RegExp('/', 'g'), '-');
+      let testOutputDir = sanitizedRelativePath + '-' + sanitizedTitle + this._outputPathSegment;
       if (entry.retry)
-        suffix += '-retry' + entry.retry;
+        testOutputDir += '-retry' + entry.retry;
       if (this._params.repeatEachIndex)
-        suffix += '-repeat' + this._params.repeatEachIndex;
-      return path.join(this._project.config.outputDir, relativeTestPath + suffix);
+        testOutputDir += '-repeat' + this._params.repeatEachIndex;
+      return path.join(this._project.config.outputDir, testOutputDir);
     })();
+
     const testInfo: TestInfo = {
       ...this._workerInfo,
       title: spec.title,
@@ -240,7 +245,7 @@ export class WorkerRunner extends EventEmitter {
         return path.join(baseOutputDir, ...pathSegments);
       },
       snapshotPath: (...pathSegments: string[]): string => {
-        const basePath = path.join(this._project.config.testDir, this._project.config.snapshotDir, relativeTestPath, testInfo.snapshotPathSegment);
+        const basePath = path.join(this._project.config.testDir, this._project.config.snapshotDir, relativeTestFilePath, sanitizedTitle, testInfo.snapshotPathSegment);
         return path.join(basePath, ...pathSegments);
       },
       skip: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'skip', arg, description),
@@ -309,6 +314,13 @@ export class WorkerRunner extends EventEmitter {
 
     testInfo.duration = monotonicTime() - startTime;
     this.emit('testEnd', buildTestEndPayload(testId, testInfo));
+
+    const isFailure = testInfo.status === 'timedOut' || (testInfo.status === 'failed' && testInfo.expectedStatus !== 'failed');
+    const preserveOutput = this._project.config.preserveOutput === 'always' ||
+      (this._project.config.preserveOutput === 'failures-only' && isFailure);
+    if (!preserveOutput)
+      await removeFolderAsync(testInfo.outputDir).catch(e => {});
+
     if (testInfo.status !== 'passed') {
       this._failedTestId = testId;
       this._reportDoneAndStop();

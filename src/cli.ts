@@ -112,12 +112,13 @@ function addRunnerOptions(program: commander.Command) {
       .option('-c, --config <file>', `Configuration file (default: "folio.config.ts" or "folio.config.js")`)
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
       .option('-g, --grep <grep>', `Only run tests matching this regular expression (default: "${defaultConfig.grep}")`)
-      .option('--global-timeout <timeout>', `Specify maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)
+      .option('--global-timeout <timeout>', `Maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)
       .option('-h, --help', `Display help`)
       .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
       .option('--list', `Only collect all the test and report them`)
       .option('--max-failures <N>', `Stop after the first N failures (default: ${defaultConfig.maxFailures})`)
       .option('--output <dir>', `Folder for output artifacts (default: "test-results")`)
+      .option('--preserve-output', `Preserve output for all tests (default: only preserve output for failures)`)
       .option('--quiet', `Suppress stdio`)
       .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: 1)`)
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters} (default: "${process.env.CI ? 'dot' : 'line'}")`)
@@ -125,7 +126,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
       .option('--project <project-name>', `Only run tests from the specified project (default: run all projects)`)
       .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: 10000)`)
-      .option('-u, --update-snapshots', `Whether to update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
+      .option('-u, --update-snapshots', `Update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
       .option('-x', `Stop after the first failure`);
 }
 
@@ -141,6 +142,8 @@ function configFromCommand(command: any): ConfigOverrides {
     config.maxFailures = command.x ? 1 : parseInt(command.maxFailures, 10);
   if (command.output)
     config.outputDir = path.resolve(process.cwd(), command.output);
+  if (command.preserveOutput)
+    config.preserveOutput = 'always';
   if (command.quiet)
     config.quiet = command.quiet;
   if (command.repeatEach)
