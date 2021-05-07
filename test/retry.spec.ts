@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect, stripAscii } from './config';
+import { test, expect, stripAscii } from './folio-test';
 
 test('should retry failures', async ({ runInlineTest }) => {
   const result = await runInlineTest({

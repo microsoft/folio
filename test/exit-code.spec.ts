@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect, stripAscii } from './config';
+import { test, expect, stripAscii } from './folio-test';
 
 function monotonicTime(): number {
   const [seconds, nanoseconds] = process.hrtime();

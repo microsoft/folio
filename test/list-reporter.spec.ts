@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect, stripAscii } from './config';
+import { test, expect, stripAscii } from './folio-test';
 
 test('render each test with project name', async ({ runInlineTest }) => {
   const result = await runInlineTest({

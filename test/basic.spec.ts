@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 import * as path from 'path';
 
 test('should fail', async ({ runInlineTest }) => {

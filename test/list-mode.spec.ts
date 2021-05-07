@@ -15,7 +15,7 @@
  */
 
 import path from 'path';
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 test('should have relative always-posix paths', async ({ runInlineTest }) => {
   const result = await runInlineTest({

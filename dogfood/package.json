@@ -1,6 +1,6 @@
 {
   "private": true,
   "dependencies": {
-    "folio": "=0.3.23-alpha"
+    "folio": "=0.4.0-alpha9"
   }
 }

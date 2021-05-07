@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 const tests = {
   'a.test.ts': `
