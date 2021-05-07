@@ -15,7 +15,7 @@
  */
 
 import colors from 'colors/safe';
-import { test, expect, stripAscii } from './config';
+import { test, expect, stripAscii } from './folio-test';
 
 test('render expected', async ({ runInlineTest }) => {
   const result = await runInlineTest({

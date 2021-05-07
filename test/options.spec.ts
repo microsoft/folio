@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 test('should run tests with different test options in the same worker', async ({ runInlineTest }) => {
   const result = await runInlineTest({

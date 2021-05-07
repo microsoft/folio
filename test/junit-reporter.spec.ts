@@ -15,7 +15,7 @@
  */
 
 import xml2js from 'xml2js';
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 test('render expected', async ({ runInlineTest }) => {
   const result = await runInlineTest({

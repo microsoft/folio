@@ -17,7 +17,7 @@
 import colors from 'colors/safe';
 import * as fs from 'fs';
 import * as path from 'path';
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 test('should support golden', async ({runInlineTest}) => {
   const result = await runInlineTest({

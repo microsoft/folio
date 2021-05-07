@@ -22,6 +22,7 @@ import * as os from 'os';
 import type { ReportFormat } from '../src/reporters/json';
 import rimraf from 'rimraf';
 import { promisify } from 'util';
+
 const removeFolderAsync = promisify(rimraf);
 
 type RunResult = {
@@ -206,7 +207,7 @@ type TestArgs = {
   runTSC: (files: Files) => Promise<TSCResult>;
 };
 
-class Env implements folio.Env<TestArgs> {
+class Env {
   private _runResult: RunResult | undefined;
   private _tscResult: TSCResult | undefined;
 
@@ -226,7 +227,7 @@ class Env implements folio.Env<TestArgs> {
     return this._tscResult;
   }
 
-  async beforeEach(testInfo: folio.TestInfo) {
+  async beforeEach({}, testInfo: folio.TestInfo): Promise<TestArgs> {
     return {
       writeFiles: this._writeFiles.bind(this, testInfo),
       runInlineTest: this._runInlineTest.bind(this, testInfo),
@@ -234,7 +235,7 @@ class Env implements folio.Env<TestArgs> {
     };
   }
 
-  async afterEach(testInfo: folio.TestInfo) {
+  async afterEach({}, testInfo: folio.TestInfo) {
     if (testInfo.status !== testInfo.expectedStatus) {
       if (this._runResult)
         console.log(this._runResult.output);
@@ -262,18 +263,10 @@ const TSCONFIG = {
   ]
 };
 
+export const test = folio.test.extend(new Env());
+export { expect } from 'folio';
+
 const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
 export function stripAscii(str: string): string {
   return str.replace(asciiRegex, '');
 }
-
-folio.setConfig({
-  testDir: __dirname,
-  testIgnore: 'assets/**',
-  timeout: 20000,
-  forbidOnly: !!process.env.CI,
-});
-
-export { expect } from 'folio';
-export const test = folio.newTestType<TestArgs>();
-test.runWith(new Env());

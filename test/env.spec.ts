@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 test('env should work', async ({ runInlineTest }) => {
   const { results, output } = await runInlineTest({

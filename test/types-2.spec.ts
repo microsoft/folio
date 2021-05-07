@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 test('basics should work', async ({runTSC}) => {
   const result = await runTSC({

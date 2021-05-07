@@ -12,7 +12,7 @@
     "lint": "eslint . --ext js,ts",
     "build": "tsc --build tsconfig.json",
     "watch": "tsc --build tsconfig.json --watch",
-    "test": "folio --config=test/config.ts",
+    "test": "folio --config=test/folio-config.ts",
     "prepare": "npm run build",
     "roll-dogfood": "cd dogfood && npm install",
     "prepublishOnly": "rm -rf out && npm run build"

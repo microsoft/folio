@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 test('should respect .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({

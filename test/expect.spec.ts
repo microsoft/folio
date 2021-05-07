@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect } from './config';
+import { test, expect } from './folio-test';
 
 test('should be able to extend the expect matchers with test.extend in the folio config', async ({ runInlineTest }) => {
   const result = await runInlineTest({

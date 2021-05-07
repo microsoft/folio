@@ -14,18 +14,13 @@
  * limitations under the License.
  */
 
-import { test, expect, stripAscii } from './folio-test';
+import { Config } from 'folio';
 
-test('handle long test names', async ({ runInlineTest }) => {
-  const title = 'title'.repeat(30);
-  const result = await runInlineTest({
-    'a.test.js': `
-      const { test } = folio;
-      test('${title}', async ({}) => {
-        expect(1).toBe(0);
-      });
-    `,
-  });
-  expect(stripAscii(result.output)).toContain('expect(1).toBe');
-  expect(result.exitCode).toBe(1);
-});
+const config: Config = {
+  testDir: __dirname,
+  testIgnore: 'assets/**',
+  timeout: 20000,
+  forbidOnly: !!process.env.CI,
+};
+
+export default config;
