@@ -16,7 +16,7 @@
 
 import colors from 'colors/safe';
 import { BaseReporter, formatFailure, formatTestTitle } from './base';
-import { FullConfig, Test, Suite, TestResult } from '../types';
+import { FullConfig, Test, Suite, TestResult } from '../index';
 
 class LineReporter extends BaseReporter {
   private _total: number;

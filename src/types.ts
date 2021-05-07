@@ -207,11 +207,13 @@ export interface Suite {
   column: number;
   suites: Suite[];
   specs: Spec[];
+  fullTitle(): string;
   findTest(fn: (test: Test) => boolean | void): boolean;
   findSpec(fn: (spec: Spec) => boolean | void): boolean;
   totalTestCount(): number;
 }
 export interface Spec {
+  suite: Suite;
   title: string;
   file: string;
   line: number;

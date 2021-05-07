@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { FullConfig, TestResult, Test, Suite, TestError, Reporter } from '../types';
+import { FullConfig, TestResult, Test, Suite, TestError, Reporter } from '../index';
 
 class EmptyReporter implements Reporter {
   onBegin(config: FullConfig, suite: Suite) {}

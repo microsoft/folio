@@ -16,9 +16,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { FullConfig } from '../types';
 import EmptyReporter from './empty';
-import { Suite, Test } from '../test';
+import { FullConfig, Suite, Test } from '../index';
 import { monotonicTime } from '../util';
 import { formatFailure, stripAscii } from './base';
 
@@ -123,7 +122,7 @@ class JUnitReporter extends EmptyReporter {
       name: 'testcase',
       attributes: {
         name: test.spec.fullTitle(),
-        classname: path.relative(this.config.rootDir, test.spec.file) + ' ' + test.spec.parent.fullTitle(),
+        classname: path.relative(this.config.rootDir, test.spec.file) + ' ' + test.spec.suite.fullTitle(),
         time: (test.results.reduce((acc, value) => acc + value.duration, 0)) / 1000
       },
       children: []
