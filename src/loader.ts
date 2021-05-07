@@ -15,7 +15,7 @@
  */
 
 import { installTransform } from './transform';
-import type { FullConfig, Config, ConfigOverrides, FullProject, Project, ReporterDescription } from './types';
+import type { FullConfig, Config, ConfigOverrides, FullProject, Project, ReporterDescription, PreserveOutput } from './types';
 import { errorWithCallLocation, prependErrorMessage } from './util';
 import { setCurrentlyLoadingFileSuite } from './globals';
 import { Suite } from './test';
@@ -147,6 +147,7 @@ export class Loader {
       define: projectConfig.define || [],
       options: projectConfig.options || {},
       outputDir: takeFirst(this._configOverrides.outputDir, projectConfig.outputDir, this._config.outputDir, path.resolve(process.cwd(), 'test-results')),
+      preserveOutput: takeFirst<PreserveOutput>(this._configOverrides.preserveOutput, projectConfig.preserveOutput, this._config.preserveOutput, 'failures-only'),
       repeatEach: takeFirst(this._configOverrides.repeatEach, projectConfig.repeatEach, this._config.repeatEach, 1),
       retries: takeFirst(this._configOverrides.retries, projectConfig.retries, this._config.retries, 0),
       snapshotDir: projectConfig.snapshotDir || '__snapshots__',

@@ -26,6 +26,7 @@ export type ReporterDescription =
   string;
 
 export type Shard = { total: number, current: number } | null;
+export type PreserveOutput = 'always' | 'never' | 'failures-only';
 
 type EnvDefine = { test: TestType<any, any, any>, env: Env };
 
@@ -33,6 +34,7 @@ export interface Project<Options = {}> {
   define?: EnvDefine | EnvDefine[];
   options?: Options;
   outputDir?: string;
+  preserveOutput?: PreserveOutput;
   repeatEach?: number;
   retries?: number;
   snapshotDir?: string;
@@ -81,6 +83,7 @@ export interface ConfigOverrides {
   maxFailures?: number;
   repeatEach?: number;
   outputDir?: string;
+  preserveOutput?: PreserveOutput;
   retries?: number;
   reporter?: ReporterDescription[];
   quiet?: boolean;
