@@ -65,7 +65,7 @@ Line7`,
   expect(result.output).toContain('Line7');
 });
 
-test('should write missing expectations', async ({runInlineTest}, testInfo) => {
+test('should write missing expectations locally', async ({runInlineTest}, testInfo) => {
   const result = await runInlineTest({
     'a.spec.js': `
       const { test } = folio;
@@ -73,11 +73,25 @@ test('should write missing expectations', async ({runInlineTest}, testInfo) => {
         expect('Hello world').toMatchSnapshot();
       });
     `
-  });
+  }, {}, { CI: '' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('snapshot.txt is missing in golden results, writing actual');
   const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
   expect(data.toString()).toBe('Hello world');
+});
+
+test('should not write missing expectations on CI', async ({runInlineTest}, testInfo) => {
+  const result = await runInlineTest({
+    'a.spec.js': `
+      const { test } = folio;
+      test('is a test', ({}) => {
+        expect('Hello world').toMatchSnapshot();
+      });
+    `
+  }, {}, { CI: '1' });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('snapshot.txt is missing in golden results');
+  expect(fs.existsSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'))).toBe(false);
 });
 
 test('should update expectations', async ({runInlineTest}, testInfo) => {

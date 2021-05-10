@@ -27,6 +27,7 @@ export type ReporterDescription =
 
 export type Shard = { total: number, current: number } | null;
 export type PreserveOutput = 'always' | 'never' | 'failures-only';
+export type UpdateSnapshots = 'all' | 'none' | 'missing';
 
 type EnvDefine = { test: TestType<any, any, any>, env: Env };
 
@@ -57,7 +58,7 @@ export interface Config<Options = {}> extends Project<Options> {
   reporter?: ReporterDescription | ReporterDescription[];
   quiet?: boolean;
   shard?: Shard;
-  updateSnapshots?: boolean;
+  updateSnapshots?: UpdateSnapshots;
   workers?: number;
 }
 
@@ -72,7 +73,7 @@ export interface FullConfig {
   rootDir: string;
   quiet: boolean;
   shard: Shard;
-  updateSnapshots: boolean;
+  updateSnapshots: UpdateSnapshots;
   workers: number;
 }
 
@@ -89,7 +90,7 @@ export interface ConfigOverrides {
   quiet?: boolean;
   shard?: Shard;
   timeout?: number;
-  updateSnapshots?: boolean;
+  updateSnapshots?: UpdateSnapshots;
   workers?: number;
 }
 
