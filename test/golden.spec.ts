@@ -114,6 +114,110 @@ test('should match multiple snapshots', async ({runInlineTest}) => {
   expect(result.exitCode).toBe(0);
 });
 
+test('should match snapshots from multiple projects', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      module.exports = { projects: [
+        { testDir: path.join(__dirname, 'p1') },
+        { testDir: path.join(__dirname, 'p2'), snapshotDir: 'my-snapshots' },
+      ]};
+    `,
+    'p1/a.spec.js': `
+      const { test } = folio;
+      test('is a test', ({}) => {
+        expect('Snapshot1').toMatchSnapshot();
+      });
+    `,
+    'p1/__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
+    'p2/a.spec.js': `
+      const { test } = folio;
+      test('is a test', ({}) => {
+        expect('Snapshot2').toMatchSnapshot();
+      });
+    `,
+    'p2/my-snapshots/a/is-a-test/snapshot.txt': `Snapshot2`,
+  });
+  expect(result.exitCode).toBe(0);
+});
+
+test('should match snapshots from multiple projects sharing the snapshots dir', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      module.exports = { projects: [
+        { testDir: __dirname },
+        { testDir: __dirname },
+        { testDir: path.join(__dirname, 'dir') },
+      ], snapshotDir: path.join(__dirname, '__snapshots__') };
+    `,
+    'a.spec.js': `
+      const { test } = folio;
+      test('is a test', ({}) => {
+        expect('Snapshot1').toMatchSnapshot();
+      });
+    `,
+    '__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
+    'dir/a.spec.js': `
+      const { test } = folio;
+      test('is a test', ({}) => {
+        expect('Snapshot2').toMatchSnapshot();
+      });
+    `,
+    '__snapshots__/dir/a/is-a-test/snapshot.txt': `Snapshot2`,
+  });
+  expect(result.exitCode).toBe(0);
+});
+
+test('should match snapshots from multiple projects sharing the relative snapshots dir', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      module.exports = {
+        testDir: __dirname,
+        snapshotDir: '__snapshots__' ,
+        projects: [
+          {},
+          { testDir: path.join(__dirname, 'dir') },
+        ],
+      };
+    `,
+    'a.spec.js': `
+      const { test } = folio;
+      test('is a test', ({}) => {
+        expect('Snapshot1').toMatchSnapshot();
+      });
+    `,
+    '__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
+    'dir/a.spec.js': `
+      const { test } = folio;
+      test('is a test', ({}) => {
+        expect('Snapshot2').toMatchSnapshot();
+      });
+    `,
+    '__snapshots__/dir/a/is-a-test/snapshot.txt': `Snapshot2`,
+  });
+  expect(result.exitCode).toBe(0);
+});
+
+test('should throw for relative snapshotDir in the root', async ({runInlineTest}) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      module.exports = { projects: [
+        { testDir: __dirname },
+      ], snapshotDir: '__snapshots__' };
+    `,
+    'a.spec.js': `
+      const { test } = folio;
+      test('is a test', ({}) => {
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain(`When using projects, passing relative "snapshotDir" in the root requires "testDir"`);
+});
+
 test('should use provided name', async ({runInlineTest}) => {
   const result = await runInlineTest({
     '__snapshots__/a/is-a-test/provided.txt': `Hello world`,

@@ -30,14 +30,16 @@ type TestTypeData = {
 
 export class ProjectImpl {
   config: FullProject;
+  readonly useRootDirForSnapshots: boolean;
   private index: number;
   private defines = new Map<TestType<any, any, any>, Env>();
   private testTypeToData = new Map<TestTypeImpl, TestTypeData>();
   private lastForkingAncestorHash = 0;
 
-  constructor(project: FullProject, index: number) {
+  constructor(project: FullProject, index: number, useRootDirForSnapshots: boolean) {
     this.config = project;
     this.index = index;
+    this.useRootDirForSnapshots = useRootDirForSnapshots;
     this.defines = new Map();
     for (const { test, env } of Array.isArray(project.define) ? project.define : [project.define])
       this.defines.set(test, env);
