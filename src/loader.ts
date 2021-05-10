@@ -54,7 +54,7 @@ export class Loader {
       this._config = require(file);
       if ('default' in this._config)
         this._config = this._config['default'];
-      for (const key of ['define', 'options', 'snapshotDir', 'name', 'testIgnore', 'testMatch']) {
+      for (const key of ['define', 'options', 'name', 'testIgnore', 'testMatch']) {
         if (('projects' in this._config) && (key in this._config))
           throw new Error(`When using projects, passing "${key}" is not supported`);
       }
@@ -143,6 +143,18 @@ export class Loader {
   }
 
   private _addProject(projectConfig: Project, defaultTestDir: string) {
+    const testDir = takeFirst(projectConfig.testDir, this._config.testDir, defaultTestDir);
+
+    const useRootDirForSnapshots = !projectConfig.snapshotDir && !!this._config.snapshotDir;
+    let snapshotDir = '';
+    if (useRootDirForSnapshots) {
+      if (!path.isAbsolute(this._config.snapshotDir) && !('testDir' in this._config))
+        throw new Error(`When using projects, passing relative "snapshotDir" in the root requires "testDir"`);
+      snapshotDir = path.isAbsolute(this._config.snapshotDir) ? this._config.snapshotDir : path.resolve(this._config.testDir, this._config.snapshotDir);
+    } else {
+      snapshotDir = path.resolve(testDir, projectConfig.snapshotDir || '__snapshots__');
+    }
+
     const fullProject: FullProject = {
       define: projectConfig.define || [],
       options: projectConfig.options || {},
@@ -150,14 +162,14 @@ export class Loader {
       preserveOutput: takeFirst<PreserveOutput>(this._configOverrides.preserveOutput, projectConfig.preserveOutput, this._config.preserveOutput, 'failures-only'),
       repeatEach: takeFirst(this._configOverrides.repeatEach, projectConfig.repeatEach, this._config.repeatEach, 1),
       retries: takeFirst(this._configOverrides.retries, projectConfig.retries, this._config.retries, 0),
-      snapshotDir: projectConfig.snapshotDir || '__snapshots__',
+      snapshotDir,
       name: projectConfig.name || '',
-      testDir: takeFirst(projectConfig.testDir, this._config.testDir, defaultTestDir),
+      testDir,
       testIgnore: projectConfig.testIgnore || 'node_modules/**',
       testMatch: projectConfig.testMatch || '**/?(*.)+(spec|test).[jt]s',
       timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, 10000),
     };
-    this._projects.push(new ProjectImpl(fullProject, this._projects.length));
+    this._projects.push(new ProjectImpl(fullProject, this._projects.length, useRootDirForSnapshots));
   }
 }
 

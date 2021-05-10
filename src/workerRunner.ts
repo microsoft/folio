@@ -210,6 +210,7 @@ export class WorkerRunner extends EventEmitter {
     const testId = test._id;
 
     const relativeTestFilePath = path.relative(this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
+    const relativeTestFilePathForSnapshots = path.relative(this._project.useRootDirForSnapshots ? this._loader.fullConfig().rootDir : this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
     const sanitizedTitle = spec.title.replace(/[^\w\d]+/g, '-');
     const baseOutputDir = (() => {
       const sanitizedRelativePath = relativeTestFilePath.replace(process.platform === 'win32' ? new RegExp('\\\\', 'g') : new RegExp('/', 'g'), '-');
@@ -245,7 +246,7 @@ export class WorkerRunner extends EventEmitter {
         return path.join(baseOutputDir, ...pathSegments);
       },
       snapshotPath: (...pathSegments: string[]): string => {
-        const basePath = path.join(this._project.config.testDir, this._project.config.snapshotDir, relativeTestFilePath, sanitizedTitle, testInfo.snapshotPathSegment);
+        const basePath = path.join(this._project.config.snapshotDir, relativeTestFilePathForSnapshots, sanitizedTitle, testInfo.snapshotPathSegment);
         return path.join(basePath, ...pathSegments);
       },
       skip: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'skip', arg, description),
