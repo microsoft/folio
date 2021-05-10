@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-import type { TestType } from './types';
+import type { TestType, CLIOption, BooleanCLIOption, ListCLIOption, StringCLIOption } from './types';
 import { rootTestType } from './testType';
+import { currentOptionsRegistry } from './globals';
+import { errorWithCallLocation } from './util';
 
 // Configuration types.
 export type { Project, FullProject, Config, FullConfig } from './types';
@@ -28,3 +30,17 @@ export type { TestStatus, Suite, Spec, Test, TestResult, TestError, Reporter } f
 export { expect } from './expect';
 export const test: TestType<{}, {}, {}> = rootTestType.test;
 export default test;
+
+export function registerCLIOption(name: string, description: string, options: { type: 'boolean' }): BooleanCLIOption;
+export function registerCLIOption(name: string, description: string, options: { type: 'list' }): ListCLIOption;
+export function registerCLIOption(name: string, description: string, options?: { type?: 'string' }): StringCLIOption;
+export function registerCLIOption(name: string, description: string, options?: { type?: 'string' | 'boolean' | 'list' }): CLIOption {
+  try {
+    const registry = currentOptionsRegistry();
+    if (!registry)
+      throw new Error(`registerCLIOption() must be called from a configuration file`);
+    return registry.registerCLIOption(name, description, options);
+  } catch (e) {
+    throw errorWithCallLocation(e.message);
+  }
+}

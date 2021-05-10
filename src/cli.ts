@@ -39,26 +39,43 @@ const defaultConfig: FullConfig = {
   workers: Math.ceil(require('os').cpus().length / 2),
 };
 
-const loadProgram = new commander.Command();
-loadProgram.helpOption(false);
-addRunnerOptions(loadProgram);
-loadProgram.action(async command => {
+const program = new commander.Command();
+program.name('folio');
+program.helpOption(false);
+program.allowUnknownOption();
+const builtinOptions = new Set(addRunnerOptions(program));
+program.parse(process.argv);
+(async () => {
   try {
-    await runTests(command);
+    await runTests();
   } catch (e) {
     console.log(e);
     process.exit(1);
   }
-});
-loadProgram.parse(process.argv);
+})();
 
-async function runTests(command: any) {
-  if (command.help === undefined) {
-    console.log(loadProgram.helpInformation());
-    process.exit(0);
-  }
+async function runTests() {
+  const opts = program.opts();
 
-  const loader = new Loader(defaultConfig, configFromCommand(command));
+  const loader = new Loader(defaultConfig, configFromCommand(opts), cliOption => {
+    if (cliOption.name.length <= 1)
+      throw new Error(`CLI option "${cliOption.name}" is too short`);
+    if (builtinOptions.has(cliOption.name))
+      throw new Error(`CLI option "${cliOption.name}" is reserved`);
+    switch (cliOption.type) {
+      case 'boolean':
+        program.option(`--${cliOption.name}`, cliOption.description);
+        break;
+      case 'string':
+        program.option(`--${cliOption.name} <value>`, cliOption.description);
+        break;
+      case 'list':
+        program.option(`--${cliOption.name} <values...>`, cliOption.description);
+        break;
+    }
+    program.parse(process.argv);
+    return program.opts()[cliOption.name];
+  });
 
   function loadConfig(configName: string) {
     const configFile = path.resolve(process.cwd(), configName);
@@ -68,15 +85,23 @@ async function runTests(command: any) {
     }
     return false;
   }
-  if (command.config) {
-    if (!loadConfig(command.config))
-      throw new Error(`${command.config} does not exist`);
+  if (opts.config) {
+    if (!loadConfig(opts.config))
+      throw new Error(`${opts.config} does not exist`);
   } else if (!loadConfig('folio.config.ts') && !loadConfig('folio.config.js')) {
     throw new Error(`Configuration file not found. Either pass --config, or create folio.config.(js|ts) file`);
   }
 
+  if (opts.help === undefined) {
+    console.log(program.helpInformation());
+    process.exit(0);
+  }
+
+  program.allowUnknownOption(false);
+  program.parse(process.argv);
+
   const runner = new Runner(loader);
-  const result = await runner.run(!!command.list, command.args, command.project || undefined);
+  const result = await runner.run(!!opts.list, program.args, opts.project || undefined);
 
   // Calling process.exit() might truncate large stdout/stderr output.
   // See https://github.com/nodejs/node/issues/6456.
@@ -128,6 +153,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: 10000)`)
       .option('-u, --update-snapshots', `Update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
       .option('-x', `Stop after the first failure`);
+  return program.options.filter(o => !!o.long).map(o => o.long.substring(2));
 }
 
 function configFromCommand(command: any): ConfigOverrides {

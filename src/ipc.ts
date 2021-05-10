@@ -16,10 +16,12 @@
 
 import type { ConfigOverrides, FullConfig, TestStatus, TestError } from './types';
 
+export type CLIOptionValues = { [key: string]: any };
 export type SerializedLoaderData = {
   defaultConfig: FullConfig;
   overrides: ConfigOverrides;
   configFile: string;
+  cliOptionValues: CLIOptionValues;
 };
 export type WorkerInitParams = {
   workerIndex: number;
