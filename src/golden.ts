@@ -22,6 +22,7 @@ import jpeg from 'jpeg-js';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import { diff_match_patch, DIFF_INSERT, DIFF_DELETE, DIFF_EQUAL } from '../third_party/diff_match_patch';
+import { UpdateSnapshots } from './types';
 
 const extensionToMimeType: { [key: string]: string } = {
   'dat': 'application/octet-string',
@@ -76,14 +77,17 @@ function compareText(actual: Buffer | string, expectedBuffer: Buffer): { diff?: 
   };
 }
 
-export function compare(actual: Buffer | string, name: string, snapshotPath: (name: string) => string, outputPath: (name: string) => string, updateSnapshots: boolean, options?: { threshold?: number }): { pass: boolean; message?: string; } {
+export function compare(actual: Buffer | string, name: string, snapshotPath: (name: string) => string, outputPath: (name: string) => string, updateSnapshots: UpdateSnapshots, options?: { threshold?: number }): { pass: boolean; message?: string; } {
   const snapshotFile = snapshotPath(name);
   if (!fs.existsSync(snapshotFile)) {
-    fs.mkdirSync(path.dirname(snapshotFile), { recursive: true });
-    fs.writeFileSync(snapshotFile, actual);
+    const writingActual = updateSnapshots === 'all' || updateSnapshots === 'missing';
+    if (writingActual) {
+      fs.mkdirSync(path.dirname(snapshotFile), { recursive: true });
+      fs.writeFileSync(snapshotFile, actual);
+    }
     return {
       pass: false,
-      message: snapshotFile + ' is missing in golden results, writing actual.'
+      message: snapshotFile + ' is missing in golden results' + (writingActual ? ', writing actual.' : '.')
     };
   }
   const expected = fs.readFileSync(snapshotFile);
@@ -101,7 +105,7 @@ export function compare(actual: Buffer | string, name: string, snapshotPath: (na
   if (!result)
     return { pass: true };
 
-  if (updateSnapshots) {
+  if (updateSnapshots === 'all') {
     fs.mkdirSync(path.dirname(snapshotFile), { recursive: true });
     fs.writeFileSync(snapshotFile, actual);
     console.log('Updating snapshot at ' + snapshotFile);

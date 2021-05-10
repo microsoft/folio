@@ -35,7 +35,7 @@ const defaultConfig: FullConfig = {
   rootDir: path.resolve(process.cwd()),
   quiet: false,
   shard: null,
-  updateSnapshots: false,
+  updateSnapshots: process.env.CI ? 'none' : 'missing',
   workers: Math.ceil(require('os').cpus().length / 2),
 };
 
@@ -185,7 +185,7 @@ function configFromCommand(command: any): ConfigOverrides {
   if (command.timeout)
     config.timeout = parseInt(command.timeout, 10);
   if (command.updateSnapshots)
-    config.updateSnapshots = !!command.updateSnapshots;
+    config.updateSnapshots = 'all';
   if (command.workers)
     config.workers = parseInt(command.workers, 10);
   return config;
