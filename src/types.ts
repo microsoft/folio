@@ -201,6 +201,26 @@ export interface Env<TestArgs = {}, WorkerArgs = {}, Options = {}, PreviousTestA
   afterAll?(args: PreviousWorkerArgs & Options, workerInfo: WorkerInfo): MaybePromise<any>;
 }
 
+export interface BooleanCLIOption {
+  name: string;
+  description: string;
+  type: 'boolean';
+  value?: boolean;
+}
+export interface StringCLIOption {
+  name: string;
+  description: string;
+  type: 'string';
+  value?: string;
+}
+export interface ListCLIOption {
+  name: string;
+  description: string;
+  type: 'list';
+  value?: string[];
+}
+export type CLIOption = BooleanCLIOption | StringCLIOption | ListCLIOption;
+
 // ---------- Reporters API -----------
 
 export interface Suite {
