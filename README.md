@@ -848,3 +848,7 @@ To import expect matching libraries like [jest-extended](https://github.com/jest
 ```ts
 import 'jest-extended';
 ```
+
+# LICENSE
+
+Folio is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
