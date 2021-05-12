@@ -317,8 +317,8 @@ export class WorkerRunner extends EventEmitter {
     this.emit('testEnd', buildTestEndPayload(testId, testInfo));
 
     const isFailure = testInfo.status === 'timedOut' || (testInfo.status === 'failed' && testInfo.expectedStatus !== 'failed');
-    const preserveOutput = this._project.config.preserveOutput === 'always' ||
-      (this._project.config.preserveOutput === 'failures-only' && isFailure);
+    const preserveOutput = this._loader.fullConfig().preserveOutput === 'always' ||
+      (this._loader.fullConfig().preserveOutput === 'failures-only' && isFailure);
     if (!preserveOutput)
       await removeFolderAsync(testInfo.outputDir).catch(e => {});
 

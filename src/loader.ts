@@ -78,6 +78,7 @@ export class Loader {
       this._fullConfig.globalTimeout = takeFirst(this._configOverrides.globalTimeout, this._config.globalTimeout, this._defaultConfig.globalTimeout);
       this._fullConfig.grep = takeFirst(this._configOverrides.grep, this._config.grep, this._defaultConfig.grep);
       this._fullConfig.maxFailures = takeFirst(this._configOverrides.maxFailures, this._config.maxFailures, this._defaultConfig.maxFailures);
+      this._fullConfig.preserveOutput = takeFirst<PreserveOutput>(this._configOverrides.preserveOutput, this._config.preserveOutput, this._defaultConfig.preserveOutput);
       const reporter: ReporterDescription[] | undefined = this._config.reporter === undefined ? undefined :
         (Array.isArray(this._config.reporter) ? this._config.reporter : [this._config.reporter]);
       this._fullConfig.reporter = takeFirst(this._configOverrides.reporter, reporter, this._defaultConfig.reporter);
@@ -174,7 +175,6 @@ export class Loader {
       define: projectConfig.define || [],
       options: projectConfig.options || {},
       outputDir: takeFirst(this._configOverrides.outputDir, projectConfig.outputDir, this._config.outputDir, path.resolve(process.cwd(), 'test-results')),
-      preserveOutput: takeFirst<PreserveOutput>(this._configOverrides.preserveOutput, projectConfig.preserveOutput, this._config.preserveOutput, 'failures-only'),
       repeatEach: takeFirst(this._configOverrides.repeatEach, projectConfig.repeatEach, this._config.repeatEach, 1),
       retries: takeFirst(this._configOverrides.retries, projectConfig.retries, this._config.retries, 0),
       snapshotDir,
