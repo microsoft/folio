@@ -246,7 +246,7 @@ test('env.options should work', async ({ runInlineTest }) => {
         value = 'foo=' + foo + ';bar=' + bar + ';baz=' + baz;
       });
       test('should work', async () => {
-        expect(value).toBe('foo=undefined;bar=foo2;baz=foofoo2');
+        expect(value).toBe('foo=foo;bar=foo2;baz=foofoo2');
       });
     `,
   });
