@@ -188,8 +188,8 @@ export interface TestType<TestArgs, WorkerArgs, Options> extends TestFunction<Te
   expect: Expect;
 
   extend(): TestType<TestArgs, WorkerArgs, Options>;
-  extend<T, W, O>(env: Env<T, W, O, TestArgs & Options, WorkerArgs & Options>): TestType<TestArgs & T & W, WorkerArgs & W, Options & O>;
-  declare<T = {}, W = {}, O = {}>(): TestType<TestArgs & T & W, WorkerArgs & W, Options & O>;
+  extend<T, W, O>(env: Env<T, W, O, TestArgs & WorkerArgs & Options, WorkerArgs & Options>): TestType<TestArgs & T & W & O, WorkerArgs & W & O, Options & O>;
+  declare<T = {}, W = {}, O = {}>(): TestType<TestArgs & T & W & O, WorkerArgs & W, Options & O>;
 }
 
 type MaybePromise<T> = T | Promise<T>;

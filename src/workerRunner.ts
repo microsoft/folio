@@ -337,7 +337,7 @@ export class WorkerRunner extends EventEmitter {
   // Returns TestArgs or undefined when env.beforeEach has failed.
   private async _runEnvBeforeEach(testInfo: TestInfo, testOptions: any): Promise<any> {
     try {
-      return await this._envRunner.runBeforeEach(testInfo, testOptions, this._workerArgs);
+      return await this._envRunner.runBeforeEach(testInfo, testOptions);
     } catch (error) {
       if (error instanceof SkipError) {
         if (testInfo.status === 'passed')
@@ -519,6 +519,7 @@ class EnvRunner {
   private _isStopped = false;
   private _workerOptions: any = {};
   private _workerInfo: WorkerInfo | undefined;
+  private _workerArgs: any;
   private _testOptions: any = {};
   private _testInfo: TestInfo | undefined;
 
@@ -547,7 +548,8 @@ class EnvRunner {
       this.workerArgs.push(args);
       args = mergeObjects(args, r);
     }
-    return args;
+    this._workerArgs = args;
+    return mergeObjects(workerOptions, args);
   }
 
   async runAfterAll() {
@@ -570,10 +572,10 @@ class EnvRunner {
       throw error;
   }
 
-  async runBeforeEach(testInfo: TestInfo, testOptions: any, workerArgs: any) {
+  async runBeforeEach(testInfo: TestInfo, testOptions: any) {
     this._testOptions = testOptions;
     this._testInfo = testInfo;
-    let args = workerArgs;
+    let args = this._workerArgs;
     for (const env of this.envs) {
       if (this._isStopped)
         break;
@@ -583,7 +585,7 @@ class EnvRunner {
       this.testArgs.push(args);
       args = mergeObjects(args, r);
     }
-    return args;
+    return mergeObjects(args, testOptions);
   }
 
   async runAfterEach() {
