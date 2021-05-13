@@ -76,6 +76,10 @@ test('folio.Config should check types of options', async ({runTSC}) => {
     `,
     'a.spec.ts': `
       import { test } from './helper';
+      test.useOptions({ foo: 'foo' });
+      test.useOptions({});
+      // @ts-expect-error
+      test.useOptions({ baz: 'baz' });
       test('my test', async ({ a, b }) => {
         b += parseInt(a);
       });

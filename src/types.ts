@@ -183,7 +183,7 @@ export interface TestType<TestArgs, WorkerArgs, Options> extends TestFunction<Te
   afterEach(inner: (args: TestArgs, testInfo: TestInfo) => Promise<any> | any): void;
   beforeAll(inner: (args: WorkerArgs, workerInfo: WorkerInfo) => Promise<any> | any): void;
   afterAll(inner: (args: WorkerArgs, workerInfo: WorkerInfo) => Promise<any> | any): void;
-  useOptions(options: Options): void;
+  useOptions(options: Partial<Options>): void;
 
   expect: Expect;
 
