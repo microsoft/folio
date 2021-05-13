@@ -35,7 +35,6 @@ export interface Project<Options = {}> {
   define?: EnvDefine | EnvDefine[];
   options?: Options;
   outputDir?: string;
-  preserveOutput?: PreserveOutput;
   repeatEach?: number;
   retries?: number;
   snapshotDir?: string;
@@ -54,6 +53,7 @@ export interface Config<Options = {}> extends Project<Options> {
   globalTimeout?: number;
   grep?: RegExp | RegExp[];
   maxFailures?: number;
+  preserveOutput?: PreserveOutput;
   projects?: Project[];
   reporter?: ReporterDescription | ReporterDescription[];
   quiet?: boolean;
@@ -69,6 +69,7 @@ export interface FullConfig {
   globalTimeout: number;
   grep: RegExp | RegExp[];
   maxFailures: number;
+  preserveOutput: PreserveOutput;
   reporter: ReporterDescription[];
   rootDir: string;
   quiet: boolean;

@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { test, expect } from './folio-test';
 
-test('should work and remove non-failures', async ({ runInlineTest }, testInfo) => {
+test('should work and remove non-failures on CI', async ({ runInlineTest }, testInfo) => {
   const result = await runInlineTest({
     'dir/my-test.spec.js': `
       const { test } = folio;
@@ -38,7 +38,7 @@ test('should work and remove non-failures', async ({ runInlineTest }, testInfo) 
           throw new Error('Give me retries');
       });
     `,
-  }, { retries: 2 });
+  }, { retries: 2 }, { CI: '1' });
   expect(result.exitCode).toBe(0);
 
   expect(result.results[0].status).toBe('failed');
@@ -202,7 +202,7 @@ test('should remove folders with preserveOutput=never', async ({ runInlineTest }
   expect(fs.existsSync(testInfo.outputPath('test-results', 'dir-my-test-test-1-retry2'))).toBe(false);
 });
 
-test('should not remove folders with preserveOutput=always', async ({ runInlineTest }, testInfo) => {
+test('should not remove folders on non-CI', async ({ runInlineTest }, testInfo) => {
   const result = await runInlineTest({
     'dir/my-test.spec.js': `
       const { test } = folio;
@@ -212,7 +212,7 @@ test('should not remove folders with preserveOutput=always', async ({ runInlineT
           throw new Error('Give me retries');
       });
     `,
-  }, { 'retries': 2, 'preserve-output': true });
+  }, { 'retries': 2 }, { CI: '' });
   expect(result.exitCode).toBe(0);
   expect(result.results.length).toBe(3);
 

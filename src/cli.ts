@@ -31,6 +31,7 @@ const defaultConfig: FullConfig = {
   globalTimeout: 0,
   grep: /.*/,
   maxFailures: 0,
+  preserveOutput: process.env.CI ? 'failures-only' : 'always',
   reporter: [process.env.CI ? 'dot' : 'line'],
   rootDir: path.resolve(process.cwd()),
   quiet: false,
@@ -143,7 +144,6 @@ function addRunnerOptions(program: commander.Command) {
       .option('--list', `Only collect all the test and report them`)
       .option('--max-failures <N>', `Stop after the first N failures (default: ${defaultConfig.maxFailures})`)
       .option('--output <dir>', `Folder for output artifacts (default: "test-results")`)
-      .option('--preserve-output', `Preserve output for all tests (default: only preserve output for failures)`)
       .option('--quiet', `Suppress stdio`)
       .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: 1)`)
       .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters} (default: "${process.env.CI ? 'dot' : 'line'}")`)
@@ -168,8 +168,6 @@ function configFromCommand(command: any): ConfigOverrides {
     config.maxFailures = command.x ? 1 : parseInt(command.maxFailures, 10);
   if (command.output)
     config.outputDir = path.resolve(process.cwd(), command.output);
-  if (command.preserveOutput)
-    config.preserveOutput = 'always';
   if (command.quiet)
     config.quiet = command.quiet;
   if (command.repeatEach)
