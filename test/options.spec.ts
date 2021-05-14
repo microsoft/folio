@@ -16,6 +16,28 @@
 
 import { test, expect } from './folio-test';
 
+test('should merge options', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      class MyEnv {
+        async beforeEach(args) {
+          return { foo: args.foo || 'foo', bar: args.bar || 'bar' };
+        }
+      }
+      const test = folio.test.extend(new MyEnv());
+
+      test.useOptions({ foo: 'foo2' });
+      test.useOptions({ bar: 'bar2' });
+      test('test', ({ foo, bar }) => {
+        expect(foo).toBe('foo2');
+        expect(bar).toBe('bar2');
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+});
+
 test('should run tests with different test options in the same worker', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `

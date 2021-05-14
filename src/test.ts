@@ -65,7 +65,7 @@ export class Spec extends Base implements types.Spec {
 export class Suite extends Base implements types.Suite {
   suites: Suite[] = [];
   specs: Spec[] = [];
-  _options: any;
+  _options: any = {};
   _entries: (Suite | Spec)[] = [];
   _hooks: { type: string, fn: Function } [] = [];
 
