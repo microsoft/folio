@@ -16,13 +16,14 @@
 
 import { test, expect } from './folio-test';
 
-test('should access error in env', async ({ runInlineTest }) => {
+test('should access error in fixture', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'test-error-visible-in-env.spec.ts': `
       const test = folio.test.extend({
-        async afterEach({}, testInfo) {
+        foo: [async ({}, run, testInfo) => {
+          await run();
           console.log('ERROR[[[' + JSON.stringify(testInfo.error, undefined, 2) + ']]]');
-        }
+        }, { auto: true }],
       });
       test('ensure env handles test error', async ({}) => {
         expect(true).toBe(false);
@@ -36,13 +37,14 @@ test('should access error in env', async ({ runInlineTest }) => {
   expect(data.message).toContain('Object.is equality');
 });
 
-test('should access data in env', async ({ runInlineTest }) => {
+test('should access data in fixture', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'test-data-visible-in-env.spec.ts': `
       const test = folio.test.extend({
-        async afterEach({}, testInfo) {
+        foo: [async ({}, run, testInfo) => {
+          await run();
           testInfo.data['myname'] = 'myvalue';
-        }
+        }, { auto: true }],
       });
       test('ensure env can set data', async ({}, testInfo) => {
         console.log('console.log');

@@ -16,6 +16,7 @@
 
 import * as types from './types';
 import type { TestTypeImpl } from './testType';
+import { FixturePool } from './fixtures';
 
 class Base {
   title: string;
@@ -65,16 +66,13 @@ export class Spec extends Base implements types.Spec {
 export class Suite extends Base implements types.Suite {
   suites: Suite[] = [];
   specs: Spec[] = [];
-  _options: any = {};
+  _fixtureOverrides: any = {};
   _entries: (Suite | Spec)[] = [];
-  _hooks: { type: string, fn: Function } [] = [];
-
-  _clear() {
-    this.suites = [];
-    this.specs = [];
-    this._entries = [];
-    this._hooks = [];
-  }
+  _hooks: {
+    type: 'beforeEach' | 'afterEach' | 'beforeAll' | 'afterAll',
+    fn: Function,
+    location: types.Location,
+  } [] = [];
 
   _addSpec(spec: Spec) {
     spec.parent = this;
@@ -149,6 +147,10 @@ export class Suite extends Base implements types.Suite {
       return true;
     if (this.specs.find(spec => spec._only))
       return true;
+  }
+
+  _buildFixtureOverrides(): any {
+    return this.parent ? { ...this.parent._buildFixtureOverrides(), ...this._fixtureOverrides } : this._fixtureOverrides;
   }
 }
 

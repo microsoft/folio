@@ -17,7 +17,7 @@
 import path from 'path';
 import util from 'util';
 import StackUtils from 'stack-utils';
-import { TestError } from './types';
+import { Location, TestError } from './types';
 import { default as minimatch } from 'minimatch';
 
 const FOLIO_DIRS = [__dirname, path.join(__dirname, '..', 'src')];
@@ -95,10 +95,10 @@ function callFrames(): string[] {
   return frames;
 }
 
-export function callLocation(fallbackFile: string): {file: string, line: number, column: number} {
+export function callLocation(fallbackFile?: string): Location {
   const frames = callFrames();
   if (!frames.length)
-    return {file: fallbackFile, line: 1, column: 1};
+    return {file: fallbackFile || '<unknown>', line: 1, column: 1};
   const location = stackUtils.parseLine(frames[0]);
   return {
     file: path.resolve(cwd, location.file),
@@ -171,4 +171,8 @@ export function mergeObjects<A extends object, B extends object>(a: A | undefine
 
 export async function wrapInPromise(value: any) {
   return value;
+}
+
+export function formatLocation(location: Location) {
+  return location.file + ':' + location.line + ':' + location.column;
 }

@@ -29,11 +29,10 @@ export type Shard = { total: number, current: number } | null;
 export type PreserveOutput = 'always' | 'never' | 'failures-only';
 export type UpdateSnapshots = 'all' | 'none' | 'missing';
 
-type EnvDefine = { test: TestType<any, any, any>, env: Env };
+type FixtureDefine<TestArgs extends KeyValue = {}, WorkerArgs extends KeyValue = {}> = { test: TestType<TestArgs, WorkerArgs>, fixtures: Fixtures<{}, {}, TestArgs, WorkerArgs> };
 
-export interface Project<Options = {}> {
-  define?: EnvDefine | EnvDefine[];
-  options?: Options;
+export interface Project<TestArgs = {}, WorkerArgs = {}> {
+  define?: FixtureDefine | FixtureDefine[];
   outputDir?: string;
   repeatEach?: number;
   retries?: number;
@@ -43,10 +42,11 @@ export interface Project<Options = {}> {
   testIgnore?: string | RegExp | (string | RegExp)[];
   testMatch?: string | RegExp | (string | RegExp)[];
   timeout?: number;
+  use?: Fixtures<{}, {}, TestArgs, WorkerArgs>;
 }
-export type FullProject<Options = {}> = Required<Project<Options>>;
+export type FullProject<TestArgs = {}, WorkerArgs = {}> = Required<Project<TestArgs, WorkerArgs>>;
 
-export interface Config<Options = {}> extends Project<Options> {
+export interface Config<TestArgs = {}, WorkerArgs = {}> extends Project<TestArgs, WorkerArgs> {
   forbidOnly?: boolean;
   globalSetup?: string | null;
   globalTeardown?: string | null;
@@ -54,7 +54,7 @@ export interface Config<Options = {}> extends Project<Options> {
   grep?: RegExp | RegExp[];
   maxFailures?: number;
   preserveOutput?: PreserveOutput;
-  projects?: Project[];
+  projects?: Project<TestArgs, WorkerArgs>[];
   reporter?: ReporterDescription | ReporterDescription[];
   quiet?: boolean;
   shard?: Shard;
@@ -95,38 +95,6 @@ export interface ConfigOverrides {
   workers?: number;
 }
 
-interface TestModifier<TestArgs> {
-  skip(): void;
-  skip(description: string): void;
-  skip(condition: boolean): void;
-  skip(condition: boolean, description: string): void;
-  skip(callback: (args: TestArgs) => boolean): void;
-  skip(callback: (args: TestArgs) => boolean, description: string): void;
-
-  fixme(): void;
-  fixme(description: string): void;
-  fixme(condition: boolean): void;
-  fixme(condition: boolean, description: string): void;
-  fixme(callback: (args: TestArgs) => boolean): void;
-  fixme(callback: (args: TestArgs) => boolean, description: string): void;
-
-  fail(): void;
-  fail(description: string): void;
-  fail(condition: boolean): void;
-  fail(condition: boolean, description: string): void;
-  fail(callback: (args: TestArgs) => boolean): void;
-  fail(callback: (args: TestArgs) => boolean, description: string): void;
-
-  slow(): void;
-  slow(description: string): void;
-  slow(condition: boolean): void;
-  slow(condition: boolean, description: string): void;
-  slow(callback: (args: TestArgs) => boolean): void;
-  slow(callback: (args: TestArgs) => boolean, description: string): void;
-
-  setTimeout(timeout: number): void;
-}
-
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
 export interface WorkerInfo {
@@ -135,7 +103,7 @@ export interface WorkerInfo {
   workerIndex: number;
 }
 
-export interface TestInfo extends WorkerInfo, TestModifier<{}> {
+export interface TestInfo extends WorkerInfo {
   // Declaration
   title: string;
   file: string;
@@ -144,6 +112,12 @@ export interface TestInfo extends WorkerInfo, TestModifier<{}> {
   fn: Function;
 
   // Modifiers
+  skip(description?: string): void;
+  fixme(description?: string): void;
+  fail(description?: string): void;
+  slow(description?: string): void;
+  setTimeout(timeout: number): void;
+
   expectedStatus: TestStatus;
   timeout: number;
   annotations: { type: string, description?: string }[];
@@ -173,35 +147,71 @@ interface TestFunction<TestArgs> {
   (name: string, inner: (args: TestArgs, testInfo: TestInfo) => Promise<void> | void): void;
 }
 
-export interface TestType<TestArgs, WorkerArgs, Options> extends TestFunction<TestArgs>, TestModifier<TestArgs> {
-  only: TestFunction<TestArgs>;
+export interface TestType<TestArgs extends KeyValue, WorkerArgs extends KeyValue> extends TestFunction<TestArgs & WorkerArgs> {
+  only: TestFunction<TestArgs & WorkerArgs>;
   describe: SuiteFunction & {
     only: SuiteFunction;
   };
 
-  beforeEach(inner: (args: TestArgs, testInfo: TestInfo) => Promise<any> | any): void;
-  afterEach(inner: (args: TestArgs, testInfo: TestInfo) => Promise<any> | any): void;
+  skip(): void;
+  skip(description: string): void;
+  skip(condition: boolean): void;
+  skip(condition: boolean, description: string): void;
+  skip(callback: (args: TestArgs & WorkerArgs) => boolean): void;
+  skip(callback: (args: TestArgs & WorkerArgs) => boolean, description: string): void;
+
+  fixme(): void;
+  fixme(description: string): void;
+  fixme(condition: boolean): void;
+  fixme(condition: boolean, description: string): void;
+  fixme(callback: (args: TestArgs & WorkerArgs) => boolean): void;
+  fixme(callback: (args: TestArgs & WorkerArgs) => boolean, description: string): void;
+
+  fail(): void;
+  fail(description: string): void;
+  fail(condition: boolean): void;
+  fail(condition: boolean, description: string): void;
+  fail(callback: (args: TestArgs & WorkerArgs) => boolean): void;
+  fail(callback: (args: TestArgs & WorkerArgs) => boolean, description: string): void;
+
+  slow(): void;
+  slow(description: string): void;
+  slow(condition: boolean): void;
+  slow(condition: boolean, description: string): void;
+  slow(callback: (args: TestArgs & WorkerArgs) => boolean): void;
+  slow(callback: (args: TestArgs & WorkerArgs) => boolean, description: string): void;
+
+  setTimeout(timeout: number): void;
+
+  beforeEach(inner: (args: TestArgs & WorkerArgs, testInfo: TestInfo) => Promise<any> | any): void;
+  afterEach(inner: (args: TestArgs & WorkerArgs, testInfo: TestInfo) => Promise<any> | any): void;
   beforeAll(inner: (args: WorkerArgs, workerInfo: WorkerInfo) => Promise<any> | any): void;
   afterAll(inner: (args: WorkerArgs, workerInfo: WorkerInfo) => Promise<any> | any): void;
-  useOptions(options: Partial<Options>): void;
+  use(fixtures: Fixtures<{}, {}, TestArgs, WorkerArgs>): void;
 
   expect: Expect;
 
-  extend(): TestType<TestArgs, WorkerArgs, Options>;
-  extend<T, W, O>(env: Env<T, W, O, TestArgs & WorkerArgs & Options, WorkerArgs & Options>): TestType<TestArgs & T & W & O, WorkerArgs & W & O, Options & O>;
-  declare<T = {}, W = {}, O = {}>(): TestType<TestArgs & T & W & O, WorkerArgs & W, Options & O>;
+  declare<T extends KeyValue = {}, W extends KeyValue = {}>(): TestType<TestArgs & T, WorkerArgs & W>;
+  extend<T, W extends KeyValue = {}>(fixtures: Fixtures<T, W, TestArgs, WorkerArgs>): TestType<TestArgs & T, WorkerArgs & W>;
 }
 
-type MaybePromise<T> = T | Promise<T>;
-type MaybeVoid<T> = {} extends T ? T | void : T;
+export type KeyValue = { [key: string]: any };
+type FixtureValue<R, Args, Info> = R | ((args: Args, run: (r: R) => Promise<void>, info: Info) => any);
+export type Fixtures<T extends KeyValue = {}, W extends KeyValue = {}, PT extends KeyValue = {}, PW extends KeyValue = {}> = {
+  [K in keyof PW]?: FixtureValue<PW[K], W & PW, WorkerInfo>;
+} & {
+  [K in keyof PT]?: FixtureValue<PT[K], T & W & PT & PW, TestInfo>;
+} & {
+  [K in keyof W]?: [FixtureValue<W[K], W & PW, WorkerInfo>, { scope: 'worker', auto?: boolean }];
+} & {
+  [K in keyof T]?: FixtureValue<T[K], T & W & PT & PW, TestInfo> | [FixtureValue<T[K], T & W & PT & PW, TestInfo>, { scope?: 'test', auto?: boolean }];
+};
 
-export interface Env<TestArgs = {}, WorkerArgs = {}, Options = {}, PreviousTestArgs = {}, PreviousWorkerArgs = {}> {
-  hasBeforeAllOptions?(options: Options): boolean;
-  beforeEach?(args: PreviousTestArgs & Options, testInfo: TestInfo): MaybePromise<MaybeVoid<TestArgs>>;
-  beforeAll?(args: PreviousWorkerArgs & Options, workerInfo: WorkerInfo): MaybePromise<MaybeVoid<WorkerArgs>>;
-  afterEach?(args: PreviousTestArgs & Options, testInfo: TestInfo): MaybePromise<any>;
-  afterAll?(args: PreviousWorkerArgs & Options, workerInfo: WorkerInfo): MaybePromise<any>;
-}
+export type Location = {file: string, line: number, column: number};
+export type FixturesWithLocation = {
+  fixtures: Fixtures;
+  location: Location;
+};
 
 export interface BooleanCLIOption {
   name: string;

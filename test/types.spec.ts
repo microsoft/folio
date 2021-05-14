@@ -27,44 +27,67 @@ test('sanity', async ({runTSC}) => {
   expect(result.exitCode).toBe(0);
 });
 
-test('folio.Config should check types of options', async ({runTSC}) => {
+test('should check types of fixtures', async ({runTSC}) => {
   const result = await runTSC({
     'helper.ts': `
       export type MyOptions = { foo: string, bar: number };
-      export const test = folio.test.extend({
-        hasBeforeAllOptions(options: MyOptions) {
-          return false;
-        },
-        async beforeEach({}, testInfo: folio.TestInfo) {
-          return { a: '42', b: 42 };
-        }
+      export const test = folio.test.extend<{ foo: string }, { bar: number }>({
+        foo: 'foo',
+        bar: [ 42, { scope: 'worker' } ],
       });
-      class Env2 {
-        beforeAll() {
-          return { foo: '42' };
-        }
-      }
+
+      const good1 = test.extend<{}>({ foo: async ({ bar }, run) => run('foo') });
+      const good2 = test.extend<{}>({ bar: ({}, run) => run(42) });
+      const good3 = test.extend<{}>({ bar: ({}, run) => run(42) });
+      const good4 = test.extend<{}>({ bar: async ({ bar }, run) => run(42) });
+      const good5 = test.extend<{}>({ foo: async ({ foo }, run) => run('foo') });
+      const good6 = test.extend<{ baz: boolean }>({
+        baz: false,
+        foo: async ({ baz }, run) => run('foo')
+      });
+      const good7 = test.extend<{ baz: boolean }>({
+        baz: [ false, { auto: true } ],
+      });
+
+      // @ts-expect-error
+      const fail1 = test.extend<{}>({ foo: 42 });
+      // @ts-expect-error
+      const fail2 = test.extend<{}>({ bar: async ({ foo }, run) => run(42) });
+      // @ts-expect-error
+      const fail3 = test.extend<{}>({ baz: 42 });
+      // @ts-expect-error
+      const fail4 = test.extend<{}>({ foo: async ({ foo }, run) => run(42) });
+      // @ts-expect-error
+      const fail5 = test.extend<{}>({ bar: async ({}, run) => run('foo') });
+      const fail6 = test.extend<{ baz: boolean }>({
+        // @ts-expect-error
+        baz: [ true, { scope: 'worker' } ],
+      });
+      const fail7 = test.extend<{}, { baz: boolean }>({
+        // @ts-expect-error
+        baz: [ true, { scope: 'test' } ],
+      });
+      const fail8 = test.extend<{}, { baz: boolean }>({
+        // @ts-expect-error
+        baz: true,
+      });
     `,
     'folio.config.ts': `
       import { MyOptions } from './helper';
       const configs1: folio.Config[] = [];
-      configs1.push({ options: { foo: '42', bar: 42 } });
-      configs1.push({ options: { foo: '42', bar: 42 }, timeout: 100 });
+      configs1.push({ use: { foo: '42', bar: 42 } });
+      configs1.push({ use: { foo: '42', bar: 42 }, timeout: 100 });
 
       const configs2: folio.Config<MyOptions>[] = [];
-      configs2.push({ options: { foo: '42', bar: 42 } });
+      configs2.push({ use: { foo: '42', bar: 42 } });
       // @ts-expect-error
-      folio.runTests({ options: { foo: '42', bar: 42 } }, {});
+      folio.runTests({ use: { foo: '42', bar: 42 } }, {});
       // @ts-expect-error
-      configs2.push({ options: { foo: '42' } });
-      // @ts-expect-error
-      configs2.push({ options: { bar: '42' } });
-      // @ts-expect-error
-      configs2.push({ options: { bar: 42 } });
+      configs2.push({ use: { bar: '42' } });
       // @ts-expect-error
       configs2.push(new Env2());
       // @ts-expect-error
-      configs2.push({ options: { foo: 42, bar: 42 } });
+      configs2.push({ use: { foo: 42, bar: 42 } });
       // @ts-expect-error
       configs2.push({ beforeAll: async () => { return {}; } });
       // TODO: next line should not compile.
@@ -76,54 +99,66 @@ test('folio.Config should check types of options', async ({runTSC}) => {
     `,
     'a.spec.ts': `
       import { test } from './helper';
-      test.useOptions({ foo: 'foo' });
-      test.useOptions({});
+      test.use({ foo: 'foo' });
+      test.use({});
+
       // @ts-expect-error
-      test.useOptions({ baz: 'baz' });
-      test('my test', async ({ a, b }) => {
-        b += parseInt(a);
+      test.use({ foo: 42 });
+      // @ts-expect-error
+      test.use({ baz: 'baz' });
+
+      test('my test', async ({ foo, bar }) => {
+        bar += parseInt(foo);
       });
+      test('my test', ({ foo, bar }) => {
+        bar += parseInt(foo);
+      });
+      test('my test', () => {});
+      // @ts-expect-error
+      test('my test', async ({ a }) => {
+      });
+
+      // @ts-expect-error
+      test.beforeEach(async ({ a }) => {});
+      test.beforeEach(async ({ foo, bar }) => {});
+      test.beforeEach(() => {});
+
+      // @ts-expect-error
+      test.beforeAll(async ({ a }) => {});
+      // @ts-expect-error
+      test.beforeAll(async ({ foo, bar }) => {});
+      test.beforeAll(async ({ bar }) => {});
+      test.beforeAll(() => {});
+
+      // @ts-expect-error
+      test.afterEach(async ({ a }) => {});
+      test.afterEach(async ({ foo, bar }) => {});
+      test.afterEach(() => {});
+
+      // @ts-expect-error
+      test.afterAll(async ({ a }) => {});
+      // @ts-expect-error
+      test.afterAll(async ({ foo, bar }) => {});
+      test.afterAll(async ({ bar }) => {});
+      test.afterAll(() => {});
     `
   });
   expect(result.exitCode).toBe(0);
 });
 
-test('folio.Config should allow void/empty options', async ({runTSC}) => {
+test('config should allow void/empty options', async ({runTSC}) => {
   const result = await runTSC({
     'folio.config.ts': `
       const configs: folio.Config[] = [];
       configs.push({});
       configs.push({ timeout: 100 });
       configs.push();
-      configs.push({ options: { foo: 42 }});
+      configs.push({ use: { foo: 42 }});
     `,
     'a.spec.ts': `
       const { test } = folio;
       test('my test', async () => {
       });
-    `
-  });
-  expect(result.exitCode).toBe(0);
-});
-
-test('test.extend should check types', async ({runTSC}) => {
-  const result = await runTSC({
-    'helper.ts': `
-      export const test = folio.test.declare<{ foo: string }>();
-      export const test1 = test.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) + 42 }; } });
-      export const test2 = test1.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
-      // @ts-expect-error
-      export const test3 = test.extend({ beforeEach: ({ bar }) => { return { baz: bar - 5 }; } });
-    `,
-    'a.spec.ts': `
-      import { test, test1, test2 } from './helper';
-      test('my test', async ({ foo }) => {});
-      // @ts-expect-error
-      test('my test', async ({ bar }) => {});
-      test1('my test', async ({ foo, bar }) => {});
-      test2('my test', async ({ foo, bar, baz }) => {});
-      // @ts-expect-error
-      test2('my test', async ({ x }) => {});
     `
   });
   expect(result.exitCode).toBe(0);

@@ -270,3 +270,7 @@ const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*
 export function stripAscii(str: string): string {
   return str.replace(asciiRegex, '');
 }
+
+export function firstStackFrame(stack: string): string {
+  return stack.split('\n').find(line => line.trim().startsWith('at'));
+}

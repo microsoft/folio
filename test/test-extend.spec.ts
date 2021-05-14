@@ -20,46 +20,62 @@ test('test.extend should work', async ({ runInlineTest }) => {
   const { output, passed } = await runInlineTest({
     'helper.ts': `
       global.logs = [];
-      export class MyEnv {
-        constructor(suffix) {
-          this.suffix = suffix;
-        }
-        async beforeAll() {
-          global.logs.push('beforeAll' + this.suffix);
-        }
-        async afterAll() {
-          global.logs.push('afterAll' + this.suffix);
-          if (this.suffix.includes('base'))
-            console.log(global.logs.join('\\n'));
-        }
-        async beforeEach() {
-          global.logs.push('beforeEach' + this.suffix);
-          return { foo: 'bar' };
-        }
-        async afterEach() {
-          global.logs.push('afterEach' + this.suffix);
-        }
+
+      function createDerivedFixtures(suffix) {
+        return {
+          derivedWorker: [async ({ baseWorker }, run) => {
+            global.logs.push('beforeAll-' + suffix);
+            await run();
+            global.logs.push('afterAll-' + suffix);
+            if (suffix.includes('base'))
+              console.log(global.logs.join('\\n'));
+          }, { scope: 'worker' }],
+
+          derivedTest: async ({ baseTest, derivedWorker }, run) => {
+            global.logs.push('beforeEach-' + suffix);
+            await run();
+            global.logs.push('afterEach-' + suffix);
+          },
+        };
       }
+
       export const base = folio.test.declare();
+      export const test1 = base.extend(createDerivedFixtures('e1'));
+      export const test2 = base.extend(createDerivedFixtures('e2'));
     `,
     'folio.config.ts': `
-      import { base, MyEnv } from './helper';
+      import { base } from './helper';
+
+      function createBaseFixtures(suffix) {
+        return {
+          baseWorker: [async ({}, run) => {
+            global.logs.push('beforeAll-' + suffix);
+            await run();
+            global.logs.push('afterAll-' + suffix);
+            if (suffix.includes('base'))
+              console.log(global.logs.join('\\n'));
+          }, { scope: 'worker' }],
+
+          baseTest: async ({ derivedWorker }, run) => {
+            global.logs.push('beforeEach-' + suffix);
+            await run();
+            global.logs.push('afterEach-' + suffix);
+          },
+        };
+      }
+
       module.exports = { projects: [
-        { define: { test: base, env: new MyEnv('-base1') } },
-        { define: { test: base, env: new MyEnv('-base2') } },
+        { define: { test: base, fixtures: createBaseFixtures('base1') } },
+        { define: { test: base, fixtures: createBaseFixtures('base2') } },
       ] };
     `,
     'a.test.ts': `
-      import { base, MyEnv } from './helper';
-      const test1 = base.extend(new MyEnv('-e1'));
-      const test2 = base.extend(new MyEnv('-e2'));
-      test1('should work', async ({foo}) => {
+      import { test1, test2 } from './helper';
+      test1('should work', async ({ derivedTest }) => {
         global.logs.push('test1');
-        expect(foo).toBe('bar');
       });
-      test2('should work', async ({foo}) => {
+      test2('should work', async ({ derivedTest }) => {
         global.logs.push('test2');
-        expect(foo).toBe('bar');
       });
     `,
   });
@@ -110,146 +126,53 @@ test('test.extend should work', async ({ runInlineTest }) => {
   ].join('\n'));
 });
 
-test('test.extend should work with plain object syntax', async ({ runInlineTest }) => {
+test('test.declare should be inserted at the right place', async ({ runInlineTest }) => {
   const { output, passed } = await runInlineTest({
     'helper.ts': `
-      export const test = folio.test.extend({
-        async beforeEach() {
-          this.foo = 'bar';
-          return { foo: this.foo };
-        },
-        afterEach({}, testInfo) {
-          console.log('afterEach=' + this.foo + ';' + testInfo.title);
+      const test1 = folio.test.extend({
+        foo: async ({}, run) => {
+          console.log('before-foo');
+          await run('foo');
+          console.log('after-foo');
         },
       });
-    `,
-    'a.test.js': `
-      const { test } = require('./helper');
-      test('test1', async ({foo}) => {
-        expect(foo).toBe('bar');
+      export const test2 = test1.declare<{ bar: string }>();
+      export const test3 = test2.extend({
+        baz: async ({ bar }, run) => {
+          console.log('before-baz');
+          await run(bar + 'baz');
+          console.log('after-baz');
+        },
       });
-    `,
-  });
-  expect(passed).toBe(1);
-  expect(output).toContain('afterEach=bar;test1');
-});
-
-test('test.extend should chain worker and test args', async ({ runInlineTest }) => {
-  const { output, passed } = await runInlineTest({
-    'helper.ts': `
-      global.logs = [];
-      export class Env1 {
-        async beforeAll() {
-          global.logs.push('beforeAll1');
-          return { w1: 'w1' };
-        }
-        async afterAll({ w1 }) {
-          global.logs.push('afterAll1-w1=' + w1);
-          console.log(global.logs.join('\\n'));
-        }
-        async beforeEach({ w1 }) {
-          global.logs.push('beforeEach1-w1=' + w1);
-          return { t1: 't1' };
-        }
-        async afterEach({ t1, w1 }) {
-          global.logs.push('afterEach1-w1=' + w1 + ',t1=' + t1);
-        }
-      }
-      export class Env2 {
-        async beforeAll({ w1 }) {
-          global.logs.push('beforeAll2-w1=' + w1);
-          return { w2: 'w2' };
-        }
-        async afterAll({ w1, w2 }) {
-          global.logs.push('afterAll2-w1=' + w1 + ',w2=' + w2);
-        }
-        async beforeEach({ t1, w2 }) {
-          global.logs.push('beforeEach2-t1=' + t1 + ',w2=' + w2);
-          return { t2: 't2' };
-        }
-        async afterEach({ t1, t2, w2 }) {
-          global.logs.push('afterEach2-t1=' + t1 + ',t2=' + t2 + ',w2=' + w2);
-        }
-      }
-      export class Env3 {
-        async beforeAll({ w1, w2 }) {
-          global.logs.push('beforeAll3-w1=' + w1 + ',w2=' + w2);
-          return { w3: 'w3' };
-        }
-        async afterAll({ w1, w2, w3 }) {
-          global.logs.push('afterAll3-w1=' + w1 + ',w2=' + w2 + ',w3=' + w3);
-        }
-        async beforeEach({ t1, t2}) {
-          global.logs.push('beforeEach3-t1=' + t1 + ',t2=' + t2);
-          return { t3: 't3' };
-        }
-        async afterEach({ t1, t2, t3 }) {
-          global.logs.push('afterEach3-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3);
-        }
-      }
-      export const declared = folio.test.extend(new Env1()).declare();
-      export const test = declared.extend(new Env3());
     `,
     'folio.config.ts': `
-      import { declared, Env2 } from './helper';
+      import { test2 } from './helper';
+      const fixtures = {
+        bar: async ({ foo }, run) => {
+          console.log('before-bar');
+          await run(foo + 'bar');
+          console.log('after-bar');
+        },
+      };
       module.exports = {
-        define: { test: declared, env: new Env2() },
+        define: { test: test2, fixtures },
       };
     `,
     'a.test.js': `
-      const { test } = require('./helper');
-      test('should work', async ({t1, t2, t3, w1}) => {
-        global.logs.push('test-t1=' + t1 + ',t2=' + t2 + ',t3=' + t3 + ',w1=' + w1);
+      const { test3 } = require('./helper');
+      test3('should work', async ({baz}) => {
+        console.log('test-' + baz);
       });
     `,
   });
   expect(passed).toBe(1);
   expect(output).toContain([
-    'beforeAll1',
-    'beforeAll2-w1=w1',
-    'beforeAll3-w1=w1,w2=w2',
-    'beforeEach1-w1=w1',
-    'beforeEach2-t1=t1,w2=w2',
-    'beforeEach3-t1=t1,t2=t2',
-    'test-t1=t1,t2=t2,t3=t3,w1=w1',
-    'afterEach3-t1=t1,t2=t2,t3=undefined',
-    'afterEach2-t1=t1,t2=undefined,w2=w2',
-    'afterEach1-w1=w1,t1=undefined',
-    'afterAll3-w1=w1,w2=w2,w3=undefined',
-    'afterAll2-w1=w1,w2=undefined',
-    'afterAll1-w1=undefined',
+    'before-foo',
+    'before-bar',
+    'before-baz',
+    'test-foobarbaz',
+    'after-baz',
+    'after-bar',
+    'after-foo',
   ].join('\n'));
-});
-
-test('env.options should work', async ({ runInlineTest }) => {
-  const { exitCode, passed } = await runInlineTest({
-    'helper.ts': `
-      export class Env1 {
-        async beforeAll(options) {
-          return { bar: options.foo + '2' };
-        }
-      }
-      export class Env2 {
-        async beforeAll(options) {
-          return { baz: options.foo + options.bar };
-        }
-      }
-      export const test = folio.test.extend(new Env1()).extend(new Env2());
-    `,
-    'folio.config.ts': `
-      module.exports = { options: { foo: 'foo' } };
-    `,
-    'a.test.js': `
-      const { test } = require('./helper');
-      let value;
-      test.beforeAll(({ foo, bar, baz }) => {
-        value = 'foo=' + foo + ';bar=' + bar + ';baz=' + baz;
-      });
-      test('should work', async () => {
-        expect(value).toBe('foo=foo;bar=foo2;baz=foofoo2');
-      });
-    `,
-  });
-  expect(passed).toBe(1);
-  expect(exitCode).toBe(0);
 });

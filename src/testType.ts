@@ -18,21 +18,24 @@ import { expect } from './expect';
 import { currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuite } from './globals';
 import { Spec, Suite } from './test';
 import { callLocation, errorWithCallLocation } from './util';
-import { Env, TestInfo, TestType } from './types';
+import { Fixtures, FixturesWithLocation, Location, TestInfo, TestType } from './types';
+import { inheritFixtureParameterNames } from './fixtures';
 
 Error.stackTraceLimit = 15;
 
 const countByFile = new Map<string, number>();
 
-export class TestTypeImpl {
-  readonly children = new Set<TestTypeImpl>();
-  readonly parent: TestTypeImpl | undefined;
-  readonly envs: (Env | DeclaredEnv)[];
-  readonly test: TestType<any, any, any>;
+export class DeclaredFixtures {
+  testType: TestTypeImpl;
+  location: Location;
+}
 
-  constructor(envs: (Env | DeclaredEnv)[], parent: TestTypeImpl | undefined) {
-    this.envs = envs;
-    this.parent = parent;
+export class TestTypeImpl {
+  readonly fixtures: (FixturesWithLocation | DeclaredFixtures)[];
+  readonly test: TestType<any, any>;
+
+  constructor(fixtures: (FixturesWithLocation | DeclaredFixtures)[]) {
+    this.fixtures = fixtures;
 
     const test: any = this._spec.bind(this, 'default');
     test.expect = expect;
@@ -48,7 +51,7 @@ export class TestTypeImpl {
     test.fail = this._modifier.bind(this, 'fail');
     test.slow = this._modifier.bind(this, 'slow');
     test.setTimeout = this._setTimeout.bind(this);
-    test.useOptions = this._useOptions.bind(this);
+    test.use = this._use.bind(this);
     test.extend = this._extend.bind(this);
     test.declare = this._declare.bind(this);
     this.test = test;
@@ -93,58 +96,65 @@ export class TestTypeImpl {
     setCurrentlyLoadingFileSuite(suite);
   }
 
-  private _hook(name: string, fn: Function) {
+  private _hook(name: 'beforeEach' | 'afterEach' | 'beforeAll' | 'afterAll', fn: Function) {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
       throw errorWithCallLocation(`Hook can only be defined in a test file.`);
-    suite._hooks.push({ type: name, fn });
+    suite._hooks.push({ type: name, fn, location: callLocation() });
   }
 
   private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string | Function, description?: string) {
     const suite = currentlyLoadingFileSuite();
     if (suite) {
-      const fn = (args: any, testInfo: TestInfo) => (testInfo[type] as any)(arg, description);
-      suite._hooks.unshift({ type: 'beforeEach', fn });
+      const location = callLocation();
+      if (typeof arg === 'function') {
+        const fn = (args: any, testInfo: TestInfo) => (testInfo[type] as any)(arg(args), description);
+        inheritFixtureParameterNames(arg, fn, location);
+        suite._hooks.unshift({ type: 'beforeEach', fn, location });
+      } else {
+        const fn = ({}: any, testInfo: TestInfo) => (testInfo[type] as any)(arg, description);
+        suite._hooks.unshift({ type: 'beforeEach', fn, location });
+      }
       return;
     }
 
     const testInfo = currentTestInfo();
     if (!testInfo)
-      throw new Error(`test.${type} can only be called inside the test`);
+      throw new Error(`test.${type}() can only be called inside test, describe or fixture`);
+    if (typeof arg === 'function')
+      throw new Error(`test.${type}() with a function can only be called inside describe`);
     (testInfo[type] as any)(arg, description);
   }
 
   private _setTimeout(timeout: number) {
     const testInfo = currentTestInfo();
     if (!testInfo)
-      throw new Error(`test.setTimeout() can only be called inside the test`);
+      throw new Error(`test.setTimeout() can only be called inside test or fixture`);
     testInfo.setTimeout(timeout);
   }
 
-  private _useOptions(options: any) {
+  private _use(fixtures: Fixtures) {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
-      throw errorWithCallLocation(`useOptions() can only be called in a test file.`);
-    suite._options = { ...suite._options, ...options };
+      throw errorWithCallLocation(`test.use() can only be called in a test file.`);
+    suite._fixtureOverrides = { ...suite._fixtureOverrides, ...fixtures };
   }
 
-  private _extend(env?: Env) {
-    const child = new TestTypeImpl([...this.envs, env || {}], this);
-    this.children.add(child);
-    return child.test;
+  private _extend(fixtures: Fixtures) {
+    const fixturesWithLocation = {
+      fixtures,
+      location: callLocation(),
+    };
+    return new TestTypeImpl([...this.fixtures, fixturesWithLocation]).test;
   }
 
   private _declare() {
-    const declared = new DeclaredEnv();
-    const child = new TestTypeImpl([...this.envs, declared], this);
+    const declared = new DeclaredFixtures();
+    declared.location = callLocation();
+    const child = new TestTypeImpl([...this.fixtures, declared]);
     declared.testType = child;
-    this.children.add(child);
     return child.test;
   }
 }
 
-export class DeclaredEnv {
-  testType: TestTypeImpl;
-}
-
-export const rootTestType = new TestTypeImpl([], undefined);
+export const rootTestType = new TestTypeImpl([]);

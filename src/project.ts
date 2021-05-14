@@ -14,91 +14,74 @@
  * limitations under the License.
  */
 
-import type { Env, TestType, FullProject } from './types';
-import { Spec, Suite, Test } from './test';
-import { DeclaredEnv, TestTypeImpl } from './testType';
-
-type TestTypeData = {
-  // Test types that have an environment with beforeAll produce a new worker.
-  forkingAncestor: TestTypeImpl,
-  hashPrefix: string,
-
-  // Options that are used in beforeAll produce a new worker.
-  optionsHash: Map<Suite, string>,
-  lastOptionsHash: number,
-};
+import type { TestType, FullProject, Fixtures, FixturesWithLocation } from './types';
+import { Spec, Test } from './test';
+import { FixturePool } from './fixtures';
+import { DeclaredFixtures, TestTypeImpl } from './testType';
 
 export class ProjectImpl {
   config: FullProject;
   readonly useRootDirForSnapshots: boolean;
   private index: number;
-  private defines = new Map<TestType<any, any, any>, Env>();
-  private testTypeToData = new Map<TestTypeImpl, TestTypeData>();
-  private lastForkingAncestorHash = 0;
+  private defines = new Map<TestType<any, any>, Fixtures>();
+  private testTypePools = new Map<TestTypeImpl, FixturePool>();
+  private specPools = new Map<Spec, FixturePool>();
 
   constructor(project: FullProject, index: number, useRootDirForSnapshots: boolean) {
     this.config = project;
     this.index = index;
     this.useRootDirForSnapshots = useRootDirForSnapshots;
     this.defines = new Map();
-    for (const { test, env } of Array.isArray(project.define) ? project.define : [project.define])
-      this.defines.set(test, env);
+    for (const { test, fixtures } of Array.isArray(project.define) ? project.define : [project.define])
+      this.defines.set(test, fixtures);
   }
 
-  private ensureTestTypeData(testType: TestTypeImpl) {
-    if (this.testTypeToData.has(testType))
-      return this.testTypeToData.get(testType);
-
-    const envs = this.resolveEnvs(testType);
-    const env = envs[envs.length - 1];
-    // Fork if we get an environment with worker-level hooks.
-    const needsFork = env && (env.beforeAll || env.afterAll);
-
-    if (needsFork || !testType.parent) {
-      const data: TestTypeData = {
-        forkingAncestor: testType,
-        hashPrefix: 'env' + String(this.lastForkingAncestorHash++),
-        optionsHash: new Map(),
-        lastOptionsHash: 0,
+  private buildTestTypePool(testType: TestTypeImpl): FixturePool {
+    if (!this.testTypePools.has(testType)) {
+      const fixtures = this.resolveFixtures(testType);
+      const overrides: Fixtures = this.config.use;
+      const overridesWithLocation = {
+        fixtures: overrides,
+        location: {
+          file: `<configuration file>`,
+          line: 1,
+          column: 1,
+        }
       };
-      this.testTypeToData.set(testType, data);
-      return data;
+      const pool = new FixturePool([...fixtures, overridesWithLocation]);
+      this.testTypePools.set(testType, pool);
     }
-
-    const parentData = this.ensureTestTypeData(testType.parent);
-    const data: TestTypeData = {
-      forkingAncestor: parentData.forkingAncestor,
-      hashPrefix: parentData.hashPrefix,
-      optionsHash: new Map(),
-      lastOptionsHash: 0,
-    };
-    this.testTypeToData.set(testType, data);
-    return data;
+    return this.testTypePools.get(testType)!;
   }
 
-  private findSuiteHash(data: TestTypeData, suite: Suite) {
-    if (data.optionsHash.has(suite))
-      return data.optionsHash.get(suite);
+  buildPool(spec: Spec): FixturePool {
+    if (!this.specPools.has(spec)) {
+      let pool = this.buildTestTypePool(spec._testType);
+      const overrides: Fixtures = spec.parent!._buildFixtureOverrides();
+      if (Object.entries(overrides).length) {
+        const overridesWithLocation = {
+          fixtures: overrides,
+          location: {
+            file: spec.file,
+            line: 1,  // TODO: capture location
+            column: 1,  // TODO: capture location
+          }
+        };
+        pool = new FixturePool([overridesWithLocation], pool);
+      }
+      this.specPools.set(spec, pool);
 
-    const envs = this.resolveEnvs(data.forkingAncestor);
-    let hasBeforeAllOptions = false;
-    if (suite._options) {
-      for (const env of envs) {
-        if (env.hasBeforeAllOptions)
-          hasBeforeAllOptions = hasBeforeAllOptions || env.hasBeforeAllOptions(suite._options);
+      pool.validateFunction(spec.fn, 'Test', true, spec);
+      for (let parent = spec.parent; parent; parent = parent.parent) {
+        for (const hook of parent._hooks)
+          pool.validateFunction(hook.fn, hook.type + ' hook', hook.type === 'beforeEach' || hook.type === 'afterEach', hook.location);
       }
     }
-
-    const hash = (!hasBeforeAllOptions && suite.parent)
-      ? this.findSuiteHash(data, suite.parent)
-      : data.hashPrefix + '-options' + String(data.lastOptionsHash++);
-    data.optionsHash.set(suite, hash);
-    return hash;
+    return this.specPools.get(spec)!;
   }
 
   generateTests(spec: Spec, repeatEachIndex?: number) {
-    const data = this.ensureTestTypeData(spec._testType);
-    const hash = this.findSuiteHash(data, spec.parent!);
+    const digest = this.buildPool(spec).digest;
     const min = repeatEachIndex === undefined ? 0 : repeatEachIndex;
     const max = repeatEachIndex === undefined ? this.config.repeatEach - 1 : repeatEachIndex;
     const tests: Test[] = [];
@@ -108,7 +91,7 @@ export class ProjectImpl {
       test.retries = this.config.retries;
       test._repeatEachIndex = i;
       test._projectIndex = this.index;
-      test._workerHash = `run${this.index}-${hash}-repeat${i}`;
+      test._workerHash = `run${this.index}-${digest}-repeat${i}`;
       test._id = `${spec._ordinalInFile}@${spec.file}#run${this.index}-repeat${i}`;
       spec.tests.push(test);
       tests.push(test);
@@ -116,7 +99,13 @@ export class ProjectImpl {
     return tests;
   }
 
-  resolveEnvs(testType: TestTypeImpl): Env[] {
-    return testType.envs.map(e => e instanceof DeclaredEnv ? this.defines.get(e.testType.test) || {} : e);
+  private resolveFixtures(testType: TestTypeImpl): FixturesWithLocation[] {
+    return testType.fixtures.map(f => {
+      if (f instanceof DeclaredFixtures) {
+        const fixtures = this.defines.get(f.testType.test) || {};
+        return { fixtures, location: f.location };
+      }
+      return f;
+    });
   }
 }

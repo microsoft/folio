@@ -41,15 +41,13 @@ test('should get top level stdio', async ({runInlineTest}) => {
 test('should get stdio from env afterAll', async ({runInlineTest}) => {
   const result = await runInlineTest({
     'helper.ts': `
-      class MyEnv {
-        async beforeAll() {
+      export const test = folio.test.extend({
+        fixture: [ async ({}, run) => {
           console.log('\\n%% worker setup');
-        }
-        async afterAll() {
+          await run();
           console.log('\\n%% worker teardown');
-        }
-      }
-      export const test = folio.test.extend(new MyEnv());
+        }, { scope: 'worker' } ]
+      });
     `,
     'a.spec.js': `
       const { test } = require('./helper');

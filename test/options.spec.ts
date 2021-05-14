@@ -19,15 +19,13 @@ import { test, expect } from './folio-test';
 test('should merge options', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      class MyEnv {
-        async beforeEach(args) {
-          return { foo: args.foo || 'foo', bar: args.bar || 'bar' };
-        }
-      }
-      const test = folio.test.extend(new MyEnv());
+      const test = folio.test.extend({
+        foo: 'foo',
+        bar: 'bar',
+      });
 
-      test.useOptions({ foo: 'foo2' });
-      test.useOptions({ bar: 'bar2' });
+      test.use({ foo: 'foo2' });
+      test.use({ bar: 'bar2' });
       test('test', ({ foo, bar }) => {
         expect(foo).toBe('foo2');
         expect(bar).toBe('bar2');
@@ -41,13 +39,9 @@ test('should merge options', async ({ runInlineTest }) => {
 test('should run tests with different test options in the same worker', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `
-      global.logs = [];
-      class MyEnv {
-        async beforeEach(args) {
-          return { foo: args.foo || 'foo' };
-        }
-      }
-      export const test = folio.test.extend(new MyEnv());
+      export const test = folio.test.extend({
+        foo: 'foo',
+      });
     `,
     'a.test.ts': `
       import { test } from './helper';
@@ -57,14 +51,14 @@ test('should run tests with different test options in the same worker', async ({
       });
 
       test.describe('suite1', () => {
-        test.useOptions({ foo: 'bar' });
+        test.use({ foo: 'bar' });
         test('test1', ({ foo }, testInfo) => {
           expect(foo).toBe('bar');
           expect(testInfo.workerIndex).toBe(0);
         });
 
         test.describe('suite2', () => {
-          test.useOptions({ foo: 'baz' });
+          test.use({ foo: 'baz' });
           test('test2', ({ foo }, testInfo) => {
             expect(foo).toBe('baz');
             expect(testInfo.workerIndex).toBe(0);
@@ -80,53 +74,93 @@ test('should run tests with different test options in the same worker', async ({
 test('should run tests with different worker options', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `
-      class MyEnv {
-        hasBeforeAllOptions(options) {
-          return 'foo' in options;
-        }
-        async beforeAll(options) {
-          return { foo: options.foo };
-        }
-      }
-      export const test = folio.test.extend(new MyEnv());
+      export const test = folio.test.extend({
+        foo: [undefined, { scope: 'worker' }],
+      });
     `,
     'a.test.ts': `
       import { test } from './helper';
       test('test', ({ foo }, testInfo) => {
         expect(foo).toBe(undefined);
-        expect(testInfo.workerIndex).toBe(0);
+        console.log('\\n%%test=' + testInfo.workerIndex);
       });
 
       test.describe('suite1', () => {
-        test.useOptions({ foo: 'bar' });
+        test.use({ foo: 'bar' });
         test('test1', ({ foo }, testInfo) => {
           expect(foo).toBe('bar');
-          expect(testInfo.workerIndex).toBe(1);
+          console.log('\\n%%test1=' + testInfo.workerIndex);
         });
 
         test.describe('suite2', () => {
-          test.useOptions({ foo: 'baz' });
+          test.use({ foo: 'baz' });
           test('test2', ({ foo }, testInfo) => {
             expect(foo).toBe('baz');
-            expect(testInfo.workerIndex).toBe(2);
+            console.log('\\n%%test2=' + testInfo.workerIndex);
           });
         });
 
         test('test3', ({ foo }, testInfo) => {
           expect(foo).toBe('bar');
-          expect(testInfo.workerIndex).toBe(1);
+          console.log('\\n%%test3=' + testInfo.workerIndex);
         });
       });
     `,
     'b.test.ts': `
       import { test } from './helper';
-      test.useOptions({ foo: 'qux' });
+      test.use({ foo: 'qux' });
       test('test4', ({ foo }, testInfo) => {
         expect(foo).toBe('qux');
-        expect(testInfo.workerIndex).toBe(3);
+        console.log('\\n%%test4=' + testInfo.workerIndex);
       });
     `
   }, { workers: 1 });
+
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(5);
+
+  const workerIndexMap = new Map();
+  const allWorkers = new Set();
+  for (const line of result.output.split('\n')) {
+    if (line.startsWith('%%')) {
+      const [ name, workerIndex ] = line.substring(2).split('=');
+      allWorkers.add(workerIndex);
+      workerIndexMap.set(name, workerIndex);
+    }
+  }
+
+  expect(workerIndexMap.size).toBe(5);
+  expect(workerIndexMap.get('test1')).toBe(workerIndexMap.get('test3'));
+  expect(allWorkers.size).toBe(4);
+  for (let i = 0; i < 4; i++)
+    expect(allWorkers.has(String(i)));
+});
+
+test('should use options from the config', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'helper.ts': `
+      export const test = folio.test.extend({
+        foo: 'foo',
+      });
+    `,
+    'folio.config.ts': `
+      module.exports = { use: { foo: 'bar' } };
+    `,
+    'a.test.ts': `
+      import { test } from './helper';
+      test('test1', ({ foo }) => {
+        expect(foo).toBe('bar');
+      });
+
+      test.describe('suite1', () => {
+        test.use({ foo: 'baz' });
+
+        test('test2', ({ foo }) => {
+          expect(foo).toBe('baz');
+        });
+      });
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(2);
 });
