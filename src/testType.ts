@@ -125,7 +125,7 @@ export class TestTypeImpl {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
       throw errorWithCallLocation(`useOptions() can only be called in a test file.`);
-    suite._options = options;
+    suite._options = { ...suite._options, ...options };
   }
 
   private _extend(env?: Env) {
