@@ -221,10 +221,10 @@ export class WorkerRunner extends EventEmitter {
         const basePath = path.join(this._project.config.snapshotDir, relativeTestFilePathForSnapshots, sanitizedTitle, testInfo.snapshotPathSegment);
         return path.join(basePath, ...pathSegments);
       },
-      skip: (...args: [arg?: boolean | string, description?: string]) => modifier(testInfo, 'skip', args),
-      fixme: (...args: [arg?: boolean | string, description?: string]) => modifier(testInfo, 'fixme', args),
-      fail: (...args: [arg?: boolean | string, description?: string]) => modifier(testInfo, 'fail', args),
-      slow: (...args: [arg?: boolean | string, description?: string]) => modifier(testInfo, 'slow', args),
+      skip: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'skip', args),
+      fixme: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'fixme', args),
+      fail: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'fail', args),
+      slow: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'slow', args),
       setTimeout: (timeout: number) => {
         testInfo.timeout = timeout;
         if (deadlineRunner)
@@ -414,11 +414,11 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
   };
 }
 
-function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', modifierArgs: [arg?: boolean | string, description?: string]) {
+function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', modifierArgs: [arg?: any, description?: string]) {
   if (modifierArgs.length >= 1 && !modifierArgs[0])
     return;
 
-  const [arg, description] = modifierArgs;
+  const description = modifierArgs?.[1];
   testInfo.annotations.push({ type, description });
   if (type === 'slow') {
     testInfo.setTimeout(testInfo.timeout * 3);

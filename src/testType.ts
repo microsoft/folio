@@ -103,7 +103,7 @@ export class TestTypeImpl {
     suite._hooks.push({ type: name, fn, location: callLocation() });
   }
 
-  private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', ...modiferAgs: [arg?: boolean | string | Function, description?: string]) {
+  private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', ...modiferAgs: [arg?: any | Function, description?: string]) {
     const suite = currentlyLoadingFileSuite();
     const [arg, description] = modiferAgs;
     if (suite) {
