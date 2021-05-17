@@ -221,10 +221,10 @@ export class WorkerRunner extends EventEmitter {
         const basePath = path.join(this._project.config.snapshotDir, relativeTestFilePathForSnapshots, sanitizedTitle, testInfo.snapshotPathSegment);
         return path.join(basePath, ...pathSegments);
       },
-      skip: (arg?: boolean | string, description?: string) => modifier(testInfo, 'skip', arg, description),
-      fixme: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fixme', arg, description),
-      fail: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fail', arg, description),
-      slow: (arg?: boolean | string, description?: string) => modifier(testInfo, 'slow', arg, description),
+      skip: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'skip', args),
+      fixme: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'fixme', args),
+      fail: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'fail', args),
+      slow: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'slow', args),
       setTimeout: (timeout: number) => {
         testInfo.timeout = timeout;
         if (deadlineRunner)
@@ -414,17 +414,11 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
   };
 }
 
-function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string, description?: string) {
-  if (arg === undefined && description === undefined) {
-    // No parameters - modifier applies.
-  } else if (typeof arg === 'string') {
-    // No condition - modifier applies.
-    description = arg;
-  } else {
-    if (!arg)
-      return;
-  }
+function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', modifierArgs: [arg?: any, description?: string]) {
+  if (modifierArgs.length >= 1 && !modifierArgs[0])
+    return;
 
+  const description = modifierArgs?.[1];
   testInfo.annotations.push({ type, description });
   if (type === 'slow') {
     testInfo.setTimeout(testInfo.timeout * 3);

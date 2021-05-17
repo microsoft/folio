@@ -154,28 +154,24 @@ export interface TestType<TestArgs extends KeyValue, WorkerArgs extends KeyValue
   };
 
   skip(): void;
-  skip(description: string): void;
   skip(condition: boolean): void;
   skip(condition: boolean, description: string): void;
   skip(callback: (args: TestArgs & WorkerArgs) => boolean): void;
   skip(callback: (args: TestArgs & WorkerArgs) => boolean, description: string): void;
 
   fixme(): void;
-  fixme(description: string): void;
   fixme(condition: boolean): void;
   fixme(condition: boolean, description: string): void;
   fixme(callback: (args: TestArgs & WorkerArgs) => boolean): void;
   fixme(callback: (args: TestArgs & WorkerArgs) => boolean, description: string): void;
 
   fail(): void;
-  fail(description: string): void;
   fail(condition: boolean): void;
   fail(condition: boolean, description: string): void;
   fail(callback: (args: TestArgs & WorkerArgs) => boolean): void;
   fail(callback: (args: TestArgs & WorkerArgs) => boolean, description: string): void;
 
   slow(): void;
-  slow(description: string): void;
   slow(condition: boolean): void;
   slow(condition: boolean, description: string): void;
   slow(callback: (args: TestArgs & WorkerArgs) => boolean): void;

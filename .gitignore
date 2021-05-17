@@ -3,3 +3,4 @@ package-lock.json
 .vscode
 out/
 /test-results
+/tsconfig.tsbuildinfo
