@@ -20,9 +20,7 @@ test('test modifiers should work', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `
       export const test = folio.test.extend({
-        beforeAll() {
-          return { foo: true };
-        }
+        foo: true,
       });
     `,
     'a.test.ts': `
@@ -32,9 +30,6 @@ test('test modifiers should work', async ({ runInlineTest }) => {
       });
       test('passed2', async ({foo}) => {
         test.skip(false);
-      });
-      test('passed3', async ({foo}) => {
-        test.skip(({foo}) => !foo, 'reason');
       });
 
       test('skipped1', async ({foo}) => {
@@ -48,12 +43,6 @@ test('test modifiers should work', async ({ runInlineTest }) => {
       });
       test('skipped4', async ({foo}) => {
         test.skip(foo, 'reason');
-      });
-      test('skipped5', async ({foo}) => {
-        test.skip(() => true);
-      });
-      test('skipped6', async ({foo}) => {
-        test.skip(({ foo }) => foo, 'reason');
       });
 
       test('failed1', async ({foo}) => {
@@ -70,14 +59,6 @@ test('test modifiers should work', async ({ runInlineTest }) => {
       });
       test('failed4', async ({foo}) => {
         test.fail(foo, 'reason');
-        expect(true).toBe(false);
-      });
-      test('failed5', async ({foo}) => {
-        test.fail(() => true);
-        expect(true).toBe(false);
-      });
-      test('failed6', async ({foo}) => {
-        test.fail(({ foo }) => foo, 'reason');
         expect(true).toBe(false);
       });
 
@@ -113,34 +94,27 @@ test('test modifiers should work', async ({ runInlineTest }) => {
   };
   expectTest('passed1', 'passed', 'passed', []);
   expectTest('passed2', 'passed', 'passed', []);
-  expectTest('passed3', 'passed', 'passed', []);
   expectTest('skipped1', 'skipped', 'skipped', [{ type: 'skip' }]);
   expectTest('skipped2', 'skipped', 'skipped', [{ type: 'skip', description: 'reason' }]);
   expectTest('skipped3', 'skipped', 'skipped', [{ type: 'skip' }]);
   expectTest('skipped4', 'skipped', 'skipped', [{ type: 'skip', description: 'reason' }]);
-  expectTest('skipped5', 'skipped', 'skipped', [{ type: 'skip' }]);
-  expectTest('skipped6', 'skipped', 'skipped', [{ type: 'skip', description: 'reason' }]);
   expectTest('failed1', 'failed', 'failed', [{ type: 'fail' }]);
   expectTest('failed2', 'failed', 'failed', [{ type: 'fail', description: 'reason' }]);
   expectTest('failed3', 'failed', 'failed', [{ type: 'fail' }]);
   expectTest('failed4', 'failed', 'failed', [{ type: 'fail', description: 'reason' }]);
-  expectTest('failed5', 'failed', 'failed', [{ type: 'fail' }]);
-  expectTest('failed6', 'failed', 'failed', [{ type: 'fail', description: 'reason' }]);
   expectTest('suite1', 'skipped', 'skipped', [{ type: 'skip' }]);
   expectTest('suite2', 'skipped', 'skipped', [{ type: 'skip' }]);
   expectTest('suite3', 'skipped', 'skipped', [{ type: 'skip', description: 'reason' }]);
   expectTest('suite4', 'passed', 'passed', []);
-  expect(result.passed).toBe(10);
-  expect(result.skipped).toBe(9);
+  expect(result.passed).toBe(7);
+  expect(result.skipped).toBe(7);
 });
 
 test('test modifiers should check types', async ({runTSC}) => {
   const result = await runTSC({
     'helper.ts': `
-      export const test = folio.test.extend({
-        beforeAll() {
-          return { foo: true };
-        }
+      export const test = folio.test.extend<{ foo: boolean }>({
+        foo: true,
       });
     `,
     'a.test.ts': `
@@ -176,4 +150,34 @@ test('test modifiers should check types', async ({runTSC}) => {
     `,
   });
   expect(result.exitCode).toBe(0);
+});
+
+test('should skip inside fixture', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      const test = folio.test.extend({
+        foo: async ({}, run, testInfo) => {
+          testInfo.skip();
+          await run();
+        },
+      });
+
+      test('skipped', async ({ foo }) => {
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.skipped).toBe(1);
+});
+
+test('modifier with a function should throw in the test', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      folio.test('skipped', async ({}) => {
+        folio.test.skip(() => true);
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('test.skip() with a function can only be called inside describe');
 });

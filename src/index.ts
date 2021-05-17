@@ -22,13 +22,13 @@ import { errorWithCallLocation } from './util';
 
 // Configuration types.
 export type { Project, FullProject, Config, FullConfig } from './types';
-// Environment types.
-export type { WorkerInfo, TestInfo, Env } from './types';
+// Fixtures types.
+export type { TestInfo, WorkerInfo, TestType, Fixtures } from './types';
 // Reporter types.
 export type { TestStatus, Suite, Spec, Test, TestResult, TestError, Reporter } from './types';
 
 export { expect } from './expect';
-export const test: TestType<{}, {}, {}> = rootTestType.test;
+export const test: TestType<{}, {}> = rootTestType.test;
 export default test;
 
 export function registerCLIOption(name: string, description: string, options: { type: 'boolean' }): BooleanCLIOption;

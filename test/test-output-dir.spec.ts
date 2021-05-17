@@ -79,17 +79,18 @@ test('should include repeat token', async ({runInlineTest}) => {
 test('should include the project name', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `
-      class Env {
-        constructor(snapshotPathSegment) {
-          this._snapshotPathSegment = snapshotPathSegment;
-        }
-        async beforeEach(args, testInfo) {
-          testInfo.snapshotPathSegment = this._snapshotPathSegment;
-          return {};
-        }
-      }
-      export const test = folio.test.extend(new Env('snapshots1'));
-      export const test2 = folio.test.extend(new Env('snapshots2'));
+      export const test = folio.test.extend({
+        auto: [ async ({}, run, testInfo) => {
+          testInfo.snapshotPathSegment = 'snapshots1';
+          await run();
+        }, { auto: true } ]
+      });
+      export const test2 = folio.test.extend({
+        auto: [ async ({}, run, testInfo) => {
+          testInfo.snapshotPathSegment = 'snapshots2';
+          await run();
+        }, { auto: true } ]
+      });
     `,
     'folio.config.ts': `
       module.exports = { projects: [

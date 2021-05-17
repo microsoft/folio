@@ -65,9 +65,13 @@ test('test.declare should check types', async ({runTSC}) => {
     'helper.ts': `
       export const test = folio.test;
       export const test1 = test.declare<{ foo: string }>();
-      export const test2 = test1.extend({ beforeEach: ({ foo }) => { return { bar: parseInt(foo) }; } });
-      // @ts-expect-error
-      export const test3 = test1.extend({ beforeEach: ({ bar }) => { return {}; } });
+      export const test2 = test1.extend<{ bar: number }>({
+        bar: async ({ foo }, run) => { await run(parseInt(foo)); }
+      });
+      export const test3 = test1.extend<{ bar: number }>({
+        // @ts-expect-error
+        bar: async ({ baz }, run) => { await run(42); }
+      });
     `,
     'folio.config.ts': `
       import { test1 } from './helper';
@@ -76,21 +80,13 @@ test('test.declare should check types', async ({runTSC}) => {
       configs.push({
         define: {
           test: test1,
-          env: { beforeEach: () => { return { foo: 12 }; } }
-        },
-      });
-
-      configs.push({
-        define: {
-          test: test1,
-          // @ts-expect-error
-          env: { foo: 'bar' },
+          fixtures: { foo: 'foo' }
         },
       });
 
       configs.push({
         // @ts-expect-error
-        define: { test: {}, env: {} },
+        define: { test: {}, fixtures: {} },
       });
       module.exports = configs;
     `,
@@ -104,65 +100,6 @@ test('test.declare should check types', async ({runTSC}) => {
       test2('my test', async ({ foo, bar }) => {});
       // @ts-expect-error
       test2('my test', async ({ foo, baz }) => {});
-    `
-  });
-  expect(result.exitCode).toBe(0);
-});
-
-test('test.extend should infer types from methods', async ({runTSC}) => {
-  const result = await runTSC({
-    'helper.ts': `
-      export const test1 = folio.test.extend({
-        beforeAll: ({}, workerInfo) => { return { yes: true }; },
-        beforeEach: ({}, testInfo) => { return { foo: 42, bar: 'bar' }; },
-        afterEach: ({}, testInfo) => {},
-        afterAll: ({}, workerInfo) => {},
-      });
-      export const test2 = test1.extend({
-        beforeEach: ({ foo, yes }) => { return { baz: foo - 5, no: !yes }; },
-        afterEach: ({ foo }) => {},
-      });
-    `,
-    'a.spec.ts': `
-      import { test1, test2 } from './helper';
-      test1.beforeAll(({ yes }) => {
-        let x: boolean = yes;
-      });
-      // @ts-expect-error
-      test1.beforeAll(({ no }) => {});
-
-      test1.beforeEach(({ yes, foo }) => {
-        let x: boolean = yes;
-        let y: number = foo;
-      });
-      // @ts-expect-error
-      test1.beforeEach(({ no }) => {});
-
-      test1('my test', async ({ foo, bar }) => {});
-      // @ts-expect-error
-      test1('my test', async ({ baz }) => {});
-      // @ts-expect-error
-      test1('my test', async ({ foo, bar, baz }) => {});
-
-      test2('my test', async ({ foo, bar, baz }) => {});
-      test2('my test', async ({ foo, bar, baz, no }) => {
-        let x: string = bar;
-        let y: number = foo;
-        let z: number = baz;
-        let w: boolean = no;
-      });
-      test2('my test', async ({ foo, bar, baz, yes }) => {
-        // @ts-expect-error
-        let x: number = bar;
-        // @ts-expect-error
-        let y: string = foo;
-        // @ts-expect-error
-        let z: string = baz;
-        // @ts-expect-error
-        let w: number = yes;
-      });
-      // @ts-expect-error
-      test2('my test', async ({ x }) => {});
     `
   });
   expect(result.exitCode).toBe(0);

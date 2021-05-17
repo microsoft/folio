@@ -31,15 +31,14 @@ test('should work directly', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-test('should work via env', async ({ runInlineTest }) => {
+test('should work via fixture', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `
-      class MyEnv {
-        async beforeEach(args, testInfo) {
-          return { title: testInfo.title };
-        }
-      }
-      export const test = folio.test.extend(new MyEnv());
+      export const test = folio.test.extend({
+        title: async ({}, run, testInfo) => {
+          await run(testInfo.title);
+        },
+      });
     `,
     'a.test.js': `
       const { test } = require('./helper');

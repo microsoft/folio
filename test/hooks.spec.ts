@@ -16,27 +16,23 @@
 
 import { test, expect } from './folio-test';
 
-test('hooks should work with env', async ({ runInlineTest }) => {
+test('hooks should work with fixtures', async ({ runInlineTest }) => {
   const { results } = await runInlineTest({
     'helper.ts': `
       global.logs = [];
-      class MyEnv {
-        async beforeAll() {
+      export const test = folio.test.extend({
+        w: [ async ({}, run) => {
           global.logs.push('+w');
-          return { w: 17 };
-        }
-        async afterAll() {
+          await run(17);
           global.logs.push('-w');
-        }
-        async beforeEach() {
+        }, { scope: 'worker' }],
+
+        t: async ({}, run) => {
           global.logs.push('+t');
-          return { t: 42 };
-        }
-        async afterEach() {
+          await run(42);
           global.logs.push('-t');
-        }
-      }
-      export const test = folio.test.extend(new MyEnv());
+        },
+      });
     `,
     'a.test.js': `
       const { test } = require('./helper');
@@ -61,7 +57,7 @@ test('hooks should work with env', async ({ runInlineTest }) => {
         });
       });
 
-      test('two', async () => {
+      test('two', async ({t}) => {
         expect(global.logs).toEqual([
           '+w',
           'beforeAll-17',
@@ -79,19 +75,17 @@ test('hooks should work with env', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-test('afterEach failure should not prevent other hooks and env teardown', async ({ runInlineTest }) => {
+test('afterEach failure should not prevent other hooks and fixtures teardown', async ({ runInlineTest }) => {
   const report = await runInlineTest({
     'helper.ts': `
       global.logs = [];
-      class MyEnv {
-        async beforeEach() {
+      export const test = folio.test.extend({
+        foo: async ({}, run) => {
           console.log('+t');
-        }
-        async afterEach() {
+          await run();
           console.log('-t');
         }
-      }
-      export const test = folio.test.extend(new MyEnv());
+      });
     `,
     'a.test.js': `
       const { test } = require('./helper');
@@ -103,7 +97,7 @@ test('afterEach failure should not prevent other hooks and env teardown', async 
           console.log('afterEach2');
           throw new Error('afterEach2');
         });
-        test('one', async () => {
+        test('one', async ({foo}) => {
           console.log('test');
           expect(true).toBe(true);
         });

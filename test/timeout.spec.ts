@@ -16,19 +16,19 @@
 
 import { test, expect } from './folio-test';
 
-test('should run env afterEach on timeout', async ({ runInlineTest }) => {
+test('should run fixture teardown on timeout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'helper.ts': `
-      class MyEnv {
-        async afterEach({}, testInfo) {
+      export const test = folio.test.extend({
+        foo: async ({}, run, testInfo) => {
+          await run();
           console.log('STATUS:' + testInfo.status);
         }
-      }
-      export const test = folio.test.extend(new MyEnv());
+      });
     `,
     'c.spec.ts': `
       import { test } from './helper';
-      test('works', async ({}) => {
+      test('works', async ({ foo }) => {
         await new Promise(f => setTimeout(f, 100000));
       });
     `

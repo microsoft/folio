@@ -50,7 +50,7 @@ program.parse(process.argv);
   try {
     await runTests();
   } catch (e) {
-    console.log(e);
+    console.error(e.toString());
     process.exit(1);
   }
 })();

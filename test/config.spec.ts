@@ -360,3 +360,40 @@ test('should validate options', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain(`error: unknown option '--foo'`);
 });
+
+test('should throw when test() is called in config file', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      folio.test('hey', () => {});
+      module.exports = {};
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('test', async ({}) => {
+      });
+    `,
+  });
+  expect(result.output).toContain('Test can only be defined in a test file.');
+});
+
+test('should filter by project', async ({ runInlineTest }) => {
+  const { passed, failed, output, skipped } = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { projects: [
+        { name: 'suite1' },
+        { name: 'suite2' },
+      ] };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', async ({}, testInfo) => {
+        console.log(testInfo.project.name);
+      });
+    `
+  }, { project: 'suite2' });
+  expect(passed).toBe(1);
+  expect(failed).toBe(0);
+  expect(skipped).toBe(0);
+  expect(output).toContain('suite2');
+  expect(output).not.toContain('suite1');
+});

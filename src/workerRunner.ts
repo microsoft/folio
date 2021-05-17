@@ -19,13 +19,14 @@ import path from 'path';
 import rimraf from 'rimraf';
 import util from 'util';
 import { EventEmitter } from 'events';
-import { mergeObjects, monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError, wrapInPromise } from './util';
+import { monotonicTime, DeadlineRunner, raceAgainstDeadline, serializeError } from './util';
 import { TestBeginPayload, TestEndPayload, RunPayload, TestEntry, DonePayload, WorkerInitParams } from './ipc';
 import { setCurrentTestInfo } from './globals';
 import { Loader } from './loader';
 import { Spec, Suite, Test } from './test';
-import { Env, TestInfo, WorkerInfo } from './types';
+import { TestInfo, WorkerInfo } from './types';
 import { ProjectImpl } from './project';
+import { FixtureRunner } from './fixtures';
 
 const removeFolderAsync = util.promisify(rimraf);
 
@@ -33,11 +34,9 @@ export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
   private _loader: Loader;
   private _project: ProjectImpl;
-  private _envRunner: EnvRunner;
   private _outputPathSegment: string;
   private _workerInfo: WorkerInfo;
-  private _envInitialized = false;
-  private _workerArgs: any;
+  private _fixtureRunner: FixtureRunner;
 
   private _failedTestId: string | undefined;
   private _fatalError: any | undefined;
@@ -45,26 +44,24 @@ export class WorkerRunner extends EventEmitter {
   private _remaining: Map<string, TestEntry>;
   private _isStopped: any;
   _currentTest: { testId: string, testInfo: TestInfo } | null = null;
-  private _file: string;
 
   constructor(params: WorkerInitParams) {
     super();
     this._params = params;
+    this._fixtureRunner = new FixtureRunner();
   }
 
   stop() {
     this._isStopped = true;
     this._setCurrentTest(null);
-    if (this._envRunner)
-      this._envRunner.stop();
   }
 
   async cleanup() {
-    if (!this._envInitialized)
-      return;
-    this._envInitialized = false;
-    // TODO: separate timeout for afterAll?
-    const result = await raceAgainstDeadline(this._envRunner.runAfterAll(), this._deadline());
+    // TODO: separate timeout for teardown?
+    const result = await raceAgainstDeadline((async () => {
+      await this._fixtureRunner.teardownScope('test');
+      await this._fixtureRunner.teardownScope('worker');
+    })(), this._deadline());
     if (result.timedOut)
       throw new Error(`Timeout of ${this._project.config.timeout}ms exceeded while shutting down environment`);
   }
@@ -110,33 +107,12 @@ export class WorkerRunner extends EventEmitter {
     };
   }
 
-  private async _initEnvIfNeeded(envs: Env<any>[], workerOptions: any) {
-    if (this._envRunner) {
-      // We rely on the fact that worker only receives tests where
-      // environments with beforeAll/afterAll are the prefix of env list.
-      // In addition, all the tests should have the same workerOptions.
-      this._envRunner.update(envs);
-      return;
-    }
-
-    this._envRunner = new EnvRunner(envs);
-    // TODO: separate timeout for beforeAll?
-    const result = await raceAgainstDeadline(this._envRunner.runBeforeAll(this._workerInfo, workerOptions), this._deadline());
-    this._workerArgs = result.result;
-    if (result.timedOut) {
-      this._fatalError = serializeError(new Error(`Timeout of ${this._project.config.timeout}ms exceeded while initializing environment`));
-      this._reportDoneAndStop();
-    }
-    this._envInitialized = true;
-  }
-
   async run(runPayload: RunPayload) {
-    this._file = runPayload.file;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
 
     this._loadIfNeeded();
-    const fileSuite = this._loader.loadTestFile(this._file);
+    const fileSuite = this._loader.loadTestFile(runPayload.file);
     let anySpec: Spec | undefined;
     fileSuite.findSpec(spec => {
       const test = this._project.generateTests(spec, this._params.repeatEachIndex)[0];
@@ -148,11 +124,7 @@ export class WorkerRunner extends EventEmitter {
       return;
     }
 
-    // Initialize environments' beforeAll.
-    await this._initEnvIfNeeded(this._project.resolveEnvs(anySpec._testType), this._specOptions(anySpec));
-    if (this._isStopped)
-      return;
-
+    this._fixtureRunner.setPool(this._project.buildPool(anySpec));
     await this._runSuite(fileSuite);
     if (this._isStopped)
       return;
@@ -170,7 +142,7 @@ export class WorkerRunner extends EventEmitter {
       if (this._isStopped)
         return;
       // TODO: separate timeout for beforeAll?
-      const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerArgs, this._workerInfo)), this._deadline());
+      const result = await raceAgainstDeadline(this._fixtureRunner.resolveParametersAndRunHookOrTest(hook.fn, 'worker', this._workerInfo), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._project.config.timeout}ms exceeded while running beforeAll hook`));
         this._reportDoneAndStop();
@@ -188,7 +160,7 @@ export class WorkerRunner extends EventEmitter {
       if (this._isStopped)
         return;
       // TODO: separate timeout for afterAll?
-      const result = await raceAgainstDeadline(wrapInPromise(hook.fn(this._workerArgs, this._workerInfo)), this._deadline());
+      const result = await raceAgainstDeadline(this._fixtureRunner.resolveParametersAndRunHookOrTest(hook.fn, 'worker', this._workerInfo), this._deadline());
       if (result.timedOut) {
         this._fatalError = serializeError(new Error(`Timeout of ${this._project.config.timeout}ms exceeded while running afterAll hook`));
         this._reportDoneAndStop();
@@ -249,10 +221,10 @@ export class WorkerRunner extends EventEmitter {
         const basePath = path.join(this._project.config.snapshotDir, relativeTestFilePathForSnapshots, sanitizedTitle, testInfo.snapshotPathSegment);
         return path.join(basePath, ...pathSegments);
       },
-      skip: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'skip', arg, description),
-      fixme: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'fixme', arg, description),
-      fail: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'fail', arg, description),
-      slow: (arg?: boolean | string | Function, description?: string) => modifier(testInfo, 'slow', arg, description),
+      skip: (arg?: boolean | string, description?: string) => modifier(testInfo, 'skip', arg, description),
+      fixme: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fixme', arg, description),
+      fail: (arg?: boolean | string, description?: string) => modifier(testInfo, 'fail', arg, description),
+      slow: (arg?: boolean | string, description?: string) => modifier(testInfo, 'slow', arg, description),
       setTimeout: (timeout: number) => {
         testInfo.timeout = timeout;
         if (deadlineRunner)
@@ -272,44 +244,31 @@ export class WorkerRunner extends EventEmitter {
       return;
     }
 
-    // Update the list of environment - it may differ between tests, but only
-    // by environments without beforeAll/afterAll, so we don't have to
-    // reinitialize the worker.
-    this._envRunner.update(this._project.resolveEnvs(spec._testType));
+    // Update the fixture pool - it may differ between tests, but only in test-scoped fixtures.
+    this._fixtureRunner.setPool(this._project.buildPool(spec));
 
-    deadlineRunner = new DeadlineRunner(this._runEnvBeforeEach(testInfo, this._specOptions(spec)), deadline());
-    const testArgsResult = await deadlineRunner.result;
-    if (testArgsResult.timedOut && testInfo.status === 'passed')
+    deadlineRunner = new DeadlineRunner(this._runTestWithBeforeHooks(test, testInfo), deadline());
+    const result = await deadlineRunner.result;
+    // Do not overwrite test failure upon hook timeout.
+    if (result.timedOut && testInfo.status === 'passed')
       testInfo.status = 'timedOut';
     if (this._isStopped)
       return;
 
-    const testArgs = testArgsResult.result;
-    // Do not run test/teardown if we failed to initialize.
-    if (testArgs !== undefined) {
-      testInfo[kTestArgsSymbol] = testArgs;  // Save args for modifiers.
-      deadlineRunner = new DeadlineRunner(this._runTestWithBeforeHooks(test, testInfo, testArgs), deadline());
-      const result = await deadlineRunner.result;
+    if (!result.timedOut) {
+      deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo), deadline());
+      deadlineRunner.setDeadline(deadline());
+      const hooksResult = await deadlineRunner.result;
       // Do not overwrite test failure upon hook timeout.
-      if (result.timedOut && testInfo.status === 'passed')
+      if (hooksResult.timedOut && testInfo.status === 'passed')
         testInfo.status = 'timedOut';
-      if (this._isStopped)
-        return;
-
-      if (!result.timedOut) {
-        deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo, testArgs), deadline());
-        deadlineRunner.setDeadline(deadline());
-        const hooksResult = await deadlineRunner.result;
-        // Do not overwrite test failure upon hook timeout.
-        if (hooksResult.timedOut && testInfo.status === 'passed')
-          testInfo.status = 'timedOut';
-      } else {
-        // A timed-out test gets a full additional timeout to run after hooks.
-        const newDeadline = this._deadline();
-        deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo, testArgs), newDeadline);
-        await deadlineRunner.result;
-      }
+    } else {
+      // A timed-out test gets a full additional timeout to run after hooks.
+      const newDeadline = this._deadline();
+      deadlineRunner = new DeadlineRunner(this._runAfterHooks(test, testInfo), newDeadline);
+      await deadlineRunner.result;
     }
+
     if (this._isStopped)
       return;
 
@@ -334,26 +293,9 @@ export class WorkerRunner extends EventEmitter {
     setCurrentTestInfo(currentTest ? currentTest.testInfo : null);
   }
 
-  // Returns TestArgs or undefined when env.beforeEach has failed.
-  private async _runEnvBeforeEach(testInfo: TestInfo, testOptions: any): Promise<any> {
+  private async _runTestWithBeforeHooks(test: Test, testInfo: TestInfo) {
     try {
-      return await this._envRunner.runBeforeEach(testInfo, testOptions);
-    } catch (error) {
-      if (error instanceof SkipError) {
-        if (testInfo.status === 'passed')
-          testInfo.status = 'skipped';
-      } else {
-        testInfo.status = 'failed';
-        testInfo.error = serializeError(error);
-      }
-      // Failed to initialize environment - no need to run any hooks now.
-      return undefined;
-    }
-  }
-
-  private async _runTestWithBeforeHooks(test: Test, testInfo: TestInfo, testArgs: any) {
-    try {
-      await this._runHooks(test.spec.parent, 'beforeEach', testArgs, testInfo);
+      await this._runHooks(test.spec.parent, 'beforeEach', testInfo);
     } catch (error) {
       if (error instanceof SkipError) {
         if (testInfo.status === 'passed')
@@ -370,7 +312,7 @@ export class WorkerRunner extends EventEmitter {
       return;
 
     try {
-      await test.spec.fn(testArgs, testInfo);
+      await this._fixtureRunner.resolveParametersAndRunHookOrTest(test.spec.fn, 'test', testInfo);
       testInfo.status = 'passed';
     } catch (error) {
       if (error instanceof SkipError) {
@@ -383,9 +325,9 @@ export class WorkerRunner extends EventEmitter {
     }
   }
 
-  private async _runAfterHooks(test: Test, testInfo: TestInfo, testArgs: any) {
+  private async _runAfterHooks(test: Test, testInfo: TestInfo) {
     try {
-      await this._runHooks(test.spec.parent, 'afterEach', testArgs, testInfo);
+      await this._runHooks(test.spec.parent, 'afterEach', testInfo);
     } catch (error) {
       // Do not overwrite test failure error.
       if (!(error instanceof SkipError) && testInfo.status === 'passed') {
@@ -395,7 +337,7 @@ export class WorkerRunner extends EventEmitter {
       }
     }
     try {
-      await this._envRunner.runAfterEach();
+      await this._fixtureRunner.teardownScope('test');
     } catch (error) {
       // Do not overwrite test failure error.
       if (testInfo.status === 'passed') {
@@ -405,7 +347,7 @@ export class WorkerRunner extends EventEmitter {
     }
   }
 
-  private async _runHooks(suite: Suite, type: 'beforeEach' | 'afterEach', testArgs: any, testInfo: TestInfo) {
+  private async _runHooks(suite: Suite, type: 'beforeEach' | 'afterEach', testInfo: TestInfo) {
     if (this._isStopped)
       return;
     const all = [];
@@ -418,7 +360,7 @@ export class WorkerRunner extends EventEmitter {
     let error: Error | undefined;
     for (const hook of all) {
       try {
-        await hook(testArgs, testInfo);
+        await this._fixtureRunner.resolveParametersAndRunHookOrTest(hook, 'test', testInfo);
       } catch (e) {
         // Always run all the hooks, and capture the first error.
         error = error || e;
@@ -450,16 +392,6 @@ export class WorkerRunner extends EventEmitter {
       return !!entry;
     });
   }
-
-  private _specOptions(spec: Spec): any {
-    const parents: Suite[] = [];
-    for (let suite = spec.parent; suite; suite = suite.parent)
-      parents.push(suite);
-    const testOptions = parents.reverse().reduce((options, suite) => {
-      return mergeObjects(options, suite._options);
-    }, this._project.config.options);
-    return testOptions;
-  }
 }
 
 function buildTestBeginPayload(testId: string, testInfo: TestInfo): TestBeginPayload {
@@ -482,17 +414,13 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
   };
 }
 
-const kTestArgsSymbol = Symbol('testargs');
-
-function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string | Function, description?: string) {
+function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string, description?: string) {
   if (arg === undefined && description === undefined) {
     // No parameters - modifier applies.
   } else if (typeof arg === 'string') {
     // No condition - modifier applies.
     description = arg;
   } else {
-    if (typeof arg === 'function')
-      arg = arg(testInfo[kTestArgsSymbol]);
     if (!arg)
       return;
   }
@@ -510,101 +438,4 @@ function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', 
 }
 
 class SkipError extends Error {
-}
-
-class EnvRunner {
-  private envs: Env[];
-  private workerArgs: any[] = [];
-  private testArgs: any[] = [];
-  private _isStopped = false;
-  private _workerOptions: any = {};
-  private _workerInfo: WorkerInfo | undefined;
-  private _workerArgs: any;
-  private _testOptions: any = {};
-  private _testInfo: TestInfo | undefined;
-
-  constructor(envs: Env[]) {
-    this.envs = [...envs];
-  }
-
-  update(envs: Env[]) {
-    this.envs = [...envs];
-  }
-
-  stop() {
-    this._isStopped = true;
-  }
-
-  async runBeforeAll(workerInfo: WorkerInfo, workerOptions: any) {
-    this._workerOptions = workerOptions;
-    this._workerInfo = workerInfo;
-    let args = {};
-    for (const env of this.envs) {
-      if (this._isStopped)
-        break;
-      let r: any = {};
-      if (env.beforeAll)
-        r = await env.beforeAll(mergeObjects(workerOptions, args), workerInfo);
-      this.workerArgs.push(args);
-      args = mergeObjects(args, r);
-    }
-    this._workerArgs = args;
-    return mergeObjects(workerOptions, args);
-  }
-
-  async runAfterAll() {
-    let error: Error | undefined;
-    const count = this.workerArgs.length;
-    for (let index = count - 1; index >= 0; index--) {
-      const args = this.workerArgs.pop();
-      if (this.envs.length <= index)
-        continue;
-      const env = this.envs[index];
-      if (env.afterAll) {
-        try {
-          await env.afterAll(mergeObjects(this._workerOptions, args), this._workerInfo!);
-        } catch (e) {
-          error = error || e;
-        }
-      }
-    }
-    if (error)
-      throw error;
-  }
-
-  async runBeforeEach(testInfo: TestInfo, testOptions: any) {
-    this._testOptions = testOptions;
-    this._testInfo = testInfo;
-    let args = this._workerArgs;
-    for (const env of this.envs) {
-      if (this._isStopped)
-        break;
-      let r: any = {};
-      if (env.beforeEach)
-        r = await env.beforeEach(mergeObjects(args, testOptions), testInfo);
-      this.testArgs.push(args);
-      args = mergeObjects(args, r);
-    }
-    return mergeObjects(args, testOptions);
-  }
-
-  async runAfterEach() {
-    let error: Error | undefined;
-    const count = this.testArgs.length;
-    for (let index = count - 1; index >= 0; index--) {
-      const args = this.testArgs.pop();
-      if (this.envs.length <= index)
-        continue;
-      const env = this.envs[index];
-      if (env.afterEach) {
-        try {
-          await env.afterEach(mergeObjects(args, this._testOptions), this._testInfo!);
-        } catch (e) {
-          error = error || e;
-        }
-      }
-    }
-    if (error)
-      throw error;
-  }
 }

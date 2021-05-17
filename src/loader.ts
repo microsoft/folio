@@ -173,7 +173,6 @@ export class Loader {
 
     const fullProject: FullProject = {
       define: projectConfig.define || [],
-      options: projectConfig.options || {},
       outputDir: takeFirst(this._configOverrides.outputDir, projectConfig.outputDir, this._config.outputDir, path.resolve(process.cwd(), 'test-results')),
       repeatEach: takeFirst(this._configOverrides.repeatEach, projectConfig.repeatEach, this._config.repeatEach, 1),
       retries: takeFirst(this._configOverrides.retries, projectConfig.retries, this._config.retries, 0),
@@ -183,6 +182,7 @@ export class Loader {
       testIgnore: projectConfig.testIgnore || 'node_modules/**',
       testMatch: projectConfig.testMatch || '**/?(*.)+(spec|test).[jt]s',
       timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, 10000),
+      use: projectConfig.use || {},
     };
     this._projects.push(new ProjectImpl(fullProject, this._projects.length, useRootDirForSnapshots));
   }
