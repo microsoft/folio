@@ -103,8 +103,9 @@ export class TestTypeImpl {
     suite._hooks.push({ type: name, fn, location: callLocation() });
   }
 
-  private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', arg?: boolean | string | Function, description?: string) {
+  private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', ...modiferAgs: [arg?: boolean | string | Function, description?: string]) {
     const suite = currentlyLoadingFileSuite();
+    const [arg, description] = modiferAgs;
     if (suite) {
       const location = callLocation();
       if (typeof arg === 'function') {
@@ -112,7 +113,7 @@ export class TestTypeImpl {
         inheritFixtureParameterNames(arg, fn, location);
         suite._hooks.unshift({ type: 'beforeEach', fn, location });
       } else {
-        const fn = ({}: any, testInfo: TestInfo) => (testInfo[type] as any)(arg, description);
+        const fn = ({}: any, testInfo: TestInfo) => (testInfo[type] as any)(...modiferAgs);
         suite._hooks.unshift({ type: 'beforeEach', fn, location });
       }
       return;
@@ -123,7 +124,7 @@ export class TestTypeImpl {
       throw new Error(`test.${type}() can only be called inside test, describe or fixture`);
     if (typeof arg === 'function')
       throw new Error(`test.${type}() with a function can only be called inside describe`);
-    (testInfo[type] as any)(arg, description);
+    (testInfo[type] as any)(...modiferAgs);
   }
 
   private _setTimeout(timeout: number) {
