@@ -32,7 +32,7 @@ const defaultConfig: FullConfig = {
   grep: /.*/,
   maxFailures: 0,
   preserveOutput: process.env.CI ? 'failures-only' : 'always',
-  reporter: [process.env.CI ? 'dot' : 'line'],
+  reporter: [process.env.CI ? 'dot' : 'list'],
   rootDir: path.resolve(process.cwd()),
   quiet: false,
   shard: null,
@@ -57,6 +57,7 @@ program.parse(process.argv);
 
 async function runTests() {
   const opts = program.opts();
+  const extraOptions: string[] = [];
 
   const loader = new Loader(defaultConfig, configFromCommand(opts), cliOption => {
     if (cliOption.name.length <= 1)
@@ -74,9 +75,12 @@ async function runTests() {
         program.option(`--${cliOption.name} <values...>`, cliOption.description);
         break;
     }
+    extraOptions.push(cliOption.name);
     program.parse(process.argv);
     return program.opts()[cliOption.name];
   });
+
+  const help = opts.help === undefined;
 
   function loadConfig(configName: string) {
     const configFile = path.resolve(process.cwd(), configName);
@@ -89,12 +93,31 @@ async function runTests() {
   if (opts.config) {
     if (!loadConfig(opts.config))
       throw new Error(`${opts.config} does not exist`);
-  } else if (!loadConfig('folio.config.ts') && !loadConfig('folio.config.js')) {
+  } else if (!loadConfig('folio.config.ts') && !loadConfig('folio.config.js') && !help) {
     throw new Error(`Configuration file not found. Either pass --config, or create folio.config.(js|ts) file`);
   }
 
-  if (opts.help === undefined) {
-    console.log(program.helpInformation());
+  if (help) {
+    const lines = program.helpInformation().split('\n');
+    const builtinHelp: string[] = [];
+    const extraHelp: string[] = [];
+    for (const line of lines.slice(3)) {
+      if (extraOptions.some(e => line.includes('--' + e)))
+        extraHelp.push(line);
+      else
+        builtinHelp.push(line);
+    }
+    lines.splice(2, lines.length - 2);
+    if (extraHelp.length) {
+      lines.push(`Test suite options:`);
+      lines.push(...extraHelp);
+      lines.push('');
+      lines.push(`Folio options:`);
+    } else {
+      lines.push(`Options:`);
+    }
+    lines.push(...builtinHelp);
+    console.log(lines.join('\n'));
     process.exit(0);
   }
 
@@ -134,7 +157,7 @@ async function runTests() {
 
 function addRunnerOptions(program: commander.Command) {
   program = program
-      .version('Version ' + /** @type {any} */ (require)('../package.json').version)
+      .version('Folio version ' + /** @type {any} */ (require)('../package.json').version, '-v, --version', 'Output the version number')
       .option('-c, --config <file>', `Configuration file (default: "folio.config.ts" or "folio.config.js")`)
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
       .option('-g, --grep <grep>', `Only run tests matching this regular expression (default: "${defaultConfig.grep}")`)
