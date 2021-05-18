@@ -82,8 +82,7 @@ async function runTests() {
 
   const help = opts.help === undefined;
 
-  function loadConfig(configName: string) {
-    const configFile = path.resolve(process.cwd(), configName);
+  function loadConfig(configFile: string) {
     if (fs.existsSync(configFile)) {
       loader.loadConfigFile(configFile);
       return true;
@@ -91,9 +90,21 @@ async function runTests() {
     return false;
   }
   if (opts.config) {
-    if (!loadConfig(opts.config))
+    const configFile = path.resolve(process.cwd(), opts.config);
+    if (!fs.existsSync(configFile))
       throw new Error(`${opts.config} does not exist`);
-  } else if (!loadConfig('folio.config.ts') && !loadConfig('folio.config.js') && !help) {
+    if (fs.statSync(configFile).isDirectory()) {
+      // When passed a directory, look for a config file inside.
+      // If there is no config, just assume this as a root testing directory.
+      if (!loadConfig(path.join(configFile, 'folio.config.ts')) && !loadConfig(path.join(configFile, 'folio.config.js')))
+        loader.loadEmptyConfig(configFile);
+    } else {
+      // When passed a file, it must be a config file.
+      loadConfig(path.resolve(process.cwd(), opts.config));
+    }
+  } else if (!loadConfig(path.resolve(process.cwd(), 'folio.config.ts')) && !loadConfig(path.resolve(process.cwd(), 'folio.config.js')) && !help) {
+    // No --config option, let's look for the config file in the current directory.
+    // If not, do not assume that current directory is a root testing directory, to avoid scanning the world.
     throw new Error(`Configuration file not found. Either pass --config, or create folio.config.(js|ts) file`);
   }
 

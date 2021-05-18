@@ -30,7 +30,7 @@ export class Loader {
   private _configOverrides: ConfigOverrides;
   private _fullConfig: FullConfig;
   private _config: Config = {};
-  private _configFile: string = '';
+  private _configFile: string | undefined;
   private _projects: ProjectImpl[] = [];
   private _fileSuites = new Map<string, Suite>();
   private _cliOptionCallback: CLIOptionCallback;
@@ -49,8 +49,10 @@ export class Loader {
         return data.cliOptionValues[cliOption.name];
       return undefined;
     });
-    if (data.configFile)
-      loader.loadConfigFile(data.configFile);
+    if ('file' in data.configFile)
+      loader.loadConfigFile(data.configFile.file);
+    else
+      loader.loadEmptyConfig(data.configFile.rootDir);
     return loader;
   }
 
@@ -60,35 +62,10 @@ export class Loader {
     const revertBabelRequire = installTransform();
     try {
       setCurrentOptionsRegistry(this);
-      // TODO: add config validation.
       this._config = require(file);
       if ('default' in this._config)
         this._config = this._config['default'];
-      for (const key of ['define', 'options', 'name', 'testIgnore', 'testMatch']) {
-        if (('projects' in this._config) && (key in this._config))
-          throw new Error(`When using projects, passing "${key}" is not supported`);
-      }
-      const projects: Project[] = 'projects' in this._config ? this._config.projects : [this._config];
-      const configDir = path.dirname(file);
-
-      this._fullConfig.rootDir = this._config.testDir || configDir;
-      this._fullConfig.forbidOnly = takeFirst(this._configOverrides.forbidOnly, this._config.forbidOnly, this._defaultConfig.forbidOnly);
-      this._fullConfig.globalSetup = takeFirst(this._config.globalSetup, this._defaultConfig.globalSetup);
-      this._fullConfig.globalTeardown = takeFirst(this._config.globalTeardown, this._defaultConfig.globalTeardown);
-      this._fullConfig.globalTimeout = takeFirst(this._configOverrides.globalTimeout, this._config.globalTimeout, this._defaultConfig.globalTimeout);
-      this._fullConfig.grep = takeFirst(this._configOverrides.grep, this._config.grep, this._defaultConfig.grep);
-      this._fullConfig.maxFailures = takeFirst(this._configOverrides.maxFailures, this._config.maxFailures, this._defaultConfig.maxFailures);
-      this._fullConfig.preserveOutput = takeFirst<PreserveOutput>(this._configOverrides.preserveOutput, this._config.preserveOutput, this._defaultConfig.preserveOutput);
-      const reporter: ReporterDescription[] | undefined = this._config.reporter === undefined ? undefined :
-        (Array.isArray(this._config.reporter) ? this._config.reporter : [this._config.reporter]);
-      this._fullConfig.reporter = takeFirst(this._configOverrides.reporter, reporter, this._defaultConfig.reporter);
-      this._fullConfig.quiet = takeFirst(this._configOverrides.quiet, this._config.quiet, this._defaultConfig.quiet);
-      this._fullConfig.shard = takeFirst(this._configOverrides.shard, this._config.shard, this._defaultConfig.shard);
-      this._fullConfig.updateSnapshots = takeFirst(this._configOverrides.updateSnapshots, this._config.updateSnapshots, this._defaultConfig.updateSnapshots);
-      this._fullConfig.workers = takeFirst(this._configOverrides.workers, this._config.workers, this._defaultConfig.workers);
-
-      for (const project of projects)
-        this._addProject(project, configDir);
+      this._processConfigObject(path.dirname(file));
       this._configFile = file;
     } catch (e) {
       prependErrorMessage(e, `Error while reading ${file}:\n`);
@@ -97,6 +74,39 @@ export class Loader {
       setCurrentOptionsRegistry(undefined);
       revertBabelRequire();
     }
+  }
+
+  loadEmptyConfig(rootDir: string) {
+    this._config = {};
+    this._processConfigObject(rootDir);
+  }
+
+  private _processConfigObject(rootDir: string) {
+    // TODO: add config validation.
+    for (const key of ['define', 'options', 'name', 'testIgnore', 'testMatch']) {
+      if (('projects' in this._config) && (key in this._config))
+        throw new Error(`When using projects, passing "${key}" is not supported`);
+    }
+    const projects: Project[] = 'projects' in this._config ? this._config.projects : [this._config];
+
+    this._fullConfig.rootDir = this._config.testDir || rootDir;
+    this._fullConfig.forbidOnly = takeFirst(this._configOverrides.forbidOnly, this._config.forbidOnly, this._defaultConfig.forbidOnly);
+    this._fullConfig.globalSetup = takeFirst(this._config.globalSetup, this._defaultConfig.globalSetup);
+    this._fullConfig.globalTeardown = takeFirst(this._config.globalTeardown, this._defaultConfig.globalTeardown);
+    this._fullConfig.globalTimeout = takeFirst(this._configOverrides.globalTimeout, this._config.globalTimeout, this._defaultConfig.globalTimeout);
+    this._fullConfig.grep = takeFirst(this._configOverrides.grep, this._config.grep, this._defaultConfig.grep);
+    this._fullConfig.maxFailures = takeFirst(this._configOverrides.maxFailures, this._config.maxFailures, this._defaultConfig.maxFailures);
+    this._fullConfig.preserveOutput = takeFirst<PreserveOutput>(this._configOverrides.preserveOutput, this._config.preserveOutput, this._defaultConfig.preserveOutput);
+    const reporter: ReporterDescription[] | undefined = this._config.reporter === undefined ? undefined :
+      (Array.isArray(this._config.reporter) ? this._config.reporter : [this._config.reporter]);
+    this._fullConfig.reporter = takeFirst(this._configOverrides.reporter, reporter, this._defaultConfig.reporter);
+    this._fullConfig.quiet = takeFirst(this._configOverrides.quiet, this._config.quiet, this._defaultConfig.quiet);
+    this._fullConfig.shard = takeFirst(this._configOverrides.shard, this._config.shard, this._defaultConfig.shard);
+    this._fullConfig.updateSnapshots = takeFirst(this._configOverrides.updateSnapshots, this._config.updateSnapshots, this._defaultConfig.updateSnapshots);
+    this._fullConfig.workers = takeFirst(this._configOverrides.workers, this._config.workers, this._defaultConfig.workers);
+
+    for (const project of projects)
+      this._addProject(project, this._fullConfig.rootDir);
   }
 
   loadTestFile(file: string) {
@@ -152,14 +162,14 @@ export class Loader {
       cliOptionValues[cliOption.name] = cliOption.value;
     return {
       defaultConfig: this._defaultConfig,
-      configFile: this._configFile,
+      configFile: this._configFile ? { file: this._configFile } : { rootDir: this._fullConfig.rootDir },
       overrides: this._configOverrides,
       cliOptionValues,
     };
   }
 
-  private _addProject(projectConfig: Project, defaultTestDir: string) {
-    const testDir = takeFirst(projectConfig.testDir, this._config.testDir, defaultTestDir);
+  private _addProject(projectConfig: Project, rootDir: string) {
+    const testDir = takeFirst(projectConfig.testDir, rootDir);
 
     const useRootDirForSnapshots = !projectConfig.snapshotDir && !!this._config.snapshotDir;
     let snapshotDir = '';
