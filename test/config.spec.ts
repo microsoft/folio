@@ -397,3 +397,24 @@ test('should filter by project', async ({ runInlineTest }) => {
   expect(output).toContain('suite2');
   expect(output).not.toContain('suite1');
 });
+
+test('should print options help', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      const booleanOption = folio.registerCLIOption('boolean', 'Boolean description', { type: 'boolean' });
+      const stringOption = folio.registerCLIOption('string', 'String description');
+      const listOption = folio.registerCLIOption('mylist', 'List description', { type: 'list' });
+      const extraOption = folio.registerCLIOption('extra', 'Extra description');
+      module.exports = {};
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('works', async ({}, testInfo) => {
+      });
+    `,
+  }, { 'help': true });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.output).toContain('Test suite options:');
+  expect(result.output).toContain('Folio options:');
+});
