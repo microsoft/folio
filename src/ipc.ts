@@ -20,7 +20,7 @@ export type CLIOptionValues = { [key: string]: any };
 export type SerializedLoaderData = {
   defaultConfig: FullConfig;
   overrides: ConfigOverrides;
-  configFile: string;
+  configFile: { file: string } | { rootDir: string };
   cliOptionValues: CLIOptionValues;
 };
 export type WorkerInitParams = {

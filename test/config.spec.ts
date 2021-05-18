@@ -418,3 +418,21 @@ test('should print options help', async ({ runInlineTest }) => {
   expect(result.output).toContain('Test suite options:');
   expect(result.output).toContain('Folio options:');
 });
+
+test('should work without config file', async ({ runInlineTest }) => {
+  const { exitCode, passed, failed, skipped } = await runInlineTest({
+    'folio.config.ts': `
+      throw new Error('This file should not be required');
+    `,
+    'dir/a.test.ts': `
+      const { test } = folio;
+      test('pass', async ({}) => {
+        test.expect(1 + 1).toBe(2);
+      });
+    `
+  }, { config: 'dir' });
+  expect(exitCode).toBe(0);
+  expect(passed).toBe(1);
+  expect(failed).toBe(0);
+  expect(skipped).toBe(0);
+});
