@@ -32,6 +32,7 @@ const defaultConfig: FullConfig = {
   grep: /.*/,
   maxFailures: 0,
   preserveOutput: process.env.CI ? 'failures-only' : 'always',
+  projects: [],
   reporter: [process.env.CI ? 'dot' : 'list'],
   rootDir: path.resolve(process.cwd()),
   quiet: false,

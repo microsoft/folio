@@ -24,7 +24,6 @@ test('basics should work', async ({runTSC}) => {
         test.beforeEach(async () => {});
         test('my test', async({}, testInfo) => {
           expect(testInfo.title).toBe('my test');
-          testInfo.data.foo = 'bar';
           testInfo.annotations[0].type;
         });
       });

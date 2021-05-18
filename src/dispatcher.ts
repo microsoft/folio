@@ -242,7 +242,6 @@ export class Dispatcher {
     });
     worker.on('testEnd', (params: TestEndPayload) => {
       const { test, result } = this._testById.get(params.testId);
-      result.data = params.data;
       result.duration = params.duration;
       result.error = params.error;
       test.expectedStatus = params.expectedStatus;

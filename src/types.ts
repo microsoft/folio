@@ -56,6 +56,11 @@ interface ProjectBase {
   snapshotDir?: string;
 
   /**
+   * Any JSON-serializable metadata that will be put directly to the test report.
+   */
+  metadata?: any;
+
+  /**
    * The project name, shown in the title of each test.
    */
   name?: string;
@@ -188,6 +193,7 @@ export interface FullConfig {
   grep: RegExp | RegExp[];
   maxFailures: number;
   preserveOutput: PreserveOutput;
+  projects: FullProject[];
   reporter: ReporterDescription[];
   rootDir: string;
   quiet: boolean;
@@ -350,11 +356,6 @@ export interface TestInfo extends WorkerInfo {
    * Only available after the test has finished.
    */
   stderr: (string | Buffer)[];
-
-  /**
-   * JSON-serializable data that is put here will appear in the test report.
-   */
-  data: { [key: string]: any };
 
   /**
    * Relative path segment used to differentiate snapshots between multiple test configurations.
@@ -928,7 +929,6 @@ export interface TestResult {
   error?: TestError;
   stdout: (string | Buffer)[];
   stderr: (string | Buffer)[];
-  data: { [key: string]: any };
 }
 export interface TestError {
   message?: string;

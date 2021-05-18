@@ -107,6 +107,7 @@ export class Loader {
 
     for (const project of projects)
       this._addProject(project, this._fullConfig.rootDir);
+    this._fullConfig.projects = this._projects.map(p => p.config);
   }
 
   loadTestFile(file: string) {
@@ -187,6 +188,7 @@ export class Loader {
       repeatEach: takeFirst(this._configOverrides.repeatEach, projectConfig.repeatEach, this._config.repeatEach, 1),
       retries: takeFirst(this._configOverrides.retries, projectConfig.retries, this._config.retries, 0),
       snapshotDir,
+      metadata: projectConfig.metadata,
       name: projectConfig.name || '',
       testDir,
       testIgnore: projectConfig.testIgnore || 'node_modules/**',
