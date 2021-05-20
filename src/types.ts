@@ -36,6 +36,16 @@ type FixtureDefine<TestArgs extends KeyValue = {}, WorkerArgs extends KeyValue =
  */
 interface ProjectBase {
   /**
+   * Any JSON-serializable metadata that will be put directly to the test report.
+   */
+  metadata?: any;
+
+  /**
+   * The project name, shown in the title of each test.
+   */
+  name?: string;
+
+  /**
    * Output directory for files created during the test run.
    */
   outputDir?: string;
@@ -54,16 +64,6 @@ interface ProjectBase {
    * Directory containing all snapshots, used by `expect(value).toMatchSnapshot()`.
    */
   snapshotDir?: string;
-
-  /**
-   * Any JSON-serializable metadata that will be put directly to the test report.
-   */
-  metadata?: any;
-
-  /**
-   * The project name, shown in the title of each test.
-   */
-  name?: string;
 
   /**
    * Directory that will be recursively scanned for test files.
@@ -180,7 +180,7 @@ export interface Config<TestArgs = {}, WorkerArgs = {}> extends Project<TestArgs
   updateSnapshots?: UpdateSnapshots;
 
   /**
-   * The maxmium number of worker processes to use for parallelizing tests.
+   * The maximum number of concurrent worker processes to use for parallelizing tests.
    */
   workers?: number;
 }
@@ -813,7 +813,7 @@ export interface TestType<TestArgs extends KeyValue, WorkerArgs extends KeyValue
    *   // Provide a default value.
    *   dirCount: 1,
    *
-   *   // Define a fixture that prodives some useful functionality to the test.
+   *   // Define a fixture that provides some useful functionality to the test.
    *   // In this example, it will create some temporary directories.
    *   dirs: async ({ dirCount }, use, testInfo) => {
    *     // Our fixture uses the "dirCount" option that can be configured by the test.

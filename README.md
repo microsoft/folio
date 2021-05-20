@@ -1,15 +1,17 @@
 # Folio ![npm](https://img.shields.io/npm/v/folio)
 
-A customizable test framework to build your own test frameworks. Foundation for the [Playwright test runner](https://github.com/microsoft/playwright-test).
+A highly customizable test framework. Foundation for the [Playwright test runner](https://github.com/microsoft/playwright-test).
 
 Folio is **available in preview** and is under active development. Breaking changes could happen. We welcome your feedback to shape this towards 1.0.
 
 ## Docs
 
-- [Isolation and flexibility](#isolation-and-flexibility)
 - [Writing a test](#writing-a-test)
+- [Fixtures](#fixtures)
+  - [Test fixtures](#test-fixtures)
+  - [Worker fixtures](#worker-fixtures)
 - [Writing a configuration file](#writing-a-configuration-file)
-- [Creating an environment](#creating-an-environment)
+  - [Changing the timeout](#changing-the-timeout)
 - [Command line](#command-line)
 - [Snapshots](#snapshots)
 - [Annotations](#annotations)
@@ -17,148 +19,336 @@ Folio is **available in preview** and is under active development. Breaking chan
 - [Parallelism and sharding](#parallelism-and-sharding)
   - [Workers](#workers)
   - [Shards](#shards)
-- [Advanced configuration](#advanced-configuration)
-  - [Configuration object](#configuration-object)
-  - [Changing the timeout](#changing-the-timeout)
-  - [workerInfo](#workerinfo)
-  - [testInfo](#testinfo)
-  - [Multiple test types and configurations](#multiple-test-types-and-configurations)
-  - [Global setup and teardown](#global-setup-and-teardown)
-  - [Test options](#test-options)
 - [Reporters](#reporters)
   - [Built-in reporters](#built-in-reporters)
   - [Reporter API](#reporter-api)
-- [Expect](#expect)
+- [Advanced configuration](#advanced-configuration)
+  - [Configuration object](#configuration-object)
+  - [Projects](#projects)
+  - [workerInfo](#workerinfo)
+  - [testInfo](#testinfo)
+  - [Global setup and teardown](#global-setup-and-teardown)
+  - [Fixture options](#fixture-options)
+  - [Custom CLI options](#custom-cli-options)
   - [Add custom matchers using expect.extend](#add-custom-matchers-using-expectextend)
-
-## Isolation and flexibility
-
-Folio focuses on test isolation and flexibility. This makes it fast, reliable and able to adapt to your specific needs.
-
-**Isolation**. Tests are isolated by default and can be run independently.
-
-- Folio runs tests in parallel by default, making your test suite much faster. Thanks to isolation, Folio reuses processes for multiple tests, suites and file, which makes it even faster.
-
-- Flaky tests can be retried without significant overhead, because Folio will only retry the failures, and not the whole suite.
-
-- Refactoring tests and moving them around is effortless, since isolated tests do not have inter-dependencies.
-
-- You can group tests based on their meaning, instead of their common setup.
-
-**Flexibility**. Folio includes advanced features, adapting to your specific testing needs.
-
-- Leverage TypeScript power with minimal effort.
-
-- Run tests in multiple configurations.
-
-- Annotate tests as skipped/failed based on configuration.
-
-- Generate comprehensive report with your custom test annotations.
-
-- Define multiple test types, for example slow tests or smoke tests, and run them differently.
 
 ## Writing a test
 
-Folio follows the traditional BDD style. However, each test in Folio receives an object with Test Arguments. These arguments are isolated from other tests, which gives Folio [numerous advantages](#isolation-and-flexibility).
+Writing your first test is easy.
 
 ```ts
-test('insert an entry', async ({ table }) => {
-  await table.insert({ username: 'folio', password: 'testing' });
-  const entry = await table.query({ username: 'folio' });
-  expect(entry.password).toBe('testing');
+// my.spec.ts
+
+import test from 'folio';
+
+test('let us check some basics', async () => {
+  test.expect(1 + 1).toBe(2);
 });
 ```
 
-In the test above, `table` is a database table created for each test, so multiple tests running in parallel won't step on each other's toes.
+You can now run the test.
 
-Folio uses `expect` library for test assertions.
+```sh
+# Assuming my.spec.ts is in the current directory.
+npx folio -c .
+```
+
+Note: Folio uses [`expect`](https://jestjs.io/docs/expect) library for test assertions.
+
+## Fixtures
+
+Folio is based on the concept of the test fixtures. Test fixtures are used to establish environment for each test, giving the test everything it needs and nothing else. Test fixtures are isolated between tests, which gives Folio numerous advantages:
+- Folio runs tests in parallel by default, making your test suite much faster.
+- Folio can efficiently retry the flaky failures, instead of re-running the whole suite.
+- You can group tests based on their meaning, instead of their common setup.
+
+Here is how typical test environment setup differs between traditional test style and the fixture-based one:
+
+#### Without fixtures
+
+```ts
+describe('database', () => {
+  let table;
+
+  beforeEach(async ()=> {
+    table = await createTable();
+  });
+
+  afterEach(async () => {
+    await dropTable(table);
+  });
+
+  test('create user', () => {
+    table.insert();
+    // ...
+  });
+
+  test('update user', () => {
+    table.insert();
+    table.update();
+    // ...
+  });
+
+  test('delete user', () => {
+    table.insert();
+    table.delete();
+    // ...
+  });
+});
+```
+
+#### With fixtures
+
+```ts
+import base from 'folio';
+
+// Extend basic test by providing a "table" fixture.
+const test = base.extend<{ table: Table }>({
+  table: async ({}, use) => {
+    const table = await createTable();
+    await use(table);
+    await dropTable(table);
+  },
+});
+
+test('create user', ({ table }) => {
+  table.insert();
+  // ...
+});
+
+test('update user', ({ table }) => {
+  table.insert();
+  table.update();
+  // ...
+});
+
+test('delete user', ({ table }) => {
+  table.insert();
+  table.delete();
+  // ...
+});
+```
+
+You declare exact fixtures that the test needs and the runner initializes them for each test individually. Tests can use any combinations of the fixtures to tailor precise environment they need. You no longer need to wrap tests in `describe`s that set up environment, everything is declarative and typed.
+
+There are two types of fixtures: `test` and `worker`. Test fixtures are set up for each test and worker fixtures are set up for each process that runs test files.
+
+### Test fixtures
+
+Test fixtures are set up for each test. Consider the following test file:
+
+```ts
+// hello.spec.ts
+import test from './hello';
+
+test('hello', ({ hello }) => {
+  test.expect(hello).toBe('Hello');
+});
+
+test('hello world', ({ helloWorld }) => {
+  test.expect(helloWorld).toBe('Hello, world!');
+});
+```
+
+It uses fixtures `hello` and `helloWorld` that are set up by the framework for each test run.
+
+Here is how test fixtures are declared and defined. Fixtures can use other fixtures - note how `helloWorld` uses `hello`.
+
+```ts
+// hello.ts
+import base from 'folio';
+
+// Define test fixtures "hello" and "helloWorld".
+type TestFixtures = {
+  hello: string;
+  helloWorld: string;
+};
+const test = base.extend<TestFixtures>({
+  // This fixture is a constant, so we can just provide the value.
+  hello: 'Hello',
+
+  // This fixture has some complex logic and is defined with a function.
+  helloWorld: async ({ hello }, use) => {
+    // Set up the fixture.
+    const value = hello + ', world!';
+    // Use the fixture value in the test.
+    await run(value);
+    // Clean up the fixture. Nothing to cleanup in this example.
+  },
+});
+
+// Now, this "test" can be used in multiple test files, and each of them will get the fixtures.
+export default test;
+```
+
+With fixtures, test organization becomes flexible - you can put tests that make sense next to each other based on what they test, not based on the environment they need.
+
+### Worker fixtures
+
+Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. Similarly to how test fixtures are set up for individual test runs, worker fixtures are set up for each worker process. That's where you can set up services, run servers, etc. Folio will reuse the worker process for as many test files as it can, provided their worker fixtures match and hence environments are identical.
+
+Here is how the test looks:
+```ts
+// express.spec.ts
+import test from './express-test';
+import fetch from 'node-fetch';
+
+test('fetch 1', async ({ port }) => {
+  const result = await fetch(`http://localhost:${port}/1`);
+  test.expect(await result.text()).toBe('Hello World 1!');
+});
+
+test('fetch 2', async ({ port }) => {
+  const result = await fetch(`http://localhost:${port}/2`);
+  test.expect(await result.text()).toBe('Hello World 2!');
+});
+```
+
+And here is how fixtures are declared and defined:
+```ts
+// express-test.ts
+import base from 'folio';
+import express from 'express';
+import type { Express } from 'express';
+
+// Declare worker fixtures.
+type ExpressWorkerFixtures = {
+  port: number;
+  express: Express;
+};
+
+// Note that we did not provide an test-scoped fixtures, so we pass {}.
+const test = base.extend<{}, ExpressWorkerFixtures>({
+  // We pass a tuple to with the fixture function and options.
+  // In this case, we mark this fixture as worker-scoped.
+  port: [ async ({}, use, workerInfo) => {
+    // "port" fixture uses a unique value of the worker process index.
+    await use(3000 + workerInfo.workerIndex);
+  }, { scope: 'worker' } ],
+
+  // "express" fixture starts automatically for every worker - we pass "auto" for that.
+  express: [ async ({ port }, use) => {
+    const app = express();
+    app.get('/1', (req, res) => {
+      res.send('Hello World 1!')
+    });
+    app.get('/2', (req, res) => {
+      res.send('Hello World 2!')
+    });
+    let server;
+    console.log('Starting server...');
+    await new Promise(f => {
+      server = app.listen(port, f);
+    });
+    console.log('Server ready');
+    await use(server);
+    console.log('Stopping server...');
+    await new Promise(f => server.close(f));
+    console.log('Server stopped');
+  }, { scope: 'worker', auto: true } ],
+});
+
+export default test;
+```
 
 ## Writing a configuration file
 
-Folio requires a configuration file that specifies how to run the tests.
+Folio allows writing a configuration file that specifies how to run the tests.
 ```ts
 // folio.config.ts
-
 import * as folio from 'folio';
 
-// Configure Folio to look for tests in this directory, and give each test 20 seconds.
-folio.setConfig({ testDir: __dirname, timeout: 20000 });
+const config: folio.Config = {
+  // Look for tests in this directory.
+  testDir: __dirname,
 
-// Create a test type. For the easiest setup, you can use a default one.
-export const test = folio.test;
+  // Give each test 20 seconds.
+  timeout: 20000,
 
-// Run tests with two retries.
-test.runWith({ tag: 'basic', retries: 2 });
+  // Give each test two retries.
+  retries: 2,
+};
+
+export default config;
 ```
 
-Now, use the created test type in your tests.
+Look at the [configuration object](#configuration-object) for the available options.
+
+Folio will automatically pick up the `folio.config.ts` or `folio.config.js` file in the current directory:
+```sh
+npx folio
+```
+
+Alternatively, specify the configuration file manually:
+```sh
+npx folio --config=my.config.ts
+```
+
+### Example - changing the timeout
+
+There are a few ways to change the test timeout - the amount of time in milliseconds per each test. Passing a zero timeout in any of these disables the timeout.
+
+- Using the configuration file.
 ```ts
-// math.spec.ts
+// folio.config.ts
+const config = {
+  timeout: 5000,
+};
+export default config;
+```
 
-import { test } from './folio.config';
+- Using a [command line](#command-line) option.
+```sh
+# Disable timeout for all tests, e.g. for debugging.
+npx folio --timeout=0
+```
 
-test('check the addition', () => {
-  test.expect(1 + 1).toBe(42);
+- Calling `test.setTimeout(milliseconds)` in the test itself.
+```ts
+import test from 'folio';
+
+test('my test', async () => {
+  // Give this test 5 seconds.
+  test.setTimeout(5000);
 });
 ```
 
-You can run tests with Folio [command line](#command-line):
-```sh
-$ npx folio --reporter=dot
-Running 1 test using 1 worker
-××F
- 1 failed
-```
-
-## Creating an environment
-
-Usually, you need some test environment to run the tests. That may be a test database, dev server, mock user data, or anything else the test needs. Folio support creating an environment that is going to be used for multiple tests.
-
-Let's see how to add an environment, based on the example from [writing a configuration file](#writing-a-configuration-file) section.
-
+- Calling `test.slow()` to triple the timeout.
 ```ts
-// folio.config.ts
+import test from 'folio';
 
-import * as folio from 'folio';
-
-folio.setConfig({ testDir: __dirname, timeout: 20000 });
-
-class DatabaseEnv {
-  database: Database;
-  table: DatabaseTable;
-
-  async beforeAll() {
-    // Connect to a database once, it is expensive.
-    this.database = await connectToTestDatabase();
-  }
-
-  async beforeEach() {
-    // Create a new table for each test and return it.
-    this.table = await this.database.createTable();
-    // Anything returned from this method is available to the test. In our case, "table".
-    return { table: this.table };
-  }
-
-  async afterEach() {
-    // Do not leave extra tables around.
-    await this.table.drop();
-  }
-
-  async afterAll() {
-    await this.database.disconnect();
-  }
-}
-
-// Our test type comes with the database environment, so each test can use a "table" argument.
-export const test = folio.test.extend(new DatabaseEnv());
-
-// Run our tests.
-test.runWith({ tag: 'database' });
+test('my test', async () => {
+  test.slow();
+});
 ```
 
-In this example we see that tests use an environment that provides arguments to the test.
+## Command line
 
-Folio uses worker processes to run test files. You can specify the maximum number of workers using `--workers` command line option. By using `beforeAll` and `afterAll` methods, environment can set up expensive resources to be shared between tests in each worker process. Folio will reuse the worker process for as many test files as it can, provided their environments match.
+```sh
+# Ask for help!
+npx folio --help
+```
+
+Arguments passed to `npx folio` are treated as a filter for test files. For example, `npx folio my-spec` will only run tests from files with `my-spec` in the name.
+
+All the options are available in the [configuration file](#writing-a-configuration-file). However, selected options can be passed to a command line and take a priority over the configuration file:
+- `--config <file>` or `-c <file>`: Configuration file. Defaults to `folio.config.ts` or `folio.config.js` in the current directory.
+- `--forbid-only`: Whether to disallow `test.only` exclusive tests. Useful on CI. Overrides `config.forbidOnly` option from the configuration file.
+- `--grep <grep>` or `-g <grep>`: Only run tests matching this regular expression, for example `/my.*test/i` or `my-test`. Overrides `config.grep` option from the configuration file.
+- `--global-timeout <number>`: Total timeout in milliseconds for the whole test run. By default, there is no global timeout. Overrides `config.globalTimeout` option from the configuration file.
+- `--help`: Display help.
+- `--list`: List all the tests, but do not run them.
+- `--max-failures <N>` or `-x`: Stop after the first `N` test failures. Passing `-x` stops after the first failure. Overrides `config.maxFailures` option from the configuration file.
+- `--output <dir>`: Directory for artifacts produced by tests, defaults to `test-results`. Overrides `config.outputDir` option from the configuration file.
+- `--quiet`: Whether to suppress stdout and stderr from the tests. Overrides `config.quiet` option from the configuration file.
+- `--repeat-each <number>`: Specifies how many times to run each test. Defaults to one. Overrides `config.repeatEach` option from the configuration file.
+- `--reporter <reporter>`. Specify reporter to use, comma-separated, can be some combination of `dot`, `json`, `junit`, `line`, `list` and `null`. See [reporters](#reporters) for more information.
+- `--retries <number>`: The maximum number of retries for each [flaky test](#flaky-tests), defaults to zero (no retries). Overrides `config.retries` option from the configuration file.
+- `--shard <shard>`: [Shard](#shards) tests and execute only selected shard, specified in the form `current/all`, 1-based, for example `3/5`. Overrides `config.shard` option from the configuration file.
+- `--project <project...>`: Only run tests from one of the specified [projects](#projects). Defaults to running all projects defined in the configuration file.
+- `--timeout <number>`: Maximum timeout in milliseconds for each test, defaults to 10 seconds. Overrides `config.timeout` option from the configuration file.
+- `--update-snapshots` or `-u`: Whether to update snapshots with actual results instead of comparing them. Use this when snapshot expectations have changed. Overrides `config.updateSnapshots` option from the configuration file.
+- `--workers <workers>` or `-j <workers>`: The maximum number of concurrent worker processes.  Overrides `config.workers` option from the configuration file.
 
 ## Annotations
 
@@ -200,42 +390,9 @@ Running 1 test using 1 worker
   1) my.test.js:1:1
 ```
 
-## Command line
-
-Just point Folio to your [configuration file](#writing-a-configuration-file).
-```sh
-$ npx folio --config=my.config.ts
-```
-
-Arguments passed to `npx folio` are treated as a filter for test files. For example, `npx folio my-spec` will only run tests from files with `my-spec` in the name.
-
-Below is a list of command line options:
-- `--config <file>`: Configuration file. Defaults to `folio.config.ts` or `folio.config.js` in the current directory.
-- `--forbid-only`: Whether to disallow `test.only` exclusive tests. Useful on CI. Overrides `config.forbidOnly` option from the configuration file.
-- `--global-timeout <number>`: Total timeout in milliseconds for the whole test run. By default, there is no global timeout. Overrides `config.globalTimeout` option from the configuration file.
-- `--grep <grep>` or `-g <grep>`: Only run tests matching this regular expression, for example `/my.*test/i` or `my-test`. Overrides `config.grep` option from the configuration file.
-- `--help`: Display help.
-- `--list`: List all the tests, but do not run them.
-- `--max-failures <N>` or `-x`: Stop after the first `N` test failures. Passing `-x` stops after the first failure. Overrides `config.maxFailures` option from the configuration file.
-- `--output <dir>`: Directory for artifacts produced by tests, defaults to `test-results`. Overrides `config.outputDir` option from the configuration file.
-- `--quiet`: Whether to suppress stdout and stderr from the tests. Overrides `config.quiet` option from the configuration file.
-- `--repeat-each <number>`: Specifies how many times to run each test. Defaults to one. Overrides `config.repeatEach` option from the configuration file.
-- `--reporter <reporter>`. Specify reporter to use, comma-separated, can be some combination of `dot`, `json`, `junit`, `line`, `list` and `null`. See [reporters](#reporters) for more information.
-- `--retries <number>`: The maximum number of retries for each [flaky test](#flaky-tests), defaults to zero (no retries). Overrides `config.retries` option from the configuration file.
-- `--shard <shard>`: [Shard](#shards) tests and execute only selected shard, specified in the form `current/all`, 1-based, for example `3/5`. Overrides `config.shard` option from the configuration file.
-- `--snapshot-dir <dir>`: [Snapshots](#snapshots) directory, relative to tests directory. Defaults to `__snapshots__`. Overrides `config.snapshotDir` option from the configuration file.
-- `--tag <tag...>`: Only run tests tagged with one of the specified tags. Defaults to running all available tags that are defined in the [configuration file](#writing-a-configuration-file).
-- `--test-dir <dir>`: Directory where Folio should search for tests, defaults to current directory. Only files matching `--test-match` are recognized as test files. Overrides `config.testDir` option from the configuration file.
-- `--test-ignore <pattern>`: Pattern used to ignore test files, defaults to `node_modules`. Either a regular expression (for example, `/node_modules/`) or a glob pattern (for example, `**/ignore-dir/*`). Overrides `config.testIgnore` option from the configuration file.
-- `--test-match <pattern>`: Pattern used to find test files, defaults to files ending with `.spec.js`, `.test.js`, `.spec.ts` or `.test.ts`. Either a regular expression (for example, `/my-test-\d+/i`) or a glob pattern (for example, `?(*.)+(spec|test).[jt]s`). Overrides `config.testMatch` option from the configuration file.
-- `--timeout <number>`: Maximum timeout in milliseconds for each test, defaults to 10 seconds. Overrides `config.timeout` option from the configuration file.
-- `--update-snapshots` or `-u`: Whether to update snapshots with actual results instead of comparing them. Use this when snapshot expectations have changed. Overrides `config.updateSnapshots` option from the configuration file.
-- `--workers <workers>` or `-j <workers>`: The maximum number of concurrent worker processes.  Overrides `config.workers` option from the configuration file.
-
-
 ## Snapshots
 
-Folio includes the ability to produce and compare snapshots. For that, use `expect().toMatchSnapshot()`. Folio auto-detects the content type, and includes built-in matchers for text, png and jpeg images, and arbitrary binary data.
+Folio includes the ability to produce and compare snapshots. For that, use `expect(value).toMatchSnapshot()`. Folio auto-detects the content type, and includes built-in matchers for text, png and jpeg images, and arbitrary binary data.
 
 ```ts
 test('my test', async () => {
@@ -244,7 +401,7 @@ test('my test', async () => {
 });
 ```
 
-Snapshots are stored under `__snapshots__` directory by default, configurable via [command line](#command-line) or [configuration object](#configuration-object).
+Snapshots are stored under `__snapshots__` directory by default, and can be specified in the [configuration object](#configuration-object).
 
 ## Parallelism and sharding
 
@@ -267,116 +424,275 @@ $ npx folio --shard=2/3
 $ npx folio --shard=3/3
 ```
 
+## Reporters
+
+Folio comes with a few built-in reporters for different needs and ability to provide custom reporters. The easiest way to try out built-in reporters is `--reporter` [command line option](#command-line).
+
+```sh
+$ npx folio --reporter=line
+```
+
+For more control, you can specify reporters programmatically in the [configuration file](#writing-a-configuration-file).
+
+```ts
+// folio.config.ts
+import * as folio from 'folio';
+
+const config: folio.Config = {
+  reporter: !process.env.CI
+    // A long list of tests for the terminal.
+    ? 'list'
+    // Entirely different config on CI.
+    // Use very concise "dot" reporter plus a comprehensive json report.
+    : ['dot', { name: 'json', outputFile: 'test-results.json' }],
+};
+
+export default config;
+```
+
+### Built-in reporters
+
+All built-in reporters show detailed information about failures, and mostly differ in verbosity for successful runs.
+
+#### List reporter
+
+List reporter is default. It prints a line for each test being run. Use it with `--reporter=list` or `reporter: 'list'`.
+
+Here is an example output in the middle of a test run. Failures will be listed at the end.
+```sh
+npx folio --reporter=list
+Running 124 tests using 6 workers
+
+  ✓ should access error in env (438ms)
+  ✓ handle long test names (515ms)
+  x 1) render expected (691ms)
+  ✓ should timeout (932ms)
+    should repeat each:
+  ✓ should respect enclosing .gitignore (569ms)
+    should teardown env after timeout:
+    should respect excluded tests:
+  ✓ should handle env beforeEach error (638ms)
+    should respect enclosing .gitignore:
+```
+
+#### Line reporter
+
+Line reporter is more concise than the list reporter. It uses a single line to report last finished test, and prints failures when they occur. Line reporter is useful for large test suites where it shows the progress but does not spam the output by listing all the tests. Use it with `--reporter=line` or `reporter: 'line'`.
+
+Here is an example output in the middle of a test run. Failures are reported inline.
+```sh
+npx folio --reporter=line
+Running 124 tests using 6 workers
+  1) dot-reporter.spec.ts:20:1 › render expected ===================================================
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+[23/124] gitignore.spec.ts - should respect nested .gitignore
+```
+
+#### Dot reporter
+
+Dot reporter is very concise - it only produces a single character per successful test run. It is useful on CI where you don't want a lot of output. Use it with `--reporter=dot` or `reporter: 'dot'`.
+
+Here is an example output in the middle of a test run. Failures will be listed at the end.
+```sh
+npx folio --reporter=dot
+Running 124 tests using 6 workers
+······F·············································
+```
+
+#### JSON reporter
+
+JSON reporter produces an object with all information about the test run. It is usually used together with some terminal reporter like `dot` or `line`.
+
+Most likely you want to write the JSON to a file. When running with `--reporter=json`, use `FOLIO_JSON_OUTPUT_NAME` environment variable:
+```sh
+FOLIO_JSON_OUTPUT_NAME=results.json npx folio --reporter=json,dot
+```
+
+In configuration file, pass options directly:
+```ts
+const config = {
+  reporter: { name: 'json', outputFile: 'results.json' },
+};
+```
+
+#### JUnit reporter
+
+JUnit reporter produces a JUnit-style xml report. It is usually used together with some terminal reporter like `dot` or `line`.
+
+Most likely you want to write the report to an xml file. When running with `--reporter=junit`, use `FOLIO_JUNIT_OUTPUT_NAME` environment variable:
+```sh
+FOLIO_JUNIT_OUTPUT_NAME=results.xml npx folio --reporter=junit,line
+```
+
+In configuration file, pass options directly:
+```ts
+const config = {
+  reporter: { name: 'junit', outputFile: 'results.xml' },
+};
+```
+
 ## Advanced configuration
 
 ### Configuration object
 
-Configuration file uses `setConfig` function to provide a global configuration to Folio. It may contain the following properties:
-- `forbidOnly: boolean` - Whether to disallow `test.only` exclusive tests. Useful on CI. Overridden by `--forbid-only` command line option.
+Configuration file exports a single configuration object.
+
+Test project configuration properties:
+- `metadata: any` - Any JSON-serializable metadata that will be put directly to the test report.
+- `name: string` - Project name, useful when defining multiple [test projects](#projects).
+- `outputDir: string` - Output directory for files created during the test run.
+- `repeatEach: number` - The number of times to repeat each test, useful for debugging flaky tests. Overridden by `--repeat-each` command line option.
+- `retries: number` - The maximum number of retry attempts given to failed tests. Overridden by `--retries` command line option.
+- `snapshotDir: string` - [Snapshots](#snapshots) directory. Overridden by `--snapshot-dir` command line option.
+- `testDir: string` - Directory that will be recursively scanned for test files.
+- `testIgnore: string | RegExp | (string | RegExp)[]` - Files matching one of these patterns are not considered test files.
+- `testMatch: string | RegExp | (string | RegExp)[]` - Only files matching one of these patterns are considered test files.
+- `timeout: number` - Timeout for each test in milliseconds. Overridden by `--timeout` command line option.
+
+Test execution configuration properties:
+- `forbidOnly: boolean` - Whether to exit with an error if any tests are marked as `test.only`. Useful on CI. Overridden by `--forbid-only` command line option.
+- `globalSetup: string` - Path to the global setup file. This file will be required and run before all the tests. It must export a single function.
+- `globalTeardown: string` - Path to the global teardown file. This file will be required and run after all the tests. It must export a single function.
 - `globalTimeout: number` - Total timeout in milliseconds for the whole test run. Overridden by `--global-timeout` command line option.
 - `grep: RegExp | RegExp[]` - Patterns to filter tests based on their title. Overridden by `--grep` command line option.
-- `maxFailures: number` - Stop testing after reaching the maximum number of failures.  Overridden by `--max-failures` command line option.
-- `outputDir: string` - Directory to place any artifacts produced by tests. Overridden by `--output` command line option.
+- `maxFailures: number` - The maximum number of test failures for this test run. After reaching this number, testing will stop and exit with an error. Setting to zero (default) disables this behavior. Overridden by `--max-failures` and `-x` command line options.
+- `preserveOutput: 'always' | 'never' | 'failures-only'` - Whether to preserve test output in the `outputDir`:
+  - `'always'` - preserve output for all tests;
+  - `'never'` - do not preserve output for any tests;
+  - `'failures-only'` - only preserve output for failed tests.
+- `projects: Project[]` - Multiple [projects](#projects) configuration.
+- `reporter: 'list' | 'line' | 'dot' | 'json' | 'junit'` - The reporter to use. See [reporters](#reporters) for details.
 - `quiet: boolean` - Whether to suppress stdout and stderr from the tests. Overridden by `--quiet` command line option.
-- `repeatEach: number` - Each test will be repeated multiple times. Overridden by `--repeat-each` command line option.
-- `retries: number` - Maximum number of retries. Overridden by `--retries` command line option.
 - `shard: { total: number, current: number } | null` - [Shard](#shards) information. Overridden by `--shard` command line option.
-- `snapshotDir: string` - [Snapshots](#snapshots) directory, relative to tests directory. Overridden by `--snapshot-dir` command line option.
-- `testDir: string` - Directory where Folio should search for tests. Overridden by `--test-dir` command line option.
-- `testIgnore: string | RegExp | (string | RegExp)[]` - Patterns to ignore test files. Overridden by `--test-ignore` command line option.
-- `testMatch: string | RegExp | (string | RegExp)[]` - Patterns to match test files. Overridden by `--test-match` command line option.
-- `timeout: number` - Test timeout in milliseconds. Overridden by `--timeout` command line option.
-- `updateSnapshots: boolean` - Whether to update snapshots instead of comparing them. Overridden by `--update-snapshots` command line option.
-- `workers: number` - The maximum number of concurrent worker processes. Overridden by `--workers` command line option.
+- `updateSnapshots: boolean` - Whether to update expected snapshots with the actual results produced by the test run. Overridden by `--update-snapshots` command line option.
+- `workers: number` - The maximum number of concurrent worker processes to use for parallelizing tests. Overridden by `--workers` command line option.
+
 
 ```ts
 // folio.config.ts
-
 import * as folio from 'folio';
 
-folio.setConfig({
-  // Typically, you'd place folio.config.ts in the tests directory.
-  testDir: __dirname,
+const config: folio.Config = {
   // 20 seconds per test.
   timeout: 20000,
+
   // Forbid test.only on CI.
   forbidOnly: !!process.env.CI,
+
   // Two retries for each test.
   retries: 2,
 });
+export default config;
 ```
 
-### Changing the timeout
+### Projects
 
-There are a few ways to change the test timeout - the amount of time in milliseconds per each test. Passing a zero timeout in any of these disables the timeout.
+Folio supports running multiple test projects at the same time. This is useful for running the same tests in multiple configurations. For example, consider running tests against multiple versions of the database.
 
-- Using [`setConfig`](#configuration-object) and passing a `timeout` property.
-```js
-setConfing({
-  testDir: __dirname,
-  // Each test gets 5 seconds.
-  timeout: 5000,
+To make use of this feature, we will declare an "option fixture" for the database version, and use it in the tests.
+
+```ts
+// my-test.ts
+import base from folio;
+
+const test = base.extend<{ version: string, database: Database }>({
+  // Default value for the version.
+  version: '1.0',
+
+  // Use version when connecting to the database.
+  database: async ({ version }, use) => {
+    const db = await connectToDatabase(version);
+    await use(db);
+    await db.close();
+  },
 });
 ```
 
-- Using `--timeout` [command line](#command-line) option.
+We can use our fixtures in the test.
+```ts
+// my.spec.ts
+import test from './my-test';
+
+test('test 1', async ({ database }) => {
+  // Test code goes here.
+});
+
+test('test 2', async ({ version, database }) => {
+  test.fixme(version === '2.0', 'This feature is not implemented in 2.0 yet');
+  // Test code goes here.
+});
+```
+
+Now, we can run test in multiple configurations by using projects.
+```ts
+// folio.config.ts
+import * as folio from 'folio';
+
+const config: folio.Config = {
+  timeout: 20000,
+  projects: [
+    {
+      name: 'v1',
+      use: { version: '1.0' },
+    },
+    {
+      name: 'v2',
+      use: { version: '2.0' },
+    },
+  ]
+};
+export default config;
+```
+
+Each project can be configured separately, and run different set of tests with different parameters.
+Supported options are `name`, `outputDir`, `repeatEach`, `retries`, `snapshotDir`, `testDir`, `testIgnore`, `testMatch` and `timeout`. See [configuration object](#configuration-object) for detailed description.
+
+You can run all project or just a single one:
 ```sh
-# Disable timeout for all tests, e.g. for debugging.
-$ npx folio --config=config.ts --timeout=0
-```
+# Run both projects - each test will be run twice
+npx folio
 
-- Calling `test.setTimeout(milliseconds)` from the test itself.
-```js
-test('my test', async () => {
-  // Give this test 5 seconds.
-  test.setTimeout(5000);
-});
+# Run a single project - each test will be run once
+npx folio --project=v2
 ```
-
-- Calling `test.slow()` to triple the timeout.
-```js
-test('my test', async () => {
-  test.slow('this dataset is too large');
-});
-```
-
 
 ### workerInfo
 
 Depending on the configuration and failures, Folio might use different number of worker processes to run all the tests. For example, Folio will always start a new worker process after a failing test.
 
-Environment and hooks receive `workerInfo` in the `beforeAll` and `afterAll` calls. The following information is accessible from the `workerInfo`:
+Worker-scoped fixtures and `beforeAll` and `afterAll` hooks receive `workerInfo` parameter. The following information is accessible from the `workerInfo`:
 - `config` - [Configuration object](#configuration-object).
+- `project` - Specific [project](#projects) configuration for this worker. Different projects are always run in separate processes.
 - `workerIndex: number` - A unique sequential index assigned to the worker process.
 
 Consider an example where we run a new http server per worker process, and use `workerIndex` to produce a unique port number:
 
 ```ts
+import base from 'folio';
 import * as http from 'http';
 
-class ServerEnv {
-  server: http.Server;
-
-  async beforeAll(workerInfo) {
-    this.server = http.createServer();
-    this.server.listen(9000 + workerInfo.workerIndex);
-    await new Promise(ready => this.server.once('listening', ready));
-  }
-
-  async beforeEach() {
-    // Provide the server as a test argument.
-    return { server: this.server };
-  }
-
-  async afterAll() {
-    await new Promise(done => this.server.close(done));
-  }
-}
+// No test fixtures, just a worker fixture.
+// Note how we mark the fixture as { scope: 'worker' }.
+const test = base.extend<{}, { server: http.Server }>({
+  server: [ async ({}, use, workerInfo) => {
+    const server = http.createServer();
+    server.listen(9000 + workerInfo.workerIndex);
+    await new Promise(ready => server.once('listening', ready));
+    await use(server);
+    await new Promise(done => server.close(done));
+  }, { scope: 'worker' } ]
+});
+export default test;
 ```
 
 ### testInfo
 
-Environment and hooks receive `testInfo` in the `beforeEach` and `afterEach` calls. It is also available to the test function as a second parameter.
+Test fixtures and `beforeEach` and `afterEach` hooks receive `testInfo` parameter. It is also available to the test function as a second parameter.
 
 In addition to everything from the [`workerInfo`](#workerinfo), the following information is accessible before and during the test:
 - `title: string` - Test title.
@@ -389,13 +705,12 @@ In addition to everything from the [`workerInfo`](#workerinfo), the following in
 - `expectedStatus: 'passed' | 'failed' | 'timedOut'` - Whether this test is expected to pass, fail or timeout.
 - `timeout: number` - Test timeout.
 - `annotations` - [Annotations](#annotations) that were added to the test.
-- `data: object` - Any additional data that you'd like to attach to the test, it will appear in the report.
 - `snapshotPathSegment: string` - Relative path, used to locate snapshots for the test.
 - `snapshotPath(...pathSegments: string[])` - Function that returns the full path to a particular snapshot for the test.
 - `outputDir: string` - Absolute path to the output directory for this test run.
 - `outputPath(...pathSegments: string[])` - Function that returns the full path to a particular output artifact for the test.
 
-The following information is accessible after the test body has finished, in `afterEach`:
+The following information is accessible after the test body has finished, in fixture teardown:
 - `duration: number` - test running time in milliseconds.
 - `status: 'passed' | 'failed' | 'timedOut'` - the actual test result.
 - `error` - any error thrown by the test body.
@@ -412,390 +727,125 @@ test('my test needs a file', async ({ table }, testInfo) => {
 });
 ```
 
-Here is an example environment that automatically saves debug logs when the test fails:
+Here is an example fixture that automatically saves debug logs when the test fails:
 ```ts
 import * as debug from 'debug';
 import * as fs from 'fs';
+import base from 'folio';
 
-class LogEnv {
-  async beforeEach() {
-    this.logs = [];
-    debug.log = (...args) => this.logs.push(args.map(String).join(''));
+// Note how we mark the fixture as { auto: true }.
+// This way it is always instantiated, even if the test does not use it explicitly.
+const test = base.extend<{ saveLogs: void }>({
+  saveLogs: [ async ({}, use, testInfo) => {
+    const logs = [];
+    debug.log = (...args) => logs.push(args.map(String).join(''));
     debug.enable('mycomponent');
-  }
-
-  async afterEach(testInfo) {
+    await use();
     if (testInfo.status !== testInfo.expectedStatus)
-      fs.writeFileSync(testInfo.outputPath('logs.txt'), this.logs.join('\n'), 'utf8');
-  }
-}
-```
-
-### Multiple test types and configurations
-
-Often times there is a need for different kinds of tests, for example generic tests that use a database table, or some specialized tests that require more elaborate setup. It is also common to run tests in multiple configurations. Folio allows you to configure everything by writing code for maximum flexibility.
-
-Instead of using `test.extend()` to add an environment right away, we use `test.declare()` to declare the test arguments and `test.runWith()` to give it the actual environment and configuration.
-
-```ts
-// folio.config.ts
-
-import * as folio from 'folio';
-import * as fs from 'fs';
-
-// 20 seconds timeout, 3 retries by default.
-folio.setConfig({ testDir: __dirname, timeout: 20000, retries: 3 });
-
-// Environment with some test value.
-class MockedEnv {
-  async beforeEach() {
-    return { value: 'some test value' };
-  }
-}
-
-// Another environment that reads from a file.
-class FileEnv {
-  constructor() {
-    this.value = fs.readFileSync('data.txt', 'utf8');
-  }
-  async beforeEach() {
-    return { value: this.value };
-  }
-}
-
-// Our tests need a common string value.
-const valueTest = folio.test.declare<{ value: string }>();
-
-// Now declare as many test types as we'd like.
-
-// Run generic tests with two different environments and no specific configuration.
-export const test = valueTest.declare();
-test.runWith(new MockedEnv());
-test.runWith(new FileEnv());
-
-// Run slow tests with increased timeout, in a single environment.
-export const slowTest = valueTest.declare();
-slowTest.runWith(new MockedEnv(), { timeout: 100000 });
-
-// Run smoke tests without retries - these must not be flaky.
-// Adding a tag allows to run just the smoke tests with `npx folio --tag=smoke`.
-export const smokeTest = valueTest.declare();
-smokeTest.runWith(new MockedEnv(), { retries: 0, tag: 'smoke' });
-
-// These tests also get a "foo" argument.
-export const fooTest = valueTest.extend({
-  beforeEach() {
-    return { foo: 42 };
-  }
-});
-// Although we already added the environment that gives "foo", we still have to provide
-// the "value" declared in valueTest.
-fooTest.runWith(new MockedEnv(), { tag: 'foo' });
-```
-
-We can now use our test types to write tests:
-```ts
-// some.spec.ts
-
-import { test, slowTest, smokeTest, fooTest } from './folio.config';
-
-test('just a test', async ({ value }) => {
-  // This test will be retried.
-  expect(value).toBe('wrong value');
-});
-
-slowTest('does a lot', async ({ value }) => {
-  for (let i = 0; i < 100000; i++)
-    expect(value).toBe('some test value');
-});
-
-smokeTest('a smoke test', async ({ value }) => {
-  // This test will not be retried.
-  expect(value).toBe('some test value');
-});
-
-fooTest('a smoke test', async ({ foo }) => {
-  // Note the different test arguments.
-  expect(foo).toBe(42);
+      fs.writeFileSync(testInfo.outputPath('logs.txt'), logs.join('\n'), 'utf8');
+  }, { auto: true } ]
 });
 ```
 
 ### Global setup and teardown
 
-To set something up once before running all tests, use `globalSetup` hook in the [configuration file](#writing-a-configuration-file). Similarly, use `globalTeardown` to run something once after all the tests.
+To set something up once before running all tests, use `globalSetup` option in the [configuration file](#writing-a-configuration-file). Similarly, use `globalTeardown` to run something once after all the tests.
 
 ```ts
-// folio.config.ts
-
-import * as folio from 'folio';
-import * as app from '../my-app';
+// global-setup.ts
 import * as http from 'http';
 
-let server: http.Server;
-
-folio.globalSetup(async () => {
-  server = http.createServer(app);
+module.exports = async () => {
+  const server = http.createServer(app);
   await new Promise(done => server.listen(done));
   process.env.SERVER_PORT = String(server.address().port); // Expose port to the tests.
-});
-
-folio.globalTeardown(async () => {
-  await new Promise(done => server.close(done));
-});
-
-folio.setConfig({ testDir: __dirname });
-export const test = folio.newTestType();
-test.runWith();
+  global.__server = server; // Save the server for the teardown.
+};
 ```
 
-### Test options
-
-It is common for [test environment](#creating-an-environment) to be configurable, based on various test needs. There are three different ways to configure environment in Folio, depending on the usecase.
-
-#### Creating multiple environment instances
-
-Use this method when you need to run tests in multiple configurations. See [Multiple test types and configurations](#multiple-test-types-and-configurations) for more details.
+```ts
+// global-teardown.ts
+module.exports = async () => {
+  await new Promise(done => global.__server.close(done));
+};
+```
 
 ```ts
 // folio.config.ts
-
 import * as folio from 'folio';
 
-folio.setConfig({ testDir: __dirname });
-
-// This environment provides a "hello".
-class HelloEnv {
-  constructor(name) {
-    this.name = name;
-  }
-
-  async beforeEach() {
-    return { hello: `Hello, ${this.name}!` };
-  }
-}
-
-// Tests expect a "hello" value.
-export const test = folio.test.declare<{ hello: string }>();
-
-// Now, run tests in two configurations.
-test.runWith(new HelloEnv('world'));
-test.runWith(new HelloEnv('test'));
+const config: folio.Config = {
+  globalSetup: 'global-setup.ts',
+  globalTeardown: 'global-teardown.ts',
+};
+export default config;
 ```
 
-#### Providing function as a test argument
+### Fixture options
 
-Use this method when you need to alter the environment for some tests.
+It is common for the [fixtures](#fixtures) to be configurable, based on various test needs.
+Folio allows creating "options" fixture for this purpose.
 
-Define the function provided by environment. In our case, this will be `createHello` function.
+```ts
+// my-test.ts
+import base from 'folio';
+
+const test = base.extend<{ dirCount: number, dirs: string[] }>({
+  // Define an option that can be configured in tests with `test.use()`.
+  // Provide a default value.
+  dirCount: 1,
+
+  // Define a fixture that provides some useful functionality to the test.
+  // In this example, it will supply some temporary directories.
+  // Our fixture uses the "dirCount" option that can be configured by the test.
+  dirs: async ({ dirCount }, use, testInfo) => {
+    const dirs = [];
+    for (let i = 0; i < dirCount; i++)
+      dirs.push(testInfo.outputPath('dir-' + i));
+
+    // Use the list of directories in the test.
+    await use(dirs);
+
+    // Cleanup if needed.
+  },
+});
+export default test;
+```
+
+We can now pass the option value with `test.use()`.
+
+```ts
+// my.spec.ts
+import test from './my-test';
+
+// Here we define the option value. Tests in this file need two temporary directories.
+test.use({ dirCount: 2 });
+
+test('my test title', async ({ dirs }) => {
+  // Test can use "dirs" right away - the fixture has already run and created two temporary directories.
+  test.expect(dirs.length).toBe(2);
+});
+```
+
+In addition to `test.use()`, we can also specify options in the configuration file.
 ```ts
 // folio.config.ts
-
 import * as folio from 'folio';
 
-folio.setConfig({ testDir: __dirname });
-
-// This environment provides a function "createHello".
-class CreateHelloEnv {
-  async beforeEach() {
-    return { createHello: (name: string) => `Hello, ${name}!` };
-  }
-}
-
-// Tests get a "createHello" function.
-export const test = folio.test.extend(new CreateHelloEnv());
-test.runWith();
+const config: folio.Config = {
+  // All tests will get three directories by default, unless it is overridden with test.use().
+  use: { dirCount: 3 },
+};
+export default config;
 ```
-
-Now use this function in the test.
-```ts
-// some.spec.ts
-
-import { test } from './folio.config';
-import { expect } from 'folio';
-
-test('my test', ({ createHello }) => {
-  expect(createHello('world')).toBe('Hello, world!');
-});
-```
-
-#### Specifying options with `test.useOptions`
-
-Use this method when you have common configuration that needs to often change between tests.
-
-```ts
-// folio.config.ts
-
-import * as folio from 'folio';
-
-folio.setConfig({ testDir: __dirname });
-
-// This environment provides a "hello".
-class HelloEnv {
-  // Declare the TestOptions type.
-  testOptionsType(): { name?: string } {
-    return {} as any;  // It does not matter what you return from here.
-  }
-
-  // Use TestOptions in beforeEach.
-  async beforeEach({ name }, testInfo: folio.TestInfo) {
-    // Don't forget to account for missing "name".
-    return { hello: `Hello, ${name || ''}!` };
-  }
-}
-
-// Tests expect a "hello" value, and can provide a "name" option.
-export const test = folio.test.extend(new HelloEnv());
-test.runWith();
-```
-
-Now specify the options in the test file with `test.useOptions`. It works for each test in the file, or the containing `test.describe` block if any, similar to `test.beforeEach` and other hooks.
-```ts
-// some.spec.ts
-
-import { test } from './folio.config';
-import { expect } from 'folio';
-
-test.useOptions({ name: 'world' });
-test('my test with options', ({ hello }) => {
-  expect(hello).toBe('Hello, world!');
-});
-test('another test, same options', ({ hello }) => {
-  expect(hello).toBe('Hello, world!');
-});
-
-test.describe('this suite uses different options', () => {
-  test.useOptions({ name: 'test' });
-  test('different options', ({ hello }) => {
-    expect(hello).toBe('Hello, test!');
-  });
-});
-```
-
-## Reporters
-
-Folio comes with a few built-in reporters for different needs and ability to provide custom reporters. The easiest way to try out built-in reporters is `--reporter` [command line option](#command-line).
-
-```sh
-$ npx folio --config=config.ts --reporter=list
-```
-
-For more control, you can specify reporters programmatically in the [configuration file](#writing-a-configuration-file).
-
-```ts
-// folio.config.ts
-
-import * as folio from 'folio';
-
-// A long list of tests for the terminal.
-folio.setReporters([ new folio.reporters.list() ]);
-
-if (process.env.CI) {
-  // Entirely different config on CI.
-  // Use very concise "dot" reporter plus a comprehensive json report.
-  folio.setReporters([
-    new folio.reporters.dot(),
-    new folio.reporters.json({ outputFile: 'test-results.json' }),
-  ]);
-}
-```
-
-### Built-in reporters
-
-All built-in reporters show detailed information about failures, and mostly differ in verbosity for successful runs.
-
-#### Line reporter
-
-Line reporter is default. It uses a single line to report last finished test, and prints failures when they occur. Line reporter is useful for large test suites where it shows the progress but does not spam the output by listing all the tests. Use it with `--reporter=line` or `new folio.reporters.line()`.
-
-Here is an example output in the middle of a test run. Failures are reporter inline.
-```sh
-$ npm run test -- --reporter=line
-Running 124 tests using 6 workers
-  1) dot-reporter.spec.ts:20:1 › render expected ===================================================
-
-    Error: expect(received).toBe(expected) // Object.is equality
-
-    Expected: 1
-    Received: 0
-
-[23/124] gitignore.spec.ts - should respect nested .gitignore
-```
-
-#### List reporter
-
-List reporter is verbose - it prints a line for each test being run. Use it with `--reporter=list` or `new folio.reporters.list()`.
-
-Here is an example output in the middle of a test run. Failures will be listed at the end.
-```sh
-$ npm run test -- --reporter=list
-Running 124 tests using 6 workers
-
-  ✓ should access error in env (438ms)
-  ✓ handle long test names (515ms)
-  x 1) render expected (691ms)
-  ✓ should timeout (932ms)
-    should repeat each:
-  ✓ should respect enclosing .gitignore (569ms)
-    should teardown env after timeout:
-    should respect excluded tests:
-  ✓ should handle env beforeEach error (638ms)
-    should respect enclosing .gitignore:
-```
-
-#### Dot reporter
-
-Dot reporter is very concise - it only produces a single character per successful test run. It is useful on CI where you don't want a lot of output. Use it with `--reporter=dot` or `new folio.reporters.dot()`.
-
-Here is an example output in the middle of a test run. Failures will be listed at the end.
-```sh
-$ npm run test -- --reporter=dot
-Running 124 tests using 6 workers
-······F·············································
-```
-
-#### JSON reporter
-
-JSON reporter produces an object with all information about the test run. It is usually used together with some terminal reporter like `dot` or `line`.
-
-You would usually want to output JSON into a file. When running with `--reporter=json`, use `FOLIO_JSON_OUTPUT_NAME` environment variable:
-```sh
-$ FOLIO_JSON_OUTPUT_NAME=results.json npm run test -- --reporter=json,dot
-```
-With `setReporters` call, pass options to the constructor:
-```ts
-folio.setReporters([
-  new folio.reporters.json({ outputFile: 'results.json' })
-]);
-```
-
-#### JUnit reporter
-
-JUnit reporter produces a JUnit-style xml report. It is usually used together with some terminal reporter like `dot` or `line`.
-
-You would usually want to output into an xml file. When running with `--reporter=junit`, use `FOLIO_JUNIT_OUTPUT_NAME` environment variable:
-```sh
-$ FOLIO_JUNIT_OUTPUT_NAME=results.xml npm run test -- --reporter=junit,line
-```
-With `setReporters` call, pass options to the constructor:
-```ts
-folio.setReporters([
-  new folio.reporters.junit({ outputFile: 'results.xml' })
-]);
-```
-
-## Expect
 
 ### Add custom matchers using expect.extend
 
 Folio uses [expect](https://jestjs.io/docs/expect) under the hood which has the functionality to extend it with [custom matchers](https://jestjs.io/docs/expect#expectextendmatchers). See the following example where a custom `toBeWithinRange` function gets added.
 
-<details>
-  <summary>folio.config.ts</summary>
-
 ```ts
+// folio.config.ts
 import * as folio from 'folio';
-
-folio.setConfig({ testDir: __dirname, timeout: 30 * 1000 });
 
 folio.expect.extend({
   toBeWithinRange(received: number, floor: number, ceiling: number) {
@@ -814,37 +864,32 @@ folio.expect.extend({
   },
 });
 
-folio.test.runWith();
+const config = {};
+export default config;
 ```
-</details>
-
-<details>
-  <summary>example.spec.ts</summary>
 
 ```ts
-import { expect, test } from 'folio';
+// example.spec.ts
+import test from 'folio';
 
 test('numeric ranges', () => {
-  expect(100).toBeWithinRange(90, 110);
-  expect(101).not.toBeWithinRange(0, 100);
+  test.expect(100).toBeWithinRange(90, 110);
+  test.expect(101).not.toBeWithinRange(0, 100);
 });
 ```
-</details>
-
-<details>
-  <summary>global.d.ts</summary>
 
 ```ts
+// global.d.ts
 declare namespace folio {
   interface Matchers<R> {
     toBeWithinRange(a: number, b: number): R;
   }
 }
 ```
-</details>
 
 To import expect matching libraries like [jest-extended](https://github.com/jest-community/jest-extended#installation) you can import it from your `globals.d.ts`:
 
 ```ts
+// global.d.ts
 import 'jest-extended';
 ```
