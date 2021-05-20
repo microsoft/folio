@@ -207,7 +207,6 @@ export class Test implements types.Test {
       duration: 0,
       stdout: [],
       stderr: [],
-      data: {}
     };
     this.results.push(result);
     return result;

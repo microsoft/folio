@@ -37,16 +37,18 @@ test('should access error in fixture', async ({ runInlineTest }) => {
   expect(data.message).toContain('Object.is equality');
 });
 
-test('should access data in fixture', async ({ runInlineTest }) => {
+test('should access annotations in fixture', async ({ runInlineTest }) => {
   const { exitCode, report } = await runInlineTest({
     'test-data-visible-in-env.spec.ts': `
       const test = folio.test.extend({
         foo: [async ({}, run, testInfo) => {
           await run();
-          testInfo.data['myname'] = 'myvalue';
+          testInfo.annotations.push({ type: 'myname', description: 'hello' });
         }, { auto: true }],
       });
       test('ensure env can set data', async ({}, testInfo) => {
+        test.slow(true, 'just slow');
+
         console.log('console.log');
         console.error('console.error');
         expect(testInfo.config.rootDir).toBeTruthy();
@@ -55,10 +57,10 @@ test('should access data in fixture', async ({ runInlineTest }) => {
     `
   });
   expect(exitCode).toBe(0);
-  const testResult = report.suites[0].specs[0].tests[0].results[0];
-  expect(testResult.data).toEqual({ 'myname': 'myvalue' });
-  expect(testResult.stdout).toEqual([{ text: 'console.log\n' }]);
-  expect(testResult.stderr).toEqual([{ text: 'console.error\n' }]);
+  const test = report.suites[0].specs[0].tests[0];
+  expect(test.annotations).toEqual([ { type: 'slow', description: 'just slow' }, { type: 'myname', description: 'hello' } ]);
+  expect(test.results[0].stdout).toEqual([{ text: 'console.log\n' }]);
+  expect(test.results[0].stderr).toEqual([{ text: 'console.error\n' }]);
 });
 
 test('should report projectName in result', async ({ runInlineTest }) => {

@@ -210,7 +210,6 @@ export class WorkerRunner extends EventEmitter {
       stdout: [],
       stderr: [],
       timeout: this._project.config.timeout,
-      data: {},
       snapshotPathSegment: '',
       outputDir: baseOutputDir,
       outputPath: (...pathSegments: string[]): string => {
@@ -407,7 +406,6 @@ function buildTestEndPayload(testId: string, testInfo: TestInfo): TestEndPayload
     duration: testInfo.duration,
     status: testInfo.status!,
     error: testInfo.error,
-    data: testInfo.data,
     expectedStatus: testInfo.expectedStatus,
     annotations: testInfo.annotations,
     timeout: testInfo.timeout,

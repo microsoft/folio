@@ -19,7 +19,7 @@ import path from 'path';
 import EmptyReporter from './empty';
 import { FullConfig, Test, Suite, Spec, TestResult, TestError } from '../index';
 
-export interface SerializedSuite {
+interface SerializedSuite {
   title: string;
   file: string;
   column: number;
@@ -28,11 +28,7 @@ export interface SerializedSuite {
   suites?: SerializedSuite[];
 }
 
-export type ReportFormat = {
-  config: FullConfig;
-  errors: TestError[];
-  suites: SerializedSuite[];
-};
+export type ReportFormat = ReturnType<JSONReporter['_serializeReport']>;
 
 function toPosixPath(aPath: string): string {
   return aPath.split(path.sep).join(path.posix.sep);
@@ -63,14 +59,32 @@ class JSONReporter extends EmptyReporter {
   }
 
   onEnd() {
-    outputReport({
+    outputReport(this._serializeReport(), this._outputFile);
+  }
+
+  private _serializeReport() {
+    return {
       config: {
         ...this.config,
         rootDir: toPosixPath(this.config.rootDir),
+        projects: this.config.projects.map(project => {
+          return {
+            outputDir: toPosixPath(project.outputDir),
+            repeatEach: project.repeatEach,
+            retries: project.retries,
+            snapshotDir: toPosixPath(project.snapshotDir),
+            metadata: project.metadata,
+            name: project.name,
+            testDir: toPosixPath(project.testDir),
+            testIgnore: serializePatterns(project.testIgnore),
+            testMatch: serializePatterns(project.testMatch),
+            timeout: project.timeout,
+          };
+        })
       },
       suites: this.suite.suites.map(suite => this._serializeSuite(suite)).filter(s => s),
       errors: this._errors
-    }, this._outputFile);
+    };
   }
 
   private _serializeSuite(suite: Suite): null | SerializedSuite {
@@ -116,7 +130,6 @@ class JSONReporter extends EmptyReporter {
       error: result.error,
       stdout: result.stdout.map(s => stdioEntry(s)),
       stderr: result.stderr.map(s => stdioEntry(s)),
-      data: result.data,
       retry: result.retry,
     };
   }
@@ -137,6 +150,12 @@ function stdioEntry(s: string | Buffer): any {
   if (typeof s === 'string')
     return { text: s };
   return { buffer: s.toString('base64') };
+}
+
+function serializePatterns(patterns: string | RegExp | (string | RegExp)[]): string[] {
+  if (!Array.isArray(patterns))
+    patterns = [patterns];
+  return patterns.map(s => s.toString());
 }
 
 export default JSONReporter;
