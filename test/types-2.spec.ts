@@ -35,12 +35,14 @@ test('basics should work', async ({runTSC}) => {
 test('can pass sync functions everywhere', async ({runTSC}) => {
   const result = await runTSC({
     'a.spec.ts': `
-      const { test } = folio;
-      test.beforeEach(() => {});
-      test.afterEach(() => {});
+      const test = folio.test.extend<{ foo: string }>({
+        foo: ({}, use) => use('bar'),
+      });
+      test.beforeEach(({ foo }) => {});
+      test.afterEach(({ foo }) => {});
       test.beforeAll(() => {});
       test.afterAll(() => {});
-      test('my test', () => {});
+      test('my test', ({ foo }) => {});
     `
   });
   expect(result.exitCode).toBe(0);

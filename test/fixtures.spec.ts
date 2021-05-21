@@ -31,11 +31,26 @@ test('should work', async ({ runInlineTest }) => {
   expect(results[0].status).toBe('passed');
 });
 
-test('should work with a sync function', async ({ runInlineTest }) => {
+test('should work with a sync test function', async ({ runInlineTest }) => {
   const { results } = await runInlineTest({
     'a.test.js': `
       const test = folio.test.extend({
         asdf: async ({}, test) => await test(123),
+      });
+
+      test('should use asdf', ({asdf}) => {
+        expect(asdf).toBe(123);
+      });
+    `,
+  });
+  expect(results[0].status).toBe('passed');
+});
+
+test('should work with a sync fixture function', async ({ runInlineTest }) => {
+  const { results } = await runInlineTest({
+    'a.test.js': `
+      const test = folio.test.extend({
+        asdf: ({}, use) => use(123),
       });
 
       test('should use asdf', ({asdf}) => {
