@@ -17,7 +17,7 @@
 import xml2js from 'xml2js';
 import { test, expect } from './folio-test';
 
-test('render expected', async ({ runInlineTest }) => {
+test('should render expected', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       const { test } = folio;
@@ -44,7 +44,7 @@ test('render expected', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-test('render unexpected', async ({ runInlineTest }) => {
+test('should render unexpected', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       const { test } = folio;
@@ -64,7 +64,7 @@ test('render unexpected', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-test('render unexpected after retry', async ({ runInlineTest }) => {
+test('should render unexpected after retry', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       const { test } = folio;
@@ -82,7 +82,7 @@ test('render unexpected after retry', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-test('render flaky', async ({ runInlineTest }) => {
+test('should render flaky', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       const { test } = folio;
@@ -95,7 +95,7 @@ test('render flaky', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-test('render stdout', async ({ runInlineTest }) => {
+test('should render stdout', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
       import colors from 'colors/safe';
@@ -115,7 +115,7 @@ test('render stdout', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(1);
 });
 
-test('render stdout without ansi escapes', async ({ runInlineTest }) => {
+test('should render stdout without ansi escapes', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
       module.exports = {
@@ -137,7 +137,7 @@ test('render stdout without ansi escapes', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
 });
 
-test('render skipped', async ({ runInlineTest }) => {
+test('should render skipped', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.js': `
       const { test } = folio;
@@ -154,6 +154,35 @@ test('render skipped', async ({ runInlineTest }) => {
   expect(xml['testsuites']['testsuite'][0]['$']['tests']).toBe('2');
   expect(xml['testsuites']['testsuite'][0]['$']['failures']).toBe('0');
   expect(xml['testsuites']['testsuite'][0]['$']['skipped']).toBe('1');
+  expect(result.exitCode).toBe(0);
+});
+
+test('should render projects', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { projects: [ { name: 'project1' }, { name: 'project2' } ] };
+    `,
+    'a.test.js': `
+      const { test } = folio;
+      test('one', async ({}) => {
+        expect(1).toBe(1);
+      });
+    `,
+  }, { reporter: 'junit' });
+  const xml = parseXML(result.output);
+  expect(xml['testsuites']['$']['tests']).toBe('2');
+  expect(xml['testsuites']['$']['failures']).toBe('0');
+  expect(xml['testsuites']['testsuite'].length).toBe(1);
+  expect(xml['testsuites']['testsuite'][0]['$']['name']).toBe('a.test.js');
+  expect(xml['testsuites']['testsuite'][0]['$']['tests']).toBe('2');
+  expect(xml['testsuites']['testsuite'][0]['$']['failures']).toBe('0');
+  expect(xml['testsuites']['testsuite'][0]['$']['skipped']).toBe('0');
+  expect(xml['testsuites']['testsuite'][0]['testcase'][0]['$']['name']).toBe('one');
+  expect(xml['testsuites']['testsuite'][0]['testcase'][0]['$']['classname']).toContain('[project1] one');
+  expect(xml['testsuites']['testsuite'][0]['testcase'][0]['$']['classname']).toContain('a.test.js:6:7');
+  expect(xml['testsuites']['testsuite'][0]['testcase'][1]['$']['name']).toBe('one');
+  expect(xml['testsuites']['testsuite'][0]['testcase'][1]['$']['classname']).toContain('[project2] one');
+  expect(xml['testsuites']['testsuite'][0]['testcase'][1]['$']['classname']).toContain('a.test.js:6:7');
   expect(result.exitCode).toBe(0);
 });
 
