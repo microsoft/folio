@@ -21,6 +21,7 @@ import { Runner } from './runner';
 import { FullConfig } from './types';
 import { Loader } from './loader';
 import { ConfigOverrides } from './types';
+import { createMatcher } from './util';
 
 const availableReporters = new Set(['dot', 'json', 'junit', 'line', 'list', 'null']);
 
@@ -106,20 +107,23 @@ async function runTests() {
   } else if (!loadConfig(path.resolve(process.cwd(), 'folio.config.ts')) && !loadConfig(path.resolve(process.cwd(), 'folio.config.js')) && !help) {
     // No --config option, let's look for the config file in the current directory.
     // If not, do not assume that current directory is a root testing directory, to avoid scanning the world.
-    throw new Error(`Configuration file not found. Either pass --config, or create folio.config.(js|ts) file`);
+    throw new Error(`Configuration file not found. Run "folio --help" for more information.`);
   }
 
   if (help) {
-    const lines = program.helpInformation().split('\n');
     const builtinHelp: string[] = [];
     const extraHelp: string[] = [];
-    for (const line of lines.slice(3)) {
+    for (const line of program.helpInformation().split('\n').slice(3)) {
       if (extraOptions.some(e => line.includes('--' + e)))
         extraHelp.push(line);
       else
         builtinHelp.push(line);
     }
-    lines.splice(2, lines.length - 2);
+    const lines: string[] = [];
+    lines.push(`Usage: folio [options] <filter...>`);
+    lines.push(``);
+    lines.push(`Use <filter...> arguments to filter test files. Each argument is treated as a regular expression.`);
+    lines.push(``);
     if (extraHelp.length) {
       lines.push(`Test suite options:`);
       lines.push(...extraHelp);
@@ -137,7 +141,8 @@ async function runTests() {
   program.parse(process.argv);
 
   const runner = new Runner(loader);
-  const result = await runner.run(!!opts.list, program.args, opts.project || undefined);
+  const testFileFilter = program.args.length ? createMatcher(program.args.map(forceRegExp)) : () => true;
+  const result = await runner.run(!!opts.list, testFileFilter, opts.project || undefined);
 
   // Calling process.exit() might truncate large stdout/stderr output.
   // See https://github.com/nodejs/node/issues/6456.
@@ -169,7 +174,6 @@ async function runTests() {
 
 function addRunnerOptions(program: commander.Command) {
   program = program
-      .version('Folio version ' + /** @type {any} */ (require)('../package.json').version, '-v, --version', 'Output the version number')
       .option('-c, --config <file>', `Configuration file (default: "folio.config.ts" or "folio.config.js")`)
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
       .option('-g, --grep <grep>', `Only run tests matching this regular expression (default: "${defaultConfig.grep}")`)
@@ -187,6 +191,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('--project <project-name>', `Only run tests from the specified project (default: run all projects)`)
       .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: 10000)`)
       .option('-u, --update-snapshots', `Update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
+      .version('Folio version ' + /** @type {any} */ (require)('../package.json').version, '-v, --version', 'Output the version number')
       .option('-x', `Stop after the first failure`);
   return program.options.filter(o => !!o.long).map(o => o.long.substring(2));
 }

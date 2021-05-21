@@ -72,11 +72,15 @@ interface ProjectBase {
 
   /**
    * Files matching one of these patterns are not considered test files.
+   * Matching is performed against the absolute file path.
+   * Strings are treated as glob patterns.
    */
   testIgnore?: string | RegExp | (string | RegExp)[];
 
   /**
    * Only files matching one of these patterns are considered test files.
+   * Matching is performed against the absolute file path.
+   * Strings are treated as glob patterns.
    */
   testMatch?: string | RegExp | (string | RegExp)[];
 
