@@ -290,18 +290,42 @@ function fixtureParameterNames(fn: Function | any, location: Location): string[]
 
 function innerFixtureParameterNames(fn: Function, location: Location): string[] {
   const text = fn.toString();
-  const match = text.match(/(?:async)?(?:\s+function)?[^\(]*\(([^})]*)/);
+  const match = text.match(/(?:async)?(?:\s+function)?[^(]*\(([^)]*)/);
   if (!match)
     return [];
   const trimmedParams = match[1].trim();
   if (!trimmedParams)
     return [];
-  if (trimmedParams && trimmedParams[0] !== '{')
-    throw errorWithLocations('First argument must use the object destructuring pattern: '  + trimmedParams, { location });
-  const signature = trimmedParams.substring(1).trim();
-  if (!signature)
-    return [];
-  return signature.split(',').map((t: string) => t.trim().split(':')[0].trim());
+  const [firstParam] = splitByComma(trimmedParams);
+  if (firstParam[0] !== '{' || firstParam[firstParam.length - 1] !== '}')
+    throw errorWithLocations('First argument must use the object destructuring pattern: '  + firstParam, { location });
+  const props = splitByComma(firstParam.substring(1, firstParam.length - 1)).map(prop => {
+    const colon = prop.indexOf(':');
+    return colon === -1 ? prop : prop.substring(0, colon).trim();
+  });
+  return props;
+}
+
+function splitByComma(s: string) {
+  const result: string[] = [];
+  const stack: string[] = [];
+  let start = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '{' || s[i] === '[') {
+      stack.push(s[i] === '{' ? '}' : ']');
+    } else if (s[i] === stack[stack.length - 1]) {
+      stack.pop();
+    } else if (!stack.length && s[i] === ',') {
+      const token = s.substring(start, i).trim();
+      if (token)
+        result.push(token);
+      start = i + 1;
+    }
+  }
+  const lastToken = s.substring(start).trim();
+  if (lastToken)
+    result.push(lastToken);
+  return result;
 }
 
 // name + superId, fn -> id

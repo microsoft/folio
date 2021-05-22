@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect, stripAscii, firstStackFrame } from './folio-test';
+import { test, expect } from './folio-test';
 
 test('should work', async ({ runInlineTest }) => {
   const { results } = await runInlineTest({
@@ -100,6 +100,50 @@ test('should work with renamed parameters', async ({ runInlineTest }) => {
 
       test('should use asdf', function ({asdf: renamed}) {
         expect(renamed).toBe(123);
+      });
+    `,
+  });
+  expect(results[0].status).toBe('passed');
+});
+
+test('should work with destructured object', async ({ runInlineTest }) => {
+  const { results } = await runInlineTest({
+    'a.test.js': `
+      const test = folio.test.extend({
+        asdf: async ({}, test) => await test({ foo: 'foo', bar: { x: 'x', y: 'y' }, baz: 'baz' }),
+      });
+
+      test('should use asdf', async ({ asdf: { foo,
+          bar: { x, y }, baz } }) => {
+        expect(foo).toBe('foo');
+        expect(x).toBe('x');
+        expect(y).toBe('y');
+        expect(baz).toBe('baz');
+      });
+    `,
+  });
+  expect(results[0].status).toBe('passed');
+});
+
+test('should work with destructured array', async ({ runInlineTest }) => {
+  const { results } = await runInlineTest({
+    'a.test.js': `
+      const test = folio.test.extend({
+        asdf: async ({}, test) => await test(['foo', 'bar', { baz: 'baz' }]),
+        more: async ({}, test) => await test(55),
+      });
+
+      test('should use asdf', async (
+
+        {
+          asdf: [foo, bar,        { baz}]
+
+
+          ,more}) => {
+        expect(foo).toBe('foo');
+        expect(bar).toBe('bar');
+        expect(baz).toBe('baz');
+        expect(more).toBe(55);
       });
     `,
   });
