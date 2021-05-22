@@ -19,7 +19,7 @@ import path from 'path';
 import EmptyReporter from './empty';
 import { FullConfig, Suite, Test } from '../index';
 import { monotonicTime } from '../util';
-import { formatFailure, stripAscii } from './base';
+import { formatFailure, formatTestTitle, stripAscii } from './base';
 
 class JUnitReporter extends EmptyReporter {
   private config: FullConfig;
@@ -122,7 +122,7 @@ class JUnitReporter extends EmptyReporter {
       name: 'testcase',
       attributes: {
         name: test.spec.fullTitle(),
-        classname: path.relative(this.config.rootDir, test.spec.file) + ' ' + test.spec.suite.fullTitle(),
+        classname: formatTestTitle(this.config, test),
         time: (test.results.reduce((acc, value) => acc + value.duration, 0)) / 1000
       },
       children: []
