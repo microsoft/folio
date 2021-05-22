@@ -22,7 +22,7 @@ import { default as ignore } from 'fstream-ignore';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
 import { Reporter } from './types';
-import { createMatcher, monotonicTime, raceAgainstDeadline } from './util';
+import { createMatcher, Matcher, monotonicTime, raceAgainstDeadline } from './util';
 import { Suite } from './test';
 import { Loader } from './loader';
 import { Multiplexer } from './reporters/multiplexer';
@@ -77,7 +77,7 @@ export class Runner {
     return new Multiplexer(reporters);
   }
 
-  async run(list: boolean, testFileFilter: string[], projectName?: string): Promise<RunResult> {
+  async run(list: boolean, testFileFilter: Matcher, projectName?: string): Promise<RunResult> {
     const config = this._loader.fullConfig();
     const globalDeadline = config.globalTimeout ? config.globalTimeout + monotonicTime() : undefined;
     const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFileFilter, projectName), globalDeadline);
@@ -90,7 +90,7 @@ export class Runner {
     return result;
   }
 
-  async _run(list: boolean, testFileFilter: string[], projectName?: string): Promise<RunResult> {
+  async _run(list: boolean, testFileFilter: Matcher, projectName?: string): Promise<RunResult> {
     const config = this._loader.fullConfig();
 
     const projects = this._loader.projects().filter(project => {
@@ -106,7 +106,9 @@ export class Runner {
       if (!fs.statSync(testDir).isDirectory())
         throw new Error(`${testDir} is not a directory`);
       const allFiles = await collectFiles(project.config.testDir);
-      const testFiles = filterFiles(testDir, allFiles, testFileFilter, createMatcher(project.config.testMatch), createMatcher(project.config.testIgnore));
+      const testMatch = createMatcher(project.config.testMatch);
+      const testIgnore = createMatcher(project.config.testIgnore);
+      const testFiles = allFiles.filter(file => !testIgnore(file) && testMatch(file) && testFileFilter(file));
       files.set(project, testFiles);
       testFiles.forEach(file => allTestFiles.add(file));
     }
@@ -220,15 +222,3 @@ async function collectFiles(testDir: string): Promise<string[]> {
   }).map(e => e.path);
 }
 
-function filterFiles(base: string, files: string[], filters: string[], filesMatch: (value: string) => boolean, filesIgnore: (value: string) => boolean): string[] {
-  return files.filter(file => {
-    file = path.relative(base, file);
-    if (filesIgnore(file))
-      return false;
-    if (!filesMatch(file))
-      return false;
-    if (filters.length && !filters.find(filter => file.includes(filter)))
-      return false;
-    return true;
-  });
-}

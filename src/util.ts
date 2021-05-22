@@ -130,14 +130,16 @@ export function prependErrorMessage(e: Error, message: string) {
   e.stack = e.message + stack;
 }
 
-export function createMatcher(patterns: string | RegExp | (string | RegExp)[]): (value: string) => boolean {
+export type Matcher = (value: string) => boolean;
+
+export function createMatcher(patterns: string | RegExp | (string | RegExp)[]): Matcher {
   const reList: RegExp[] = [];
   const filePatterns: string[] = [];
   for (const pattern of Array.isArray(patterns) ? patterns : [patterns]) {
     if (pattern instanceof RegExp || Object.prototype.toString.call(pattern) === '[object RegExp]') {
       reList.push(pattern as RegExp);
     } else {
-      if (!pattern.includes('/') && !pattern.includes('\\'))
+      if (!pattern.startsWith('**/') && !pattern.startsWith('**/'))
         filePatterns.push('**/' + pattern);
       else
         filePatterns.push(pattern);

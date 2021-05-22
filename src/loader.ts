@@ -191,7 +191,7 @@ export class Loader {
       metadata: projectConfig.metadata,
       name: projectConfig.name || '',
       testDir,
-      testIgnore: projectConfig.testIgnore || 'node_modules/**',
+      testIgnore: projectConfig.testIgnore || '**/node_modules/**',
       testMatch: projectConfig.testMatch || '**/?(*.)+(spec|test).[jt]s',
       timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, 10000),
       use: projectConfig.use || {},

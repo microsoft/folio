@@ -15,6 +15,7 @@
  */
 
 import { test, expect } from './folio-test';
+import * as path from 'path';
 
 const tests = {
   'a.test.ts': `
@@ -122,9 +123,9 @@ test('should use a different test match', async ({ runInlineTest }) => {
 test('should use an array for testMatch', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      module.exports = { testMatch: ['b.test.ts', /^a.*TS$/i] };
+      module.exports = { testMatch: ['b.test.ts', /\\${path.sep}a.[tes]{4}.TS$/i] };
     `,
-    'a.test.ts': `
+    'dir/a.test.ts': `
       const { test } = folio;
       test('pass', ({}) => {});
     `,
@@ -138,6 +139,74 @@ test('should use an array for testMatch', async ({ runInlineTest }) => {
     `
   });
   expect(result.passed).toBe(2);
-  expect(result.report.suites.map(s => s.file).sort()).toEqual(['a.test.ts', 'b.test.ts']);
+  expect(result.report.suites.map(s => s.file).sort()).toEqual(['b.test.ts', 'dir/a.test.ts']);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should match absolute path', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      module.exports = { testDir: path.join(__dirname, 'dir'), testMatch: /dir\\${path.sep}a/ };
+    `,
+    'dir/a.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'dir/b.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `
+  });
+  expect(result.passed).toBe(1);
+  expect(result.report.suites.map(s => s.file).sort()).toEqual(['a.test.ts']);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should match cli string argument', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      module.exports = { testDir: path.join(__dirname, 'dir') };
+    `,
+    'dir/a.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'dir/b.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `
+  }, { args: [`dir\\${path.sep}a`] });
+  expect(result.passed).toBe(1);
+  expect(result.report.suites.map(s => s.file).sort()).toEqual(['a.test.ts']);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should match regex string argument', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'dir/filea.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'dir/fileb.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'filea.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `
+  }, { args: ['/filea.*ts/'] });
+  expect(result.passed).toBe(2);
+  expect(result.report.suites.map(s => s.file).sort()).toEqual(['dir/filea.test.ts', 'filea.test.ts']);
   expect(result.exitCode).toBe(0);
 });
