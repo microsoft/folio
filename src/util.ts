@@ -17,7 +17,8 @@
 import path from 'path';
 import util from 'util';
 import StackUtils from 'stack-utils';
-import { Location, TestError } from './types';
+import type { Location } from './types';
+import type { TestError } from './reporter';
 import { default as minimatch } from 'minimatch';
 
 const FOLIO_DIRS = [__dirname, path.join(__dirname, '..', 'src')];

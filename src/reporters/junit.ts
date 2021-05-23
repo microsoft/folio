@@ -17,7 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import EmptyReporter from './empty';
-import { FullConfig, Suite, Test } from '../index';
+import { FullConfig, Suite, Test } from '../reporter';
 import { monotonicTime } from '../util';
 import { formatFailure, formatTestTitle, stripAscii } from './base';
 

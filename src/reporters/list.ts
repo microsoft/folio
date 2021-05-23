@@ -17,7 +17,7 @@
 import colors from 'colors/safe';
 import milliseconds from 'ms';
 import { BaseReporter, formatTestTitle } from './base';
-import { FullConfig, Suite, Test, TestResult } from '../index';
+import { FullConfig, Suite, Test, TestResult } from '../reporter';
 
 class ListReporter extends BaseReporter {
   private _failure = 0;
