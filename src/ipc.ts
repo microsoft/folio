@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import type { ConfigOverrides, FullConfig, TestStatus, TestError } from './types';
+import type { TestError } from './reporter';
+import type { ConfigOverrides, FullConfig, TestStatus } from './types';
 
 export type CLIOptionValues = { [key: string]: any };
 export type SerializedLoaderData = {

@@ -90,6 +90,9 @@ interface ProjectBase {
   timeout?: number;
 }
 
+/**
+ * Test run configuration.
+ */
 export interface Project<TestArgs = {}, WorkerArgs = {}> extends ProjectBase {
   /**
    * Fixtures defined for abstract tests created with `test.declare()` method.
@@ -106,7 +109,7 @@ export type FullProject<TestArgs = {}, WorkerArgs = {}> = Required<Project<TestA
 /**
  * Folio configuration.
  */
-export interface Config<TestArgs = {}, WorkerArgs = {}> extends Project<TestArgs, WorkerArgs> {
+interface ConfigBase {
   /**
    * Whether to exit with an error if any tests are marked as `test.only`. Useful on CI.
    */
@@ -149,11 +152,6 @@ export interface Config<TestArgs = {}, WorkerArgs = {}> extends Project<TestArgs
   preserveOutput?: PreserveOutput;
 
   /**
-   * Projects specify test files that are executed with a specific configuration.
-   */
-  projects?: Project<TestArgs, WorkerArgs>[];
-
-  /**
    * Reporter to use. Available options:
    * - `'list'` - default reporter, prints a single line per test;
    * - `'dot'` - minimal reporter that prints a single character per test run, useful on CI;
@@ -187,6 +185,16 @@ export interface Config<TestArgs = {}, WorkerArgs = {}> extends Project<TestArgs
    * The maximum number of concurrent worker processes to use for parallelizing tests.
    */
   workers?: number;
+}
+
+/**
+ * Folio configuration.
+ */
+export interface Config<TestArgs = {}, WorkerArgs = {}> extends ConfigBase, Project<TestArgs, WorkerArgs> {
+  /**
+   * Projects specify test files that are executed with a specific configuration.
+   */
+  projects?: Project<TestArgs, WorkerArgs>[];
 }
 
 export interface FullConfig {
@@ -896,64 +904,3 @@ export interface ListCLIOption {
   value?: string[];
 }
 export type CLIOption = BooleanCLIOption | StringCLIOption | ListCLIOption;
-
-// ---------- Reporters API -----------
-
-export interface Suite {
-  title: string;
-  file: string;
-  line: number;
-  column: number;
-  suites: Suite[];
-  specs: Spec[];
-  fullTitle(): string;
-  findTest(fn: (test: Test) => boolean | void): boolean;
-  findSpec(fn: (spec: Spec) => boolean | void): boolean;
-  totalTestCount(): number;
-}
-export interface Spec {
-  suite: Suite;
-  title: string;
-  file: string;
-  line: number;
-  column: number;
-  tests: Test[];
-  fullTitle(): string;
-  ok(): boolean;
-}
-export interface Test {
-  spec: Spec;
-  results: TestResult[];
-  skipped: boolean;
-  expectedStatus: TestStatus;
-  timeout: number;
-  annotations: { type: string, description?: string }[];
-  projectName: string;
-  retries: number;
-  status(): 'skipped' | 'expected' | 'unexpected' | 'flaky';
-  ok(): boolean;
-}
-export interface TestResult {
-  retry: number;
-  workerIndex: number,
-  duration: number;
-  status?: TestStatus;
-  error?: TestError;
-  stdout: (string | Buffer)[];
-  stderr: (string | Buffer)[];
-}
-export interface TestError {
-  message?: string;
-  stack?: string;
-  value?: string;
-}
-export interface Reporter {
-  onBegin(config: FullConfig, suite: Suite): void;
-  onTestBegin(test: Test): void;
-  onStdOut(chunk: string | Buffer, test?: Test): void;
-  onStdErr(chunk: string | Buffer, test?: Test): void;
-  onTestEnd(test: Test, result: TestResult): void;
-  onTimeout(timeout: number): void;
-  onError(error: TestError): void;
-  onEnd(): void;
-}

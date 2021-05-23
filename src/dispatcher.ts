@@ -18,7 +18,7 @@ import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
 import { RunPayload, TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, WorkerInitParams } from './ipc';
-import { TestResult, Reporter, TestStatus } from './types';
+import type { TestResult, Reporter, TestStatus } from './reporter';
 import { Suite, Test } from './test';
 import { Loader } from './loader';
 

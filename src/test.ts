@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import * as types from './types';
+import * as reporterTypes from './reporter';
 import type { TestTypeImpl } from './testType';
-import { FixturePool } from './fixtures';
+import { Location } from './types';
 
 class Base {
   title: string;
@@ -44,7 +44,7 @@ class Base {
   }
 }
 
-export class Spec extends Base implements types.Spec {
+export class Spec extends Base implements reporterTypes.Spec {
   suite: Suite;
   fn: Function;
   tests: Test[] = [];
@@ -63,7 +63,7 @@ export class Spec extends Base implements types.Spec {
   }
 }
 
-export class Suite extends Base implements types.Suite {
+export class Suite extends Base implements reporterTypes.Suite {
   suites: Suite[] = [];
   specs: Spec[] = [];
   _fixtureOverrides: any = {};
@@ -71,7 +71,7 @@ export class Suite extends Base implements types.Suite {
   _hooks: {
     type: 'beforeEach' | 'afterEach' | 'beforeAll' | 'afterAll',
     fn: Function,
-    location: types.Location,
+    location: Location,
   } [] = [];
 
   _addSpec(spec: Spec) {
@@ -154,12 +154,12 @@ export class Suite extends Base implements types.Suite {
   }
 }
 
-export class Test implements types.Test {
+export class Test implements reporterTypes.Test {
   spec: Spec;
-  results: types.TestResult[] = [];
+  results: reporterTypes.TestResult[] = [];
 
   skipped = false;
-  expectedStatus: types.TestStatus = 'passed';
+  expectedStatus: reporterTypes.TestStatus = 'passed';
   timeout = 0;
   annotations: { type: string, description?: string }[] = [];
   projectName = '';
@@ -200,8 +200,8 @@ export class Test implements types.Test {
     return status === 'expected' || status === 'flaky' || status === 'skipped';
   }
 
-  _appendTestResult(): types.TestResult {
-    const result: types.TestResult = {
+  _appendTestResult(): reporterTypes.TestResult {
+    const result: reporterTypes.TestResult = {
       retry: this.results.length,
       workerIndex: 0,
       duration: 0,

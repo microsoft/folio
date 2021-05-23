@@ -20,7 +20,7 @@ import fs from 'fs';
 import milliseconds from 'ms';
 import path from 'path';
 import StackUtils from 'stack-utils';
-import { FullConfig, TestStatus, Test, Suite, TestResult, TestError, Reporter } from '../index';
+import { FullConfig, TestStatus, Test, Suite, TestResult, TestError, Reporter } from '../reporter';
 
 const stackUtils = new StackUtils();
 

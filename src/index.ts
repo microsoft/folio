@@ -21,11 +21,9 @@ import { currentOptionsRegistry } from './globals';
 import { errorWithCallLocation } from './util';
 
 // Configuration types.
-export type { Project, FullProject, Config, FullConfig } from './types';
+export type { Project, Config } from './types';
 // Fixtures types.
-export type { TestInfo, WorkerInfo, TestType, Fixtures } from './types';
-// Reporter types.
-export type { TestStatus, Suite, Spec, Test, TestResult, TestError, Reporter } from './types';
+export type { TestStatus, TestInfo, WorkerInfo, TestType, Fixtures } from './types';
 
 export { expect } from './expect';
 export const test: TestType<{}, {}> = rootTestType.test;
