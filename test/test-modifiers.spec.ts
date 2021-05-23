@@ -134,7 +134,19 @@ test('test modifiers should check types', async ({runTSC}) => {
   const result = await runTSC({
     'helper.ts': `
       export const test = folio.test.extend<{ foo: boolean }>({
-        foo: true,
+        foo: async ({}, use, testInfo) => {
+          testInfo.skip();
+          testInfo.fixme(false);
+          testInfo.slow(true, 'reason');
+          testInfo.fail(false, 'reason');
+          // @ts-expect-error
+          testInfo.skip('reason');
+          // @ts-expect-error
+          testInfo.fixme('foo', 'reason');
+          // @ts-expect-error
+          testInfo.slow(() => true);
+          use(true);
+        },
       });
     `,
     'a.test.ts': `
@@ -177,7 +189,7 @@ test('should skip inside fixture', async ({ runInlineTest }) => {
     'a.test.ts': `
       const test = folio.test.extend({
         foo: async ({}, run, testInfo) => {
-          testInfo.skip();
+          testInfo.skip(true, 'reason');
           await run();
         },
       });
@@ -188,6 +200,7 @@ test('should skip inside fixture', async ({ runInlineTest }) => {
   });
   expect(result.exitCode).toBe(0);
   expect(result.skipped).toBe(1);
+  expect(result.report.suites[0].specs[0].tests[0].annotations).toEqual([{ type: 'skip', description: 'reason' }]);
 });
 
 test('modifier with a function should throw in the test', async ({ runInlineTest }) => {
@@ -199,5 +212,5 @@ test('modifier with a function should throw in the test', async ({ runInlineTest
     `,
   });
   expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('test.skip() with a function can only be called inside describe');
+  expect(result.output).toContain('test.skip() with a function can only be called inside describe block');
 });

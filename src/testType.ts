@@ -60,7 +60,7 @@ export class TestTypeImpl {
   private _spec(type: 'default' | 'only', title: string, fn: Function) {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
-      throw errorWithCallLocation(`Test can only be defined in a test file.`);
+      throw errorWithCallLocation(`test() can only be called in a test file`);
     const location = callLocation(suite.file);
 
     const ordinalInFile = countByFile.get(suite.file) || 0;
@@ -79,7 +79,7 @@ export class TestTypeImpl {
   private _describe(type: 'default' | 'only', title: string, fn: Function) {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
-      throw errorWithCallLocation(`Suite can only be defined in a test file.`);
+      throw errorWithCallLocation(`describe() can only be called in a test file`);
     const location = callLocation(suite.file);
 
     const child = new Suite(title);
@@ -99,21 +99,21 @@ export class TestTypeImpl {
   private _hook(name: 'beforeEach' | 'afterEach' | 'beforeAll' | 'afterAll', fn: Function) {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
-      throw errorWithCallLocation(`Hook can only be defined in a test file.`);
+      throw errorWithCallLocation(`${name} hook can only be called in a test file`);
     suite._hooks.push({ type: name, fn, location: callLocation() });
   }
 
   private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', ...modiferAgs: [arg?: any | Function, description?: string]) {
     const suite = currentlyLoadingFileSuite();
-    const [arg, description] = modiferAgs;
     if (suite) {
       const location = callLocation();
-      if (typeof arg === 'function') {
-        const fn = (args: any, testInfo: TestInfo) => (testInfo[type] as any)(arg(args), description);
-        inheritFixtureParameterNames(arg, fn, location);
+      if (typeof modiferAgs[0] === 'function') {
+        const [conditionFn, description] = modiferAgs;
+        const fn = (args: any, testInfo: TestInfo) => testInfo[type](conditionFn(args), description);
+        inheritFixtureParameterNames(conditionFn, fn, location);
         suite._hooks.unshift({ type: 'beforeEach', fn, location });
       } else {
-        const fn = ({}: any, testInfo: TestInfo) => (testInfo[type] as any)(...modiferAgs);
+        const fn = ({}: any, testInfo: TestInfo) => testInfo[type](...modiferAgs);
         suite._hooks.unshift({ type: 'beforeEach', fn, location });
       }
       return;
@@ -121,10 +121,10 @@ export class TestTypeImpl {
 
     const testInfo = currentTestInfo();
     if (!testInfo)
-      throw new Error(`test.${type}() can only be called inside test, describe or fixture`);
-    if (typeof arg === 'function')
-      throw new Error(`test.${type}() with a function can only be called inside describe`);
-    (testInfo[type] as any)(...modiferAgs);
+      throw new Error(`test.${type}() can only be called inside test, describe block or fixture`);
+    if (typeof modiferAgs[0] === 'function')
+      throw new Error(`test.${type}() with a function can only be called inside describe block`);
+    testInfo[type](...modiferAgs);
   }
 
   private _setTimeout(timeout: number) {
@@ -137,7 +137,7 @@ export class TestTypeImpl {
   private _use(fixtures: Fixtures) {
     const suite = currentlyLoadingFileSuite();
     if (!suite)
-      throw errorWithCallLocation(`test.use() can only be called in a test file.`);
+      throw errorWithCallLocation(`test.use() can only be called in a test file`);
     suite._fixtureOverrides = { ...suite._fixtureOverrides, ...fixtures };
   }
 

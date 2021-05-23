@@ -278,22 +278,30 @@ export interface TestInfo extends WorkerInfo {
   /**
    * Call this method to skip the current test.
    */
-  skip(description?: string): void;
+  skip(): void;
+  skip(condition: boolean): void;
+  skip(condition: boolean, description: string): void;
 
   /**
    * Call this method to mark the current test as "needs to be fixed". The test will not be run.
    */
-  fixme(description?: string): void;
+  fixme(): void;
+  fixme(condition: boolean): void;
+  fixme(condition: boolean, description: string): void;
 
   /**
    * Call this method to mark the current test as "expected to fail". The test will be run and must fail.
    */
-  fail(description?: string): void;
+  fail(): void;
+  fail(condition: boolean): void;
+  fail(condition: boolean, description: string): void;
 
   /**
    * Call this method to mark the current test as slow. The default timeout will be trippled.
    */
-  slow(description?: string): void;
+  slow(): void;
+  slow(condition: boolean): void;
+  slow(condition: boolean, description: string): void;
 
   /**
    * Call this method to set a custom timeout for the current test.

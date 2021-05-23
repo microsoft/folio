@@ -416,7 +416,7 @@ function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', 
   if (modifierArgs.length >= 1 && !modifierArgs[0])
     return;
 
-  const description = modifierArgs?.[1];
+  const description = modifierArgs[1];
   testInfo.annotations.push({ type, description });
   if (type === 'slow') {
     testInfo.setTimeout(testInfo.timeout * 3);
