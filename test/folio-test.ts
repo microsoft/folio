@@ -43,6 +43,7 @@ type TSCResult = {
 
 type Files = { [key: string]: string | Buffer };
 type Params = { [key: string]: string | number | boolean | string[] };
+type Env = { [key: string]: string | number | boolean | undefined };
 
 async function writeFiles(testInfo: folio.TestInfo, files: Files) {
   const baseDir = testInfo.outputPath();
@@ -105,7 +106,7 @@ async function runTSC(baseDir: string): Promise<TSCResult> {
   };
 }
 
-async function runFolio(baseDir: string, params: any, env: any): Promise<RunResult> {
+async function runFolio(baseDir: string, params: any, env: Env): Promise<RunResult> {
   const paramList = [];
   let additionalArgs = '';
   for (const key of Object.keys(params)) {
@@ -201,51 +202,39 @@ async function runFolio(baseDir: string, params: any, env: any): Promise<RunResu
   };
 }
 
-type TestArgs = {
-  writeFiles: (files: Files) => void;
-  runInlineTest: (files: Files, params?: Params, env?: any) => Promise<RunResult>;
+type Fixtures = {
+  writeFiles: (files: Files) => Promise<string>;
+  runInlineTest: (files: Files, params?: Params, env?: Env) => Promise<RunResult>;
   runTSC: (files: Files) => Promise<TSCResult>;
 };
 
-class Env {
-  private _runResult: RunResult | undefined;
-  private _tscResult: TSCResult | undefined;
+export const test = folio.test.extend<Fixtures>({
+  writeFiles: async ({}, use, testInfo) => {
+    await use(files => writeFiles(testInfo, files));
+  },
 
-  private async _writeFiles(testInfo: folio.TestInfo, files: Files) {
-    return writeFiles(testInfo, files);
-  }
+  runInlineTest: async ({}, use, testInfo: folio.TestInfo) => {
+    let runResult: RunResult | undefined;
+    await use(async (files: Files, params: Params = {}, env: Env = {}) => {
+      const baseDir = await writeFiles(testInfo, files);
+      runResult = await runFolio(baseDir, params, env);
+      return runResult;
+    });
+    if (testInfo.status !== testInfo.expectedStatus && runResult)
+      console.log(runResult.output);
+  },
 
-  private async _runInlineTest(testInfo: folio.TestInfo, files: Files, options: Params = {}, env: any = {}) {
-    const baseDir = await this._writeFiles(testInfo, files);
-    this._runResult = await runFolio(baseDir, options, env);
-    return this._runResult;
-  }
-
-  private async _runTSC(testInfo: folio.TestInfo, files: Files) {
-    const baseDir = await this._writeFiles(testInfo, { ...files, 'tsconfig.json': JSON.stringify(TSCONFIG) });
-    this._tscResult = await runTSC(baseDir);
-    return this._tscResult;
-  }
-
-  async beforeEach({}, testInfo: folio.TestInfo): Promise<TestArgs> {
-    return {
-      writeFiles: this._writeFiles.bind(this, testInfo),
-      runInlineTest: this._runInlineTest.bind(this, testInfo),
-      runTSC: this._runTSC.bind(this, testInfo),
-    };
-  }
-
-  async afterEach({}, testInfo: folio.TestInfo) {
-    if (testInfo.status !== testInfo.expectedStatus) {
-      if (this._runResult)
-        console.log(this._runResult.output);
-      if (this._tscResult)
-        console.log(this._tscResult.output);
-    }
-    this._runResult = undefined;
-    this._tscResult = undefined;
-  }
-}
+  runTSC: async ({}, use, testInfo) => {
+    let tscResult: TSCResult | undefined;
+    await use(async files => {
+      const baseDir = await writeFiles(testInfo, { ...files, 'tsconfig.json': JSON.stringify(TSCONFIG) });
+      tscResult = await runTSC(baseDir);
+      return tscResult;
+    });
+    if (testInfo.status !== testInfo.expectedStatus && tscResult)
+      console.log(tscResult.output);
+  },
+});
 
 const TSCONFIG = {
   'compilerOptions': {
@@ -263,7 +252,6 @@ const TSCONFIG = {
   ]
 };
 
-export const test = folio.test.extend(new Env());
 export { expect } from 'folio';
 
 const asciiRegex = new RegExp('[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))', 'g');
