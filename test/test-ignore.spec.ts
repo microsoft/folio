@@ -210,3 +210,27 @@ test('should match regex string argument', async ({ runInlineTest }) => {
   expect(result.report.suites.map(s => s.file).sort()).toEqual(['dir/filea.test.ts', 'filea.test.ts']);
   expect(result.exitCode).toBe(0);
 });
+
+test('should match by directory', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'dir-a/file.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'dir-b/file1.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'dir-b/file2.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'file.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `
+  }, { args: ['dir-b'] });
+  expect(result.passed).toBe(2);
+  expect(result.report.suites.map(s => s.file).sort()).toEqual(['dir-b/file1.test.ts', 'dir-b/file2.test.ts']);
+  expect(result.exitCode).toBe(0);
+});
