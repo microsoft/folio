@@ -373,7 +373,7 @@ test('should throw when test() is called in config file', async ({ runInlineTest
       });
     `,
   });
-  expect(result.output).toContain('Test can only be defined in a test file.');
+  expect(result.output).toContain('test() can only be called in a test file');
 });
 
 test('should filter by project', async ({ runInlineTest }) => {

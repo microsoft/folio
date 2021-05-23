@@ -180,7 +180,6 @@ test('beforeAll from a helper file should throw', async ({ runInlineTest }) => {
     `,
     'folio.config.ts': `
       import { test } from './my-test';
-      folio.runTests();
     `,
     'a.test.ts': `
       import { test } from './my-test';
@@ -189,5 +188,5 @@ test('beforeAll from a helper file should throw', async ({ runInlineTest }) => {
     `,
   });
   expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('Hook can only be defined in a test file');
+  expect(result.output).toContain('beforeAll hook can only be called in a test file');
 });
