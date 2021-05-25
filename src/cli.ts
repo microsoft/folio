@@ -23,8 +23,7 @@ import { Loader } from './loader';
 import { ConfigOverrides } from './types';
 import { createMatcher } from './util';
 
-const availableReporters = new Set(['dot', 'json', 'junit', 'line', 'list', 'null']);
-
+const defaultReporter = process.env.CI ? 'dot' : 'list';
 const defaultConfig: FullConfig = {
   forbidOnly: false,
   globalSetup: null,
@@ -34,7 +33,7 @@ const defaultConfig: FullConfig = {
   maxFailures: 0,
   preserveOutput: process.env.CI ? 'failures-only' : 'always',
   projects: [],
-  reporter: [process.env.CI ? 'dot' : 'list'],
+  reporter: [defaultReporter],
   rootDir: path.resolve(process.cwd()),
   quiet: false,
   shard: null,
@@ -185,7 +184,7 @@ function addRunnerOptions(program: commander.Command) {
       .option('--output <dir>', `Folder for output artifacts (default: "test-results")`)
       .option('--quiet', `Suppress stdio`)
       .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: 1)`)
-      .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be ${availableReporters} (default: "${process.env.CI ? 'dot' : 'line'}")`)
+      .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be "list", "line", "dot", "json", "junit" or "null" (default: "${defaultReporter}")`)
       .option('--retries <retries>', `Specify retry count (default: 0)`)
       .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
       .option('--project <project-name>', `Only run tests from the specified project (default: run all projects)`)

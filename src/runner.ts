@@ -66,8 +66,8 @@ export class Runner {
           const p = path.resolve(process.cwd(), r);
           reporters.push(new (require(p).default)());
         }
-      } else if ('name' in r && r.name === 'junit') {
-        reporters.push(new JUnitReporter(r));
+      } else if ('name' in r && r.name in defaultReporters) {
+        reporters.push(new defaultReporters[r.name](r as any));
       } else if ('name' in r && r.name === 'json') {
         reporters.push(new JSONReporter(r));
       } else {

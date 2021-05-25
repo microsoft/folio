@@ -439,6 +439,11 @@ For more control, you can specify reporters programmatically in the [configurati
 import * as folio from 'folio';
 
 const config: folio.Config = {
+  reporter: 'dot',
+};
+
+// More complex example:
+const config2: folio.Config = {
   reporter: !process.env.CI
     // A long list of tests for the terminal.
     ? 'list'
@@ -457,6 +462,14 @@ All built-in reporters show detailed information about failures, and mostly diff
 #### List reporter
 
 List reporter is default. It prints a line for each test being run. Use it with `--reporter=list` or `reporter: 'list'`.
+
+```ts
+// folio.config.ts
+const config = {
+  reporter: 'list',
+};
+export default config;
+```
 
 Here is an example output in the middle of a test run. Failures will be listed at the end.
 ```sh
@@ -479,6 +492,14 @@ Running 124 tests using 6 workers
 
 Line reporter is more concise than the list reporter. It uses a single line to report last finished test, and prints failures when they occur. Line reporter is useful for large test suites where it shows the progress but does not spam the output by listing all the tests. Use it with `--reporter=line` or `reporter: 'line'`.
 
+```ts
+// folio.config.ts
+const config = {
+  reporter: 'line',
+};
+export default config;
+```
+
 Here is an example output in the middle of a test run. Failures are reported inline.
 ```sh
 npx folio --reporter=line
@@ -496,6 +517,14 @@ Running 124 tests using 6 workers
 #### Dot reporter
 
 Dot reporter is very concise - it only produces a single character per successful test run. It is useful on CI where you don't want a lot of output. Use it with `--reporter=dot` or `reporter: 'dot'`.
+
+```ts
+// folio.config.ts
+const config = {
+  reporter: 'dot',
+};
+export default config;
+```
 
 Here is an example output in the middle of a test run. Failures will be listed at the end.
 ```sh
@@ -551,7 +580,7 @@ Test project configuration properties:
 - `snapshotDir: string` - [Snapshots](#snapshots) directory. Overridden by `--snapshot-dir` command line option.
 - `testDir: string` - Directory that will be recursively scanned for test files.
 - `testIgnore: string | RegExp | (string | RegExp)[]` - Files matching one of these patterns are not considered test files.
-- `testMatch: string | RegExp | (string | RegExp)[]` - Only files matching one of these patterns are considered test files.
+- `testMatch: string | RegExp | (string | RegExp)[]` - Only the files matching one of these patterns are considered test files.
 - `timeout: number` - Timeout for each test in milliseconds. Overridden by `--timeout` command line option.
 
 Test execution configuration properties:

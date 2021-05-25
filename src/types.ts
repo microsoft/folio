@@ -17,12 +17,12 @@
 import type { Expect } from './expectType';
 
 export type ReporterDescription =
-  'dot' |
-  'line' |
-  'list' |
+  'dot' | { name: 'dot' } |
+  'line' | { name: 'line' } |
+  'list' | { name: 'list' } |
   'junit' | { name: 'junit', outputFile?: string, stripANSIControlSequences?: boolean } |
   'json' | { name: 'json', outputFile?: string } |
-  'null' |
+  'null' | { name: 'null' } |
   string;
 
 export type Shard = { total: number, current: number } | null;
