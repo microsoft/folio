@@ -234,3 +234,29 @@ test('should match by directory', async ({ runInlineTest }) => {
   expect(result.report.suites.map(s => s.file).sort()).toEqual(['dir-b/file1.test.ts', 'dir-b/file2.test.ts']);
   expect(result.exitCode).toBe(0);
 });
+
+test('should ignore node_modules even with custom testIgnore', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { testIgnore: 'a.test.ts' };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'node_modules/a.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'node_modules/b.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `,
+    'folder/c.test.ts': `
+      const { test } = folio;
+      test('pass', ({}) => {});
+    `
+  });
+  expect(result.passed).toBe(1);
+  expect(result.exitCode).toBe(0);
+});

@@ -71,14 +71,14 @@ interface ProjectBase {
   testDir?: string;
 
   /**
-   * Files matching one of these patterns are not considered test files.
+   * Files matching one of these patterns are not executed as test files.
    * Matching is performed against the absolute file path.
    * Strings are treated as glob patterns.
    */
   testIgnore?: string | RegExp | (string | RegExp)[];
 
   /**
-   * Only files matching one of these patterns are considered test files.
+   * Only the files matching one of these patterns are executed as test files.
    * Matching is performed against the absolute file path.
    * Strings are treated as glob patterns.
    */

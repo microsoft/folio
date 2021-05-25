@@ -64,18 +64,48 @@ test('should respect enclosing .gitignore', async ({runInlineTest}) => {
   expect(result.passed).toBe(1);
 });
 
-test('should respect enclosing .gitignore', async ({runInlineTest}) => {
+test('should respect negations and comments in .gitignore', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '.gitignore': `a/a.spec.js`,
-    'a/a.spec.js': `
-      const { test } = folio;
-      test('pass', ({}) => {});
+    '.gitignore': `
+      # A comment
+      dir1/
+      /dir2
+      #a.spec.js
+      !dir1/foo/a.spec.js
     `,
-    'a/b.spec.js': `
+    'a.spec.js': `
       const { test } = folio;
-      test('pass', ({}) => {});
-    `
-  });
+      test('pass', ({}) => console.log('\\n%%a.spec.js'));
+    `,
+    'dir1/a.spec.js': `
+      const { test } = folio;
+      test('pass', ({}) => console.log('\\n%%dir1/a.spec.js'));
+    `,
+    'dir1/foo/a.spec.js': `
+      const { test } = folio;
+      test('pass', ({}) => console.log('\\n%%dir1/foo/a.spec.js'));
+    `,
+    'dir2/a.spec.js': `
+      const { test } = folio;
+      test('pass', ({}) => console.log('\\n%%dir2/a.spec.js'));
+    `,
+    'dir3/.gitignore': `
+      b.*.js
+    `,
+    'dir3/a.spec.js': `
+      const { test } = folio;
+      test('pass', ({}) => console.log('\\n%%dir3/a.spec.js'));
+    `,
+    'dir3/b.spec.js': `
+      const { test } = folio;
+      test('pass', ({}) => console.log('\\n%%dir3/b.spec.js'));
+    `,
+  }, { workers: 1 });
   expect(result.exitCode).toBe(0);
-  expect(result.passed).toBe(1);
+  expect(result.passed).toBe(3);
+  expect(result.output.split('\n').filter(line => line.startsWith('%%'))).toEqual([
+    '%%a.spec.js',
+    '%%dir1/foo/a.spec.js',
+    '%%dir3/a.spec.js',
+  ]);
 });
