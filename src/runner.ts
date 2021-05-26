@@ -18,7 +18,6 @@
 import rimraf from 'rimraf';
 import * as fs from 'fs';
 import * as path from 'path';
-import { default as ignore } from 'fstream-ignore';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
 import { createMatcher, Matcher, monotonicTime, raceAgainstDeadline } from './util';
@@ -33,8 +32,11 @@ import JSONReporter from './reporters/json';
 import JUnitReporter from './reporters/junit';
 import EmptyReporter from './reporters/empty';
 import { ProjectImpl } from './project';
+import { Minimatch } from 'minimatch';
 
 const removeFolderAsync = promisify(rimraf);
+const readDirAsync = promisify(fs.readdir);
+const readFileAsync = promisify(fs.readFile);
 
 type RunResult = 'passed' | 'failed' | 'sigint' | 'forbid-only' | 'no-tests' | 'timedout';
 
@@ -208,17 +210,70 @@ function filterOnly(suite: Suite) {
 }
 
 async function collectFiles(testDir: string): Promise<string[]> {
-  const entries: any[] = [];
-  let callback = () => {};
-  const promise = new Promise<void>(f => callback = f);
-  ignore({ path: testDir, ignoreFiles: ['.gitignore'] })
-      .on('child', (entry: any) => entries.push(entry))
-      .on('end', callback);
-  await promise;
-  return entries.filter(e => e.type === 'File').sort((a, b) => {
-    if (a.depth !== b.depth && (a.dirname.startsWith(b.dirname) || b.dirname.startsWith(a.dirname)))
-      return a.depth - b.depth;
-    return a.path > b.path ? 1 : (a.path < b.path ? -1 : 0);
-  }).map(e => e.path);
-}
+  type Rule = {
+    dir: string;
+    negate: boolean;
+    match: (s: string, partial?: boolean) => boolean
+  };
+  type IgnoreStatus = 'ignored' | 'included' | 'ignored-but-recurse';
 
+  const checkIgnores = (entryPath: string, rules: Rule[], isDirectory: boolean, parentStatus: IgnoreStatus) => {
+    let status = parentStatus;
+    for (const rule of rules) {
+      const ruleIncludes = rule.negate;
+      if ((status === 'included') === ruleIncludes)
+        continue;
+      const relative = path.relative(rule.dir, entryPath);
+      if (rule.match('/' + relative) || rule.match(relative)) {
+        // Matches "/dir/file" or "dir/file"
+        status = ruleIncludes ? 'included' : 'ignored';
+      } else if (isDirectory && (rule.match('/' + relative + '/') || rule.match(relative + '/'))) {
+        // Matches "/dir/subdir/" or "dir/subdir/" for directories.
+        status = ruleIncludes ? 'included' : 'ignored';
+      } else if (isDirectory && ruleIncludes && (rule.match('/' + relative, true) || rule.match(relative, true))) {
+        // Matches "/dir/donotskip/" when "/dir" is excluded, but "!/dir/donotskip/file" is included.
+        status = 'ignored-but-recurse';
+      }
+    }
+    return status;
+  };
+
+  const files: string[] = [];
+
+  const visit = async (dir: string, rules: Rule[], status: IgnoreStatus) => {
+    const entries = await readDirAsync(dir, { withFileTypes: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+
+    const gitignore = entries.find(e => e.isFile() && e.name === '.gitignore');
+    if (gitignore) {
+      const content = await readFileAsync(path.join(dir, gitignore.name), 'utf8');
+      const newRules: Rule[] = content.split(/\r?\n/).map(s => {
+        s = s.trim();
+        if (!s)
+          return;
+        // Use flipNegate, because we handle negation ourselves.
+        const rule = new Minimatch(s, { matchBase: true, dot: true, flipNegate: true }) as any;
+        if (rule.comment)
+          return;
+        rule.dir = dir;
+        return rule;
+      }).filter(rule => !!rule);
+      rules = [...rules, ...newRules];
+    }
+
+    for (const entry of entries) {
+      if (entry === gitignore || entry.name === '.' || entry.name === '..')
+        continue;
+      if (entry.isDirectory() && entry.name === 'node_modules')
+        continue;
+      const entryPath = path.join(dir, entry.name);
+      const entryStatus = checkIgnores(entryPath, rules, entry.isDirectory(), status);
+      if (entry.isDirectory() && entryStatus !== 'ignored')
+        await visit(entryPath, rules, entryStatus);
+      else if (entry.isFile() && entryStatus === 'included')
+        files.push(entryPath);
+    }
+  };
+  await visit(testDir, [], 'included');
+  return files;
+}
