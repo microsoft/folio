@@ -369,3 +369,24 @@ test('should print nice error message for problematic fixtures', async ({ runInl
   expect(result.output).toContain('oh my!');
   expect(result.output).toContain('x.spec.ts:5:31');
 });
+
+test('should exit with timeout when fixture causes an exception in the test', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+      const test = folio.test.extend({
+        throwAfterTimeout: async ({}, use) => {
+          let callback;
+          const promise = new Promise((f, r) => callback = r);
+          await use(promise);
+          callback(new Error('BAD'));
+        },
+      });
+      test('times out and throws', async ({ throwAfterTimeout }) => {
+        await throwAfterTimeout;
+      });
+    `,
+  }, { timeout: 500 });
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain('Timeout of 500ms exceeded');
+});
