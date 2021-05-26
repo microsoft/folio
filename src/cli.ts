@@ -24,6 +24,7 @@ import { ConfigOverrides } from './types';
 import { createMatcher } from './util';
 
 const defaultReporter = process.env.CI ? 'dot' : 'list';
+const builtinReporters = ['list', 'line', 'dot', 'json', 'junit', 'null'];
 const defaultConfig: FullConfig = {
   forbidOnly: false,
   globalSetup: null,
@@ -179,19 +180,19 @@ function addRunnerOptions(program: commander.Command) {
       .option('--global-timeout <timeout>', `Maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)
       .option('-h, --help', `Display help`)
       .option('-j, --workers <workers>', `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)`)
-      .option('--list', `Only collect all the test and report them`)
-      .option('--max-failures <N>', `Stop after the first N failures (default: ${defaultConfig.maxFailures})`)
+      .option('--list', `Collect all the tests and report them, but do not run`)
+      .option('--max-failures <N>', `Stop after the first N failures (default: do not stop until all tests are run)`)
       .option('--output <dir>', `Folder for output artifacts (default: "test-results")`)
       .option('--quiet', `Suppress stdio`)
-      .option('--repeat-each <repeat-each>', `Specify how many times to run the tests (default: 1)`)
-      .option('--reporter <reporter>', `Specify reporter to use, comma-separated, can be "list", "line", "dot", "json", "junit" or "null" (default: "${defaultReporter}")`)
-      .option('--retries <retries>', `Specify retry count (default: 0)`)
-      .option('--shard <shard>', `Shard tests and execute only selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
+      .option('--repeat-each <N>', `Run each test N times (default: 1)`)
+      .option('--reporter <reporter>', `Reporter to use, comma-separated, can be ${builtinReporters.map(name => `"${name}"`).join(', ')} (default: "${defaultReporter}")`)
+      .option('--retries <retries>', `Maximum retry count for flaky tests (default: 0 for no retries)`)
+      .option('--shard <shard>', `Shard tests and execute only the selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
       .option('--project <project-name>', `Only run tests from the specified project (default: run all projects)`)
       .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: 10000)`)
-      .option('-u, --update-snapshots', `Update snapshots with actual results (default: ${defaultConfig.updateSnapshots})`)
+      .option('-u, --update-snapshots', `Update snapshots with actual results (default: only create missing snapshots)`)
       .version('Folio version ' + /** @type {any} */ (require)('../package.json').version, '-v, --version', 'Output the version number')
-      .option('-x', `Stop after the first failure`);
+      .option('-x', `Stop after the first failure (default: do not stop until all tests are run)`);
   return program.options.filter(o => !!o.long).map(o => o.long.substring(2));
 }
 
@@ -213,8 +214,11 @@ function configFromCommand(command: any): ConfigOverrides {
     config.repeatEach = parseInt(command.repeatEach, 10);
   if (command.retries)
     config.retries = parseInt(command.retries, 10);
-  if (command.reporter && command.reporter.length)
-    config.reporter = command.reporter.split(',');
+  if (command.reporter && command.reporter.length) {
+    config.reporter = command.reporter.split(',').map(r => {
+      return builtinReporters.includes(r) ? r : { require: r };
+    });
+  }
   if (command.shard) {
     const pair = command.shard.split('/').map((t: string) => parseInt(t, 10));
     config.shard = { current: pair[0] - 1, total: pair[1] };

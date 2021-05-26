@@ -61,15 +61,13 @@ export class Runner {
       null: EmptyReporter,
     };
     for (const r of this._loader.fullConfig().reporter) {
-      if (typeof r === 'string') {
-        if (r in defaultReporters) {
-          reporters.push(new defaultReporters[r]());
-        } else {
-          const p = path.resolve(process.cwd(), r);
-          reporters.push(new (require(p).default)());
-        }
-      } else if ('name' in r && r.name in defaultReporters) {
+      if (typeof r === 'string' && r in defaultReporters) {
+        reporters.push(new defaultReporters[r]());
+      } else if (typeof r === 'object' && 'name' in r && r.name in defaultReporters) {
         reporters.push(new defaultReporters[r.name](r as any));
+      } else if (typeof r === 'object' && 'require' in r) {
+        const p = path.resolve(process.cwd(), r.require);
+        reporters.push(new (require(p).default)(r));
       } else {
         throw new Error(`Unsupported reporter "${r}"`);
       }
