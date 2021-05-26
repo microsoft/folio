@@ -74,3 +74,19 @@ test('render flaky', async ({ runInlineTest }) => {
   expect(text).not.toContain('Retry #1');
   expect(result.exitCode).toBe(0);
 });
+
+test('should work from config', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { reporter: { name: 'dot' } };
+    `,
+    'a.test.js': `
+      const { test } = folio;
+      test('one', async ({}) => {
+        expect(1).toBe(1);
+      });
+    `,
+  });
+  expect(result.output).toContain(colors.green('·'));
+  expect(result.exitCode).toBe(0);
+});
