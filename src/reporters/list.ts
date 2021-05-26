@@ -23,6 +23,7 @@ class ListReporter extends BaseReporter {
   private _failure = 0;
   private _lastRow = 0;
   private _testRows = new Map<Test, number>();
+  private _needNewLine = false;
 
   onBegin(config: FullConfig, suite: Suite) {
     super.onBegin(config, suite);
@@ -31,9 +32,35 @@ class ListReporter extends BaseReporter {
 
   onTestBegin(test: Test) {
     super.onTestBegin(test);
-    if (process.stdout.isTTY)
+    if (process.stdout.isTTY) {
+      if (this._needNewLine) {
+        this._needNewLine = false;
+        process.stdout.write('\n');
+        this._lastRow++;
+      }
       process.stdout.write('    ' + colors.gray(formatTestTitle(this.config, test) + ': ') + '\n');
+    }
     this._testRows.set(test, this._lastRow++);
+  }
+
+  onStdOut(chunk: string | Buffer, test?: Test) {
+    this._dumpToStdio(test, chunk, process.stdout);
+  }
+
+  onStdErr(chunk: string | Buffer, test?: Test) {
+    this._dumpToStdio(test, chunk, process.stdout);
+  }
+
+  private _dumpToStdio(test: Test | undefined, chunk: string | Buffer, stream: NodeJS.WriteStream) {
+    if (this.config.quiet)
+      return;
+    const text = chunk.toString('utf-8');
+    this._needNewLine = text[text.length - 1] !== '\n';
+    if (process.stdout.isTTY) {
+      const newLineCount = text.split('\n').length - 1;
+      this._lastRow += newLineCount;
+    }
+    stream.write(chunk);
   }
 
   onTestEnd(test: Test, result: TestResult) {
@@ -59,6 +86,10 @@ class ListReporter extends BaseReporter {
     // Erase line
     if (process.stdout.isTTY)
       process.stdout.write('\u001B[2K');
+    if (!process.stdout.isTTY && this._needNewLine) {
+      this._needNewLine = false;
+      process.stdout.write('\n');
+    }
     process.stdout.write(text);
     // Go down if needed.
     if (testRow !== this._lastRow) {
