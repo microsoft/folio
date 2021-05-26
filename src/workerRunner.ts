@@ -312,14 +312,17 @@ export class WorkerRunner extends EventEmitter {
 
     try {
       await this._fixtureRunner.resolveParametersAndRunHookOrTest(test.spec.fn, 'test', testInfo);
-      testInfo.status = 'passed';
     } catch (error) {
       if (error instanceof SkipError) {
         if (testInfo.status === 'passed')
           testInfo.status = 'skipped';
       } else {
-        testInfo.status = 'failed';
-        testInfo.error = serializeError(error);
+        // We might fail after the timeout, e.g. due to fixture teardown.
+        // Do not overwrite the timeout status with this error.
+        if (testInfo.status === 'passed') {
+          testInfo.status = 'failed';
+          testInfo.error = serializeError(error);
+        }
       }
     }
   }
