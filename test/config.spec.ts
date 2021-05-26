@@ -398,6 +398,25 @@ test('should filter by project', async ({ runInlineTest }) => {
   expect(output).not.toContain('suite1');
 });
 
+test('should print nice error when project is unknown', async ({ runInlineTest }) => {
+  const { output, exitCode } = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = { projects: [
+        { name: 'suite1' },
+        { name: 'suite2' },
+      ] };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', async ({}, testInfo) => {
+        console.log(testInfo.project.name);
+      });
+    `
+  }, { project: 'suite3' });
+  expect(exitCode).toBe(1);
+  expect(output).toContain('Project "suite3" not found. Available named projects: "suite1", "suite2"');
+});
+
 test('should print options help', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `

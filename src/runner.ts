@@ -70,8 +70,6 @@ export class Runner {
         }
       } else if ('name' in r && r.name in defaultReporters) {
         reporters.push(new defaultReporters[r.name](r as any));
-      } else if ('name' in r && r.name === 'json') {
-        reporters.push(new JSONReporter(r));
       } else {
         throw new Error(`Unsupported reporter "${r}"`);
       }
@@ -98,6 +96,12 @@ export class Runner {
     const projects = this._loader.projects().filter(project => {
       return !projectName || project.config.name === projectName;
     });
+    if (projectName && !projects.length) {
+      const names = this._loader.projects().map(p => p.config.name).filter(name => !!name);
+      if (!names.length)
+        throw new Error(`No named projects are specified in the configuration file`);
+      throw new Error(`Project "${projectName}" not found. Available named projects: ${names.map(name => `"${name}"`).join(', ')}`);
+    }
 
     const files = new Map<ProjectImpl, string[]>();
     const allTestFiles = new Set<string>();
