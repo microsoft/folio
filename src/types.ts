@@ -867,19 +867,22 @@ export interface TestType<TestArgs extends KeyValue, WorkerArgs extends KeyValue
   extend<T, W extends KeyValue = {}>(fixtures: Fixtures<T, W, TestArgs, WorkerArgs>): TestType<TestArgs & T, WorkerArgs & W>;
 }
 
-export type KeyValue = { [key: string]: any };
-type FixtureValue<R, Args, Info> = R | ((args: Args, run: (r: R) => Promise<void>, info: Info) => any);
+type KeyValue = { [key: string]: any };
+export type TestFixture<R, Args extends KeyValue> = (args: Args, use: (r: R) => Promise<void>, testInfo: TestInfo) => any;
+export type WorkerFixture<R, Args extends KeyValue> = (args: Args, use: (r: R) => Promise<void>, workerInfo: WorkerInfo) => any;
+type TestFixtureValue<R, Args> = R | TestFixture<R, Args>;
+type WorkerFixtureValue<R, Args> = R | WorkerFixture<R, Args>;
 export type Fixtures<T extends KeyValue = {}, W extends KeyValue = {}, PT extends KeyValue = {}, PW extends KeyValue = {}> = {
-  [K in keyof PW]?: FixtureValue<PW[K], W & PW, WorkerInfo>;
+  [K in keyof PW]?: WorkerFixtureValue<PW[K], W & PW>;
 } & {
-  [K in keyof PT]?: FixtureValue<PT[K], T & W & PT & PW, TestInfo>;
+  [K in keyof PT]?: TestFixtureValue<PT[K], T & W & PT & PW>;
 } & {
-  [K in keyof W]?: [FixtureValue<W[K], W & PW, WorkerInfo>, { scope: 'worker', auto?: boolean }];
+  [K in keyof W]?: [WorkerFixtureValue<W[K], W & PW>, { scope: 'worker', auto?: boolean }];
 } & {
-  [K in keyof T]?: FixtureValue<T[K], T & W & PT & PW, TestInfo> | [FixtureValue<T[K], T & W & PT & PW, TestInfo>, { scope?: 'test', auto?: boolean }];
+  [K in keyof T]?: TestFixtureValue<T[K], T & W & PT & PW> | [TestFixtureValue<T[K], T & W & PT & PW>, { scope?: 'test', auto?: boolean }];
 };
 
-export type Location = {file: string, line: number, column: number};
+export type Location = { file: string, line: number, column: number };
 export type FixturesWithLocation = {
   fixtures: Fixtures;
   location: Location;

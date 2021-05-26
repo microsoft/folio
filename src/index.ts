@@ -20,10 +20,7 @@ import { rootTestType } from './testType';
 import { currentOptionsRegistry } from './globals';
 import { errorWithCallLocation } from './util';
 
-// Configuration types.
-export type { Project, Config } from './types';
-// Fixtures types.
-export type { TestStatus, TestInfo, WorkerInfo, TestType, Fixtures } from './types';
+export type { Project, Config, TestStatus, TestInfo, WorkerInfo, TestType, Fixtures, TestFixture, WorkerFixture, BooleanCLIOption, ListCLIOption, StringCLIOption } from './types';
 
 export { expect } from './expect';
 export const test: TestType<{}, {}> = rootTestType.test;
