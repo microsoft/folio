@@ -72,12 +72,12 @@ test('should prioritize command line timeout over project timeout', async ({ run
   expect(result.output).toContain('Timeout of 500ms exceeded.');
 });
 
-test('should read config from --config', async ({ runInlineTest }) => {
+test('should read config from --config, resolve relative testDir', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'my.config.ts': `
       import * as path from 'path';
       module.exports = {
-        testDir: path.join(__dirname, 'dir'),
+        testDir: 'dir',
       };
     `,
     'a.test.ts': `
@@ -150,7 +150,7 @@ test('should support different testDirs', async ({ runInlineTest }) => {
       import * as path from 'path';
       module.exports = { projects: [
         { testDir: __dirname },
-        { testDir: path.join(__dirname, 'dir') },
+        { testDir: 'dir' },
       ] };
     `,
     'a.test.ts': `

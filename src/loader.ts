@@ -87,6 +87,8 @@ export class Loader {
       if (('projects' in this._config) && (key in this._config))
         throw new Error(`When using projects, passing "${key}" is not supported`);
     }
+    if ('testDir' in this._config && !path.isAbsolute(this._config.testDir))
+      this._config.testDir = path.resolve(rootDir, this._config.testDir);
     const projects: Project[] = 'projects' in this._config ? this._config.projects : [this._config];
 
     this._fullConfig.rootDir = this._config.testDir || rootDir;
@@ -170,7 +172,9 @@ export class Loader {
   }
 
   private _addProject(projectConfig: Project, rootDir: string) {
-    const testDir = takeFirst(projectConfig.testDir, rootDir);
+    let testDir = takeFirst(projectConfig.testDir, rootDir);
+    if (!path.isAbsolute(testDir))
+      testDir = path.resolve(rootDir, testDir);
 
     const useRootDirForSnapshots = !projectConfig.snapshotDir && !!this._config.snapshotDir;
     let snapshotDir = '';
