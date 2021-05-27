@@ -29,3 +29,67 @@ test('handle long test names', async ({ runInlineTest }) => {
   expect(stripAscii(result.output)).toContain('expect(1).toBe');
   expect(result.exitCode).toBe(1);
 });
+
+test('print the error name', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+    const { test } = folio;
+    test('foobar', async ({}) => {
+      const error = new Error('my-message');
+      error.name = 'FooBarError';
+      throw error;
+    });
+    `
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain('FooBarError: my-message');
+});
+
+test('print should print the error name without a message', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+    const { test } = folio;
+    test('foobar', async ({}) => {
+      const error = new Error();
+      error.name = 'FooBarError';
+      throw error;
+    });
+    `
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain('FooBarError: ');
+});
+
+test('print an error in a codeframe', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'my-lib.ts': `
+    const foobar = () => {
+      const error = new Error('my-message');
+      error.name = 'FooBarError';
+      throw error;
+    }
+    export default () => {
+      foobar();
+    }
+    `,
+    'a.spec.ts': `
+    const { test } = folio;
+    import myLib from './my-lib';
+    test('foobar', async ({}) => {
+      const error = new Error('my-message');
+      error.name = 'FooBarError';
+      throw error;
+    });
+    `
+  }, {}, {
+    FORCE_COLOR: '0',
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain('FooBarError: my-message');
+  expect(result.output).toContain('test(\'foobar\', async');
+  expect(result.output).toContain('throw error;');
+  expect(result.output).toContain('import myLib from \'./my-lib\';');
+});

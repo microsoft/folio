@@ -200,11 +200,11 @@ function formatError(error: TestError, file?: string) {
       tokens.push(codeFrameColumns(source, {
         start: position,
       },
-      { highlightCode: true}
+      { highlightCode: colors.enabled }
       ));
     }
     tokens.push('');
-    tokens.push(colors.dim(stack.substring(preamble.length + 1)));
+    tokens.push(colors.dim(preamble.length > 0 ? stack.substring(preamble.length + 1) : stack));
   } else {
     tokens.push('');
     tokens.push(error.value);
