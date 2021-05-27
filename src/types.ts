@@ -107,7 +107,7 @@ export interface Project<TestArgs = {}, WorkerArgs = {}> extends ProjectBase {
 export type FullProject<TestArgs = {}, WorkerArgs = {}> = Required<Project<TestArgs, WorkerArgs>>;
 
 /**
- * Folio configuration.
+ * Testing configuration.
  */
 interface ConfigBase {
   /**
@@ -188,7 +188,7 @@ interface ConfigBase {
 }
 
 /**
- * Folio configuration.
+ * Testing configuration.
  */
 export interface Config<TestArgs = {}, WorkerArgs = {}> extends ConfigBase, Project<TestArgs, WorkerArgs> {
   /**
@@ -238,7 +238,7 @@ export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
  */
 export interface WorkerInfo {
   /**
-   * Folio configuration.
+   * Testing configuration.
    */
   config: FullConfig;
 

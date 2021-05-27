@@ -42,26 +42,51 @@ const defaultConfig: FullConfig = {
   workers: Math.ceil(require('os').cpus().length / 2),
 };
 
-const program = new commander.Command();
-program.name('folio');
-program.helpOption(false);
-program.allowUnknownOption();
-const builtinOptions = new Set(addRunnerOptions(program));
-program.parse(process.argv);
-(async () => {
-  try {
-    await runTests();
-  } catch (e) {
-    console.error(e.toString());
-    process.exit(1);
-  }
-})();
+export type FolioOptions = {
+  programName: string;
+  programVersion: string;
+  defaultConfigName: string;
+  addOptions: (program: commander.Command) => string[];
+  handleOptions: (opts: { [key: string]: any }) => void;
+  defaultTimeout: number;
+};
 
-async function runTests() {
+export function runCLI(partialOptions: Partial<FolioOptions> = {}) {
+  const folioOptions: FolioOptions = {
+    programName: 'folio',
+    programVersion: require('../package.json').version,
+    defaultConfigName: 'folio.config',
+    addOptions: () => [],
+    handleOptions: () => {},
+    defaultTimeout: 10000,
+    ...partialOptions,
+  };
+
+  const program = new commander.Command();
+  program.name(folioOptions.programName);
+  program.helpOption(false);
+  program.allowUnknownOption();
+  const builtinOptions = new Set([
+    ...folioOptions.addOptions(program),
+    ...addRunnerOptions(program, folioOptions),
+  ]);
+  program.parse(process.argv);
+  (async () => {
+    try {
+      await runTests(program, folioOptions, builtinOptions);
+    } catch (e) {
+      console.error(e.toString());
+      process.exit(1);
+    }
+  })();
+}
+
+async function runTests(program: commander.Command, folioOptions: FolioOptions, builtinOptions: Set<string>) {
   const opts = program.opts();
   const extraOptions: string[] = [];
 
-  const loader = new Loader(defaultConfig, configFromCommand(opts), cliOption => {
+  folioOptions.handleOptions(opts);
+  const loader = new Loader(defaultConfig, configFromCommand(opts), folioOptions.defaultTimeout, cliOption => {
     if (cliOption.name.length <= 1)
       throw new Error(`CLI option "${cliOption.name}" is too short`);
     if (builtinOptions.has(cliOption.name))
@@ -91,6 +116,8 @@ async function runTests() {
     }
     return false;
   }
+  const tsConfig = folioOptions.defaultConfigName + '.ts';
+  const jsConfig = folioOptions.defaultConfigName + '.js';
   if (opts.config) {
     const configFile = path.resolve(process.cwd(), opts.config);
     if (!fs.existsSync(configFile))
@@ -98,16 +125,16 @@ async function runTests() {
     if (fs.statSync(configFile).isDirectory()) {
       // When passed a directory, look for a config file inside.
       // If there is no config, just assume this as a root testing directory.
-      if (!loadConfig(path.join(configFile, 'folio.config.ts')) && !loadConfig(path.join(configFile, 'folio.config.js')))
+      if (!loadConfig(path.join(configFile, tsConfig)) && !loadConfig(path.join(configFile, jsConfig)))
         loader.loadEmptyConfig(configFile);
     } else {
       // When passed a file, it must be a config file.
       loadConfig(path.resolve(process.cwd(), opts.config));
     }
-  } else if (!loadConfig(path.resolve(process.cwd(), 'folio.config.ts')) && !loadConfig(path.resolve(process.cwd(), 'folio.config.js')) && !help) {
+  } else if (!loadConfig(path.resolve(process.cwd(), tsConfig)) && !loadConfig(path.resolve(process.cwd(), jsConfig)) && !help) {
     // No --config option, let's look for the config file in the current directory.
     // If not, do not assume that current directory is a root testing directory, to avoid scanning the world.
-    throw new Error(`Configuration file not found. Run "folio --help" for more information.`);
+    throw new Error(`Configuration file not found. Run "${folioOptions.programName} --help" for more information.`);
   }
 
   if (help) {
@@ -120,7 +147,7 @@ async function runTests() {
         builtinHelp.push(line);
     }
     const lines: string[] = [];
-    lines.push(`Usage: folio [options] <filter...>`);
+    lines.push(`Usage: ${folioOptions.programName} [options] <filter...>`);
     lines.push(``);
     lines.push(`Use <filter...> arguments to filter test files. Each argument is treated as a regular expression.`);
     lines.push(``);
@@ -128,7 +155,7 @@ async function runTests() {
       lines.push(`Test suite options:`);
       lines.push(...extraHelp);
       lines.push('');
-      lines.push(`Folio options:`);
+      lines.push(`General options:`);
     } else {
       lines.push(`Options:`);
     }
@@ -172,9 +199,9 @@ async function runTests() {
   process.exit(result === 'failed' ? 1 : 0);
 }
 
-function addRunnerOptions(program: commander.Command) {
+function addRunnerOptions(program: commander.Command, folioOptions: FolioOptions): string[] {
   program = program
-      .option('-c, --config <file>', `Configuration file (default: "folio.config.ts" or "folio.config.js")`)
+      .option('-c, --config <file>', `Configuration file (default: "${folioOptions.defaultConfigName}.ts" or "${folioOptions.defaultConfigName}.js")`)
       .option('--forbid-only', `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})`)
       .option('-g, --grep <grep>', `Only run tests matching this regular expression (default: "${defaultConfig.grep}")`)
       .option('--global-timeout <timeout>', `Maximum time this test suite can run in milliseconds (default: 0 for unlimited)`)
@@ -189,9 +216,9 @@ function addRunnerOptions(program: commander.Command) {
       .option('--retries <retries>', `Maximum retry count for flaky tests (default: 0 for no retries)`)
       .option('--shard <shard>', `Shard tests and execute only the selected shard, specify in the form "current/all", 1-based, for example "3/5"`)
       .option('--project <project-name>', `Only run tests from the specified project (default: run all projects)`)
-      .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: 10000)`)
+      .option('--timeout <timeout>', `Specify test timeout threshold in milliseconds (default: ${folioOptions.defaultTimeout})`)
       .option('-u, --update-snapshots', `Update snapshots with actual results (default: only create missing snapshots)`)
-      .version('Folio version ' + /** @type {any} */ (require)('../package.json').version, '-v, --version', 'Output the version number')
+      .version(folioOptions.programName + ' version ' + folioOptions.programVersion, '-v, --version', 'Output the version number')
       .option('-x', `Stop after the first failure (default: do not stop until all tests are run)`);
   return program.options.filter(o => !!o.long).map(o => o.long.substring(2));
 }
