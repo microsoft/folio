@@ -26,6 +26,7 @@ import { ProjectImpl } from './project';
 export type CLIOptionCallback = (cliOption: CLIOption) => any;
 
 export class Loader {
+  private _defaultTimeout: number;
   private _defaultConfig: FullConfig;
   private _configOverrides: ConfigOverrides;
   private _fullConfig: FullConfig;
@@ -36,15 +37,16 @@ export class Loader {
   private _cliOptionCallback: CLIOptionCallback;
   private _cliOptions = new Map<string, CLIOption>();
 
-  constructor(defaultConfig: FullConfig, configOverrides: ConfigOverrides, cliOptionCallback: CLIOptionCallback) {
+  constructor(defaultConfig: FullConfig, configOverrides: ConfigOverrides, defaultTimeout: number, cliOptionCallback: CLIOptionCallback) {
     this._defaultConfig = defaultConfig;
     this._configOverrides = configOverrides;
     this._fullConfig = { ...this._defaultConfig, ...configOverrides };
     this._cliOptionCallback = cliOptionCallback;
+    this._defaultTimeout = defaultTimeout;
   }
 
   static deserialize(data: SerializedLoaderData): Loader {
-    const loader = new Loader(data.defaultConfig, data.overrides, cliOption => {
+    const loader = new Loader(data.defaultConfig, data.overrides, data.defaultTimeout, cliOption => {
       if (cliOption.name in data.cliOptionValues)
         return data.cliOptionValues[cliOption.name];
       return undefined;
@@ -164,6 +166,7 @@ export class Loader {
     for (const cliOption of this._cliOptions.values())
       cliOptionValues[cliOption.name] = cliOption.value;
     return {
+      defaultTimeout: this._defaultTimeout,
       defaultConfig: this._defaultConfig,
       configFile: this._configFile ? { file: this._configFile } : { rootDir: this._fullConfig.rootDir },
       overrides: this._configOverrides,
@@ -197,7 +200,7 @@ export class Loader {
       testDir,
       testIgnore: projectConfig.testIgnore || [],
       testMatch: projectConfig.testMatch || '**/?(*.)+(spec|test).[jt]s',
-      timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, 10000),
+      timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, this._defaultTimeout),
       use: projectConfig.use || {},
     };
     this._projects.push(new ProjectImpl(fullProject, this._projects.length, useRootDirForSnapshots));

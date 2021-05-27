@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 
-require('./out/cli');
+require('./out/cli').runCLI();

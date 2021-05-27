@@ -435,7 +435,7 @@ test('should print options help', async ({ runInlineTest }) => {
 
   expect(result.exitCode).toBe(0);
   expect(result.output).toContain('Test suite options:');
-  expect(result.output).toContain('Folio options:');
+  expect(result.output).toContain('General options:');
 });
 
 test('should work without config file', async ({ runInlineTest }) => {
