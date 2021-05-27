@@ -75,7 +75,7 @@ test('should write missing expectations locally', async ({runInlineTest}, testIn
     `
   }, {}, { CI: '' });
   expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('snapshot.txt is missing in golden results, writing actual');
+  expect(result.output).toContain('snapshot.txt is missing in snapshots, writing actual');
   const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
   expect(data.toString()).toBe('Hello world');
 });
@@ -90,7 +90,7 @@ test('should not write missing expectations on CI', async ({runInlineTest}, test
     `
   }, {}, { CI: '1' });
   expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('snapshot.txt is missing in golden results');
+  expect(result.output).toContain('snapshot.txt is missing in snapshots');
   expect(fs.existsSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'))).toBe(false);
 });
 
@@ -105,8 +105,7 @@ test('should update expectations', async ({runInlineTest}, testInfo) => {
     `
   }, { 'update-snapshots': true });
   expect(result.exitCode).toBe(0);
-  expect(result.output).toContain('Updating snapshot at');
-  expect(result.output).toContain('snapshot.txt');
+  expect(result.output).toContain('snapshot.txt does not match, writing actual.');
   const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
   expect(data.toString()).toBe('Hello world updated');
 });

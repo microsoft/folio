@@ -85,10 +85,12 @@ export function compare(actual: Buffer | string, name: string, snapshotPath: (na
       fs.mkdirSync(path.dirname(snapshotFile), { recursive: true });
       fs.writeFileSync(snapshotFile, actual);
     }
-    return {
-      pass: false,
-      message: snapshotFile + ' is missing in golden results' + (writingActual ? ', writing actual.' : '.')
-    };
+    const message = snapshotFile + ' is missing in snapshots' + (writingActual ? ', writing actual.' : '.');
+    if (updateSnapshots === 'all') {
+      console.log(message);
+      return { pass: true, message };
+    }
+    return { pass: false, message };
   }
   const expected = fs.readFileSync(snapshotFile);
   const extension = path.extname(snapshotFile).substring(1);
@@ -108,10 +110,10 @@ export function compare(actual: Buffer | string, name: string, snapshotPath: (na
   if (updateSnapshots === 'all') {
     fs.mkdirSync(path.dirname(snapshotFile), { recursive: true });
     fs.writeFileSync(snapshotFile, actual);
-    console.log('Updating snapshot at ' + snapshotFile);
+    console.log(snapshotFile + ' does not match, writing actual.');
     return {
       pass: true,
-      message: snapshotFile + ' running with --p-update-snapshots, writing actual.'
+      message: snapshotFile + ' running with --update-snapshots, writing actual.'
     };
   }
   const outputFile = outputPath(name);

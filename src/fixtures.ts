@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { errorWithCallLocation, formatLocation, prependErrorMessage } from './util';
+import { errorWithCallLocation, formatLocation, prependErrorMessage, wrapInPromise } from './util';
 import * as crypto from 'crypto';
 import { FixturesWithLocation, Location } from './types';
 
@@ -69,14 +69,14 @@ class Fixture {
     let called = false;
     const setupFence = new Promise<void>((f, r) => { setupFenceFulfill = f; setupFenceReject = r; });
     const teardownFence = new Promise(f => this._teardownFenceCallback = f);
-    this._tearDownComplete = this.registration.fn(params, async (value: any) => {
+    this._tearDownComplete = wrapInPromise(this.registration.fn(params, async (value: any) => {
       if (called)
         throw errorWithCallLocation(`Cannot provide fixture value for the second time`);
       called = true;
       this.value = value;
       setupFenceFulfill();
       return await teardownFence;
-    }, info).catch((e: any) => {
+    }, info)).catch((e: any) => {
       if (!this._setup)
         setupFenceReject(e);
       else
