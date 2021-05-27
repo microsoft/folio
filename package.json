@@ -2,7 +2,8 @@
   "name": "folio",
   "version": "0.4.0",
   "bin": {
-    "folio": "./cli.js"
+    "folio": "./cli.js",
+    "test": "./cli.js"
   },
   "main": "./out/index.js",
   "engines": {
