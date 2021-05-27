@@ -50,7 +50,9 @@ test('should work with a sync fixture function', async ({ runInlineTest }) => {
   const { results } = await runInlineTest({
     'a.test.js': `
       const test = folio.test.extend({
-        asdf: ({}, use) => use(123),
+        asdf: ({}, use) => {
+          use(123);
+        },
       });
 
       test('should use asdf', ({asdf}) => {

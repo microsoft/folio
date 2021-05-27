@@ -38,10 +38,6 @@ class Base {
       return this.parent.titlePath();
     return [...this.parent.titlePath(), this.title];
   }
-
-  fullTitle(): string {
-    return this.titlePath().join(' ');
-  }
 }
 
 export class Spec extends Base implements reporterTypes.Spec {
@@ -60,6 +56,14 @@ export class Spec extends Base implements reporterTypes.Spec {
 
   ok(): boolean {
     return !this.tests.find(r => !r.ok());
+  }
+
+  fullTitle(): string {
+    return this.titlePath().join(' ');
+  }
+
+  _testFullTitle(projectName: string) {
+    return (projectName ? `[${projectName}] ` : '') + this.fullTitle();
   }
 }
 
@@ -198,6 +202,10 @@ export class Test implements reporterTypes.Test {
   ok(): boolean {
     const status = this.status();
     return status === 'expected' || status === 'flaky' || status === 'skipped';
+  }
+
+  fullTitle(): string {
+    return this.spec._testFullTitle(this.projectName);
   }
 
   _appendTestResult(): reporterTypes.TestResult {

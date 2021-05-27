@@ -376,7 +376,7 @@ test('should throw when test() is called in config file', async ({ runInlineTest
   expect(result.output).toContain('test() can only be called in a test file');
 });
 
-test('should filter by project', async ({ runInlineTest }) => {
+test('should filter by project, case-insensitive', async ({ runInlineTest }) => {
   const { passed, failed, output, skipped } = await runInlineTest({
     'folio.config.ts': `
       module.exports = { projects: [
@@ -390,7 +390,7 @@ test('should filter by project', async ({ runInlineTest }) => {
         console.log(testInfo.project.name);
       });
     `
-  }, { project: 'suite2' });
+  }, { project: 'SUite2' });
   expect(passed).toBe(1);
   expect(failed).toBe(0);
   expect(skipped).toBe(0);

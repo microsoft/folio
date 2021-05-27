@@ -24,7 +24,6 @@ export interface Suite {
   column: number;
   suites: Suite[];
   specs: Spec[];
-  fullTitle(): string;
   findTest(fn: (test: Test) => boolean | void): boolean;
   findSpec(fn: (spec: Spec) => boolean | void): boolean;
   totalTestCount(): number;
@@ -48,6 +47,7 @@ export interface Test {
   annotations: { type: string, description?: string }[];
   projectName: string;
   retries: number;
+  fullTitle(): string;
   status(): 'skipped' | 'expected' | 'unexpected' | 'flaky';
   ok(): boolean;
 }

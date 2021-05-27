@@ -37,8 +37,7 @@ Folio is **available in preview** and is under active development. Breaking chan
 Writing your first test is easy.
 
 ```ts
-// my.spec.ts
-
+// example.spec.ts
 import test from 'folio';
 
 test('let us check some basics', async () => {
@@ -67,6 +66,8 @@ Here is how typical test environment setup differs between traditional test styl
 #### Without fixtures
 
 ```ts
+// example.spec.ts
+
 describe('database', () => {
   let table;
 
@@ -100,6 +101,7 @@ describe('database', () => {
 #### With fixtures
 
 ```ts
+// example.spec.ts
 import base from 'folio';
 
 // Extend basic test by providing a "table" fixture.
@@ -163,6 +165,8 @@ type TestFixtures = {
   hello: string;
   helloWorld: string;
 };
+
+// Extend base test with our fixtures.
 const test = base.extend<TestFixtures>({
   // This fixture is a constant, so we can just provide the value.
   hello: 'Hello',
@@ -171,8 +175,10 @@ const test = base.extend<TestFixtures>({
   helloWorld: async ({ hello }, use) => {
     // Set up the fixture.
     const value = hello + ', world!';
+
     // Use the fixture value in the test.
-    await run(value);
+    await use(value);
+
     // Clean up the fixture. Nothing to cleanup in this example.
   },
 });
@@ -219,6 +225,7 @@ type ExpressWorkerFixtures = {
 
 // Note that we did not provide an test-scoped fixtures, so we pass {}.
 const test = base.extend<{}, ExpressWorkerFixtures>({
+
   // We pass a tuple to with the fixture function and options.
   // In this case, we mark this fixture as worker-scoped.
   port: [ async ({}, use, workerInfo) => {
@@ -228,6 +235,7 @@ const test = base.extend<{}, ExpressWorkerFixtures>({
 
   // "express" fixture starts automatically for every worker - we pass "auto" for that.
   express: [ async ({ port }, use) => {
+    // Setup express app.
     const app = express();
     app.get('/1', (req, res) => {
       res.send('Hello World 1!')
@@ -235,13 +243,19 @@ const test = base.extend<{}, ExpressWorkerFixtures>({
     app.get('/2', (req, res) => {
       res.send('Hello World 2!')
     });
+
+    // Start the server.
     let server;
     console.log('Starting server...');
     await new Promise(f => {
       server = app.listen(port, f);
     });
     console.log('Server ready');
+
+    // Use the server in the tests.
     await use(server);
+
+    // Cleanup.
     console.log('Stopping server...');
     await new Promise(f => server.close(f));
     console.log('Server stopped');
@@ -305,6 +319,7 @@ npx folio --timeout=0
 
 - Calling `test.setTimeout(milliseconds)` in the test itself.
 ```ts
+// example.spec.ts
 import test from 'folio';
 
 test('my test', async () => {
@@ -315,6 +330,7 @@ test('my test', async () => {
 
 - Calling `test.slow()` to triple the timeout.
 ```ts
+// example.spec.ts
 import test from 'folio';
 
 test('my test', async () => {
@@ -355,6 +371,9 @@ All the options are available in the [configuration file](#writing-a-configurati
 Unfortunately, tests do not always pass. Folio supports test annotations to deal with failures, flakiness and tests that are not yet ready.
 
 ```ts
+// example.spec.ts
+import test from 'folio';
+
 test('basic', async ({ table }) => {
   test.skip(version == 'v2', 'This test crashes the database in v2, better not run it.');
   // Test goes here.
@@ -395,9 +414,12 @@ Running 1 test using 1 worker
 Folio includes the ability to produce and compare snapshots. For that, use `expect(value).toMatchSnapshot()`. Folio auto-detects the content type, and includes built-in matchers for text, png and jpeg images, and arbitrary binary data.
 
 ```ts
+// example.spec.ts
+import test from 'folio';
+
 test('my test', async () => {
   const image = await produceSomePNG();
-  expect(image).toMatchSnapshot('optional-snapshot-name.png');
+  test.expect(image).toMatchSnapshot('optional-snapshot-name.png');
 });
 ```
 
@@ -419,9 +441,9 @@ Each worker process is assigned a unique sequential index that is accessible thr
 
 Folio can shard a test suite, so that it can be executed on multiple machines. For that,  pass `--shard=x/y` to the command line. For example, to split the suite into three shards, each running one third of the tests:
 ```sh
-$ npx folio --shard=1/3
-$ npx folio --shard=2/3
-$ npx folio --shard=3/3
+npx folio --shard=1/3
+npx folio --shard=2/3
+npx folio --shard=3/3
 ```
 
 ## Reporters
@@ -429,7 +451,7 @@ $ npx folio --shard=3/3
 Folio comes with a few built-in reporters for different needs and ability to provide custom reporters. The easiest way to try out built-in reporters is to pass `--reporter` [command line option](#command-line).
 
 ```sh
-$ npx folio --reporter=line
+npx folio --reporter=line
 ```
 
 For more control, you can specify reporters programmatically in the [configuration file](#writing-a-configuration-file).
@@ -544,9 +566,11 @@ FOLIO_JSON_OUTPUT_NAME=results.json npx folio --reporter=json,dot
 
 In configuration file, pass options directly:
 ```ts
+// folio.config.ts
 const config = {
   reporter: { name: 'json', outputFile: 'results.json' },
 };
+export default config;
 ```
 
 #### JUnit reporter
@@ -560,9 +584,11 @@ FOLIO_JUNIT_OUTPUT_NAME=results.xml npx folio --reporter=junit,line
 
 In configuration file, pass options directly:
 ```ts
+// folio.config.ts
 const config = {
   reporter: { name: 'junit', outputFile: 'results.xml' },
 };
+export default config;
 ```
 
 ## Advanced configuration
@@ -644,7 +670,7 @@ const test = base.extend<{ version: string, database: Database }>({
 
 We can use our fixtures in the test.
 ```ts
-// my.spec.ts
+// example.spec.ts
 import test from './my-test';
 
 test('test 1', async ({ database }) => {
@@ -681,7 +707,7 @@ export default config;
 Each project can be configured separately, and run different set of tests with different parameters.
 Supported options are `name`, `outputDir`, `repeatEach`, `retries`, `snapshotDir`, `testDir`, `testIgnore`, `testMatch` and `timeout`. See [configuration object](#configuration-object) for detailed description.
 
-You can run all project or just a single one:
+You can run all projects or just a single one:
 ```sh
 # Run both projects - each test will be run twice
 npx folio
@@ -702,17 +728,23 @@ Worker-scoped fixtures and `beforeAll` and `afterAll` hooks receive `workerInfo`
 Consider an example where we run a new http server per worker process, and use `workerIndex` to produce a unique port number:
 
 ```ts
+// my-test.ts
 import base from 'folio';
 import * as http from 'http';
 
-// No test fixtures, just a worker fixture.
 // Note how we mark the fixture as { scope: 'worker' }.
+// Also note that we pass empty {} first, since we do not declare any test fixtures.
 const test = base.extend<{}, { server: http.Server }>({
   server: [ async ({}, use, workerInfo) => {
+    // Start the server.
     const server = http.createServer();
     server.listen(9000 + workerInfo.workerIndex);
     await new Promise(ready => server.once('listening', ready));
+
+    // Use the server in the tests.
     await use(server);
+
+    // Cleanup.
     await new Promise(done => server.close(done));
   }, { scope: 'worker' } ]
 });
@@ -748,6 +780,9 @@ The following information is accessible after the test body has finished, in fix
 
 Here is an example test that saves some information:
 ```ts
+// example.spec.ts
+import test from 'folio';
+
 test('my test needs a file', async ({ table }, testInfo) => {
   // Do something with the table...
   // ... and then save contents.
@@ -758,6 +793,7 @@ test('my test needs a file', async ({ table }, testInfo) => {
 
 Here is an example fixture that automatically saves debug logs when the test fails:
 ```ts
+// my-test.ts
 import * as debug from 'debug';
 import * as fs from 'fs';
 import base from 'folio';
@@ -774,6 +810,7 @@ const test = base.extend<{ saveLogs: void }>({
       fs.writeFileSync(testInfo.outputPath('logs.txt'), logs.join('\n'), 'utf8');
   }, { auto: true } ]
 });
+export default test;
 ```
 
 ### Global setup and teardown
@@ -844,7 +881,7 @@ export default test;
 We can now pass the option value with `test.use()`.
 
 ```ts
-// my.spec.ts
+// example.spec.ts
 import test from './my-test';
 
 // Here we define the option value. Tests in this file need two temporary directories.

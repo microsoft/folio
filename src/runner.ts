@@ -92,7 +92,7 @@ export class Runner {
     const config = this._loader.fullConfig();
 
     const projects = this._loader.projects().filter(project => {
-      return !projectName || project.config.name === projectName;
+      return !projectName || project.config.name.toLocaleLowerCase() === projectName.toLocaleLowerCase();
     });
     if (projectName && !projects.length) {
       const names = this._loader.projects().map(p => p.config.name).filter(name => !!name);
@@ -142,7 +142,7 @@ export class Runner {
           if (!fileSuite)
             continue;
           for (const spec of fileSuite._allSpecs()) {
-            if (grepMatcher(spec.fullTitle()))
+            if (grepMatcher(spec._testFullTitle(project.config.name)))
               project.generateTests(spec);
           }
         }

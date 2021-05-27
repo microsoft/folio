@@ -161,8 +161,7 @@ export function formatTestTitle(config: FullConfig, test: Test): string {
   const spec = test.spec;
   let relativePath = path.relative(config.rootDir, spec.file) || path.basename(spec.file);
   relativePath += ':' + spec.line + ':' + spec.column;
-  const projectName = test.projectName ? `[${test.projectName}] ` : '';
-  return `${relativePath} › ${projectName}${spec.fullTitle()}`;
+  return `${relativePath} › ${test.fullTitle()}`;
 }
 
 function formatTestHeader(config: FullConfig, test: Test, indent: string, index?: number): string {
