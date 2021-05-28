@@ -54,7 +54,7 @@ export class Loader {
     if ('file' in data.configFile)
       loader.loadConfigFile(data.configFile.file);
     else
-      loader.loadEmptyConfig(data.configFile.rootDir);
+      loader.loadEmptyConfig(data.configFile.config, data.configFile.rootDir);
     return loader;
   }
 
@@ -78,8 +78,8 @@ export class Loader {
     }
   }
 
-  loadEmptyConfig(rootDir: string) {
-    this._config = {};
+  loadEmptyConfig(emptyConfig: Config, rootDir: string) {
+    this._config = emptyConfig;
     this._processConfigObject(rootDir);
   }
 
@@ -168,7 +168,7 @@ export class Loader {
     return {
       defaultTimeout: this._defaultTimeout,
       defaultConfig: this._defaultConfig,
-      configFile: this._configFile ? { file: this._configFile } : { rootDir: this._fullConfig.rootDir },
+      configFile: this._configFile ? { file: this._configFile } : { config: this._config, rootDir: this._fullConfig.rootDir },
       overrides: this._configOverrides,
       cliOptionValues,
     };

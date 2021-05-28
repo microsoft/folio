@@ -179,3 +179,10 @@ export async function wrapInPromise(value: any) {
 export function formatLocation(location: Location) {
   return location.file + ':' + location.line + ':' + location.column;
 }
+
+export function forceRegExp(pattern: string): RegExp {
+  const match = pattern.match(/^\/(.*)\/([gi]*)$/);
+  if (match)
+    return new RegExp(match[1], match[2]);
+  return new RegExp(pattern, 'g');
+}

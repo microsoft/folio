@@ -15,14 +15,14 @@
  */
 
 import type { TestError } from './reporter';
-import type { ConfigOverrides, FullConfig, TestStatus } from './types';
+import type { Config, ConfigOverrides, FullConfig, TestStatus } from './types';
 
 export type CLIOptionValues = { [key: string]: any };
 export type SerializedLoaderData = {
   defaultTimeout: number;
   defaultConfig: FullConfig;
   overrides: ConfigOverrides;
-  configFile: { file: string } | { rootDir: string };
+  configFile: { file: string } | { rootDir: string, config: Config };
   cliOptionValues: CLIOptionValues;
 };
 export type WorkerInitParams = {
