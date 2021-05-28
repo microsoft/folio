@@ -21,7 +21,7 @@ import { test, expect } from './folio-test';
 
 test('should support golden', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
+    'a.spec.js-snapshots/is-a-test-snapshot.txt': `Hello world`,
     'a.spec.js': `
       const { test } = folio;
       test('is a test', ({}) => {
@@ -34,7 +34,7 @@ test('should support golden', async ({runInlineTest}) => {
 
 test('should fail on wrong golden', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.txt': `Line1
+    'a.spec.js-snapshots/is-a-test-snapshot.txt': `Line1
 Line2
 Line3
 Hello world line1
@@ -76,7 +76,7 @@ test('should write missing expectations locally', async ({runInlineTest}, testIn
   }, {}, { CI: '' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('snapshot.txt is missing in snapshots, writing actual');
-  const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
+  const data = fs.readFileSync(testInfo.outputPath('a.spec.js-snapshots/is-a-test-snapshot.txt'));
   expect(data.toString()).toBe('Hello world');
 });
 
@@ -91,12 +91,12 @@ test('should not write missing expectations on CI', async ({runInlineTest}, test
   }, {}, { CI: '1' });
   expect(result.exitCode).toBe(1);
   expect(result.output).toContain('snapshot.txt is missing in snapshots');
-  expect(fs.existsSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'))).toBe(false);
+  expect(fs.existsSync(testInfo.outputPath('a.spec.js-snapshots/is-a-test-snapshot.txt'))).toBe(false);
 });
 
 test('should update expectations', async ({runInlineTest}, testInfo) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.txt': `Hello world`,
+    'a.spec.js-snapshots/is-a-test-snapshot.txt': `Hello world`,
     'a.spec.js': `
       const { test } = folio;
       test('is a test', ({}) => {
@@ -106,15 +106,15 @@ test('should update expectations', async ({runInlineTest}, testInfo) => {
   }, { 'update-snapshots': true });
   expect(result.exitCode).toBe(0);
   expect(result.output).toContain('snapshot.txt does not match, writing actual.');
-  const data = fs.readFileSync(testInfo.outputPath('__snapshots__/a/is-a-test/snapshot.txt'));
+  const data = fs.readFileSync(testInfo.outputPath('a.spec.js-snapshots/is-a-test-snapshot.txt'));
   expect(data.toString()).toBe('Hello world updated');
 });
 
 test('should match multiple snapshots', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
-    '__snapshots__/a/is-a-test/snapshot_1.txt': `Snapshot2`,
-    '__snapshots__/a/is-a-test/snapshot_2.txt': `Snapshot3`,
+    'a.spec.js-snapshots/is-a-test-snapshot.txt': `Snapshot1`,
+    'a.spec.js-snapshots/is-a-test-snapshot_1.txt': `Snapshot2`,
+    'a.spec.js-snapshots/is-a-test-snapshot_2.txt': `Snapshot3`,
     'a.spec.js': `
       const { test } = folio;
       test('is a test', ({}) => {
@@ -133,7 +133,7 @@ test('should match snapshots from multiple projects', async ({runInlineTest}) =>
       import * as path from 'path';
       module.exports = { projects: [
         { testDir: path.join(__dirname, 'p1') },
-        { testDir: path.join(__dirname, 'p2'), snapshotDir: 'my-snapshots' },
+        { testDir: path.join(__dirname, 'p2') },
       ]};
     `,
     'p1/a.spec.js': `
@@ -142,98 +142,21 @@ test('should match snapshots from multiple projects', async ({runInlineTest}) =>
         expect('Snapshot1').toMatchSnapshot();
       });
     `,
-    'p1/__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
+    'p1/a.spec.js-snapshots/is-a-test-snapshot.txt': `Snapshot1`,
     'p2/a.spec.js': `
       const { test } = folio;
       test('is a test', ({}) => {
         expect('Snapshot2').toMatchSnapshot();
       });
     `,
-    'p2/my-snapshots/a/is-a-test/snapshot.txt': `Snapshot2`,
+    'p2/a.spec.js-snapshots/is-a-test-snapshot.txt': `Snapshot2`,
   });
   expect(result.exitCode).toBe(0);
-});
-
-test('should match snapshots from multiple projects sharing the snapshots dir', async ({runInlineTest}) => {
-  const result = await runInlineTest({
-    'folio.config.ts': `
-      import * as path from 'path';
-      module.exports = { projects: [
-        { testDir: __dirname },
-        { testDir: __dirname },
-        { testDir: path.join(__dirname, 'dir') },
-      ], snapshotDir: path.join(__dirname, '__snapshots__') };
-    `,
-    'a.spec.js': `
-      const { test } = folio;
-      test('is a test', ({}) => {
-        expect('Snapshot1').toMatchSnapshot();
-      });
-    `,
-    '__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
-    'dir/a.spec.js': `
-      const { test } = folio;
-      test('is a test', ({}) => {
-        expect('Snapshot2').toMatchSnapshot();
-      });
-    `,
-    '__snapshots__/dir/a/is-a-test/snapshot.txt': `Snapshot2`,
-  });
-  expect(result.exitCode).toBe(0);
-});
-
-test('should match snapshots from multiple projects sharing the relative snapshots dir', async ({runInlineTest}) => {
-  const result = await runInlineTest({
-    'folio.config.ts': `
-      import * as path from 'path';
-      module.exports = {
-        testDir: __dirname,
-        snapshotDir: '__snapshots__' ,
-        projects: [
-          {},
-          { testDir: path.join(__dirname, 'dir') },
-        ],
-      };
-    `,
-    'a.spec.js': `
-      const { test } = folio;
-      test('is a test', ({}) => {
-        expect('Snapshot1').toMatchSnapshot();
-      });
-    `,
-    '__snapshots__/a/is-a-test/snapshot.txt': `Snapshot1`,
-    'dir/a.spec.js': `
-      const { test } = folio;
-      test('is a test', ({}) => {
-        expect('Snapshot2').toMatchSnapshot();
-      });
-    `,
-    '__snapshots__/dir/a/is-a-test/snapshot.txt': `Snapshot2`,
-  });
-  expect(result.exitCode).toBe(0);
-});
-
-test('should throw for relative snapshotDir in the root', async ({runInlineTest}) => {
-  const result = await runInlineTest({
-    'folio.config.ts': `
-      import * as path from 'path';
-      module.exports = { projects: [
-        { testDir: __dirname },
-      ], snapshotDir: '__snapshots__' };
-    `,
-    'a.spec.js': `
-      const { test } = folio;
-      test('is a test', ({}) => {
-      });
-    `,
-  });
-  expect(result.exitCode).toBe(1);
-  expect(result.output).toContain(`When using projects, passing relative "snapshotDir" in the root requires "testDir"`);
 });
 
 test('should use provided name', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
+    'a.spec.js-snapshots/is-a-test-provided.txt': `Hello world`,
     'a.spec.js': `
       const { test } = folio;
       test('is a test', ({}) => {
@@ -246,7 +169,7 @@ test('should use provided name', async ({runInlineTest}) => {
 
 test('should use provided name via options', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/provided.txt': `Hello world`,
+    'a.spec.js-snapshots/is-a-test-provided.txt': `Hello world`,
     'a.spec.js': `
       const { test } = folio;
       test('is a test', ({}) => {
@@ -259,7 +182,7 @@ test('should use provided name via options', async ({runInlineTest}) => {
 
 test('should compare binary', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.dat': Buffer.from([1,2,3,4]),
+    'a.spec.js-snapshots/is-a-test-snapshot.dat': Buffer.from([1,2,3,4]),
     'a.spec.js': `
       const { test } = folio;
       test('is a test', ({}) => {
@@ -272,7 +195,7 @@ test('should compare binary', async ({runInlineTest}) => {
 
 test('should compare PNG images', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.png':
+    'a.spec.js-snapshots/is-a-test-snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
     'a.spec.js': `
       const { test } = folio;
@@ -286,7 +209,7 @@ test('should compare PNG images', async ({runInlineTest}) => {
 
 test('should compare different PNG images', async ({runInlineTest}) => {
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.png':
+    'a.spec.js-snapshots/is-a-test-snapshot.png':
         Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==', 'base64'),
     'a.spec.js': `
       const { test } = folio;
@@ -304,8 +227,8 @@ test('should respect threshold', async ({runInlineTest}) => {
   const expected = fs.readFileSync(path.join(__dirname, 'assets/screenshot-canvas-expected.png'));
   const actual = fs.readFileSync(path.join(__dirname, 'assets/screenshot-canvas-actual.png'));
   const result = await runInlineTest({
-    '__snapshots__/a/is-a-test/snapshot.png': expected,
-    '__snapshots__/a/is-a-test/snapshot2.png': expected,
+    'a.spec.js-snapshots/is-a-test-snapshot.png': expected,
+    'a.spec.js-snapshots/is-a-test-snapshot2.png': expected,
     'a.spec.js': `
       const { test } = folio;
       test('is a test', ({}) => {

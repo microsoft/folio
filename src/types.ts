@@ -61,11 +61,6 @@ interface ProjectBase {
   retries?: number;
 
   /**
-   * Directory containing all snapshots, used by `expect(value).toMatchSnapshot()`.
-   */
-  snapshotDir?: string;
-
-  /**
    * Directory that will be recursively scanned for test files.
    */
   testDir?: string;
@@ -378,11 +373,11 @@ export interface TestInfo extends WorkerInfo {
   stderr: (string | Buffer)[];
 
   /**
-   * Relative path segment used to differentiate snapshots between multiple test configurations.
+   * Suffix used to differentiate snapshots between multiple test configurations.
    * For example, if snapshots depend on the platform, you can set `testInfo.snapshotPathSegment = process.platform`,
    * and `expect(value).toMatchSnapshot()` will use different snapshots depending on the platform.
    */
-  snapshotPathSegment: string;
+  snapshotSuffix: string;
 
   /**
    * Absolute path to the output directory for this specific test run.
@@ -393,7 +388,7 @@ export interface TestInfo extends WorkerInfo {
   /**
    * Returns a path to a snapshot file.
    */
-  snapshotPath: (...pathSegments: string[]) => string;
+  snapshotPath: (snapshotName: string) => string;
 
   /**
    * Returns a path inside the `outputDir` where the test can safely put a temporary file.

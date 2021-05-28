@@ -422,7 +422,7 @@ test('my test', async () => {
 });
 ```
 
-Snapshots are stored under `__snapshots__` directory by default, and can be specified in the [configuration object](#configuration-object).
+Snapshots are stored next to the test files, and you should commit them to the version control system.
 
 ## Parallelism and sharding
 
@@ -602,7 +602,6 @@ Test project configuration properties:
 - `outputDir: string` - Output directory for files created during the test run.
 - `repeatEach: number` - The number of times to repeat each test, useful for debugging flaky tests. Overridden by `--repeat-each` command line option.
 - `retries: number` - The maximum number of retry attempts given to failed tests. Overridden by `--retries` command line option.
-- `snapshotDir: string` - [Snapshots](#snapshots) directory. Overridden by `--snapshot-dir` command line option.
 - `testDir: string` - Directory that will be recursively scanned for test files.
 - `testIgnore: string | RegExp | (string | RegExp)[]` - Files matching one of these patterns are not considered test files.
 - `testMatch: string | RegExp | (string | RegExp)[]` - Only the files matching one of these patterns are considered test files.
@@ -704,7 +703,7 @@ export default config;
 ```
 
 Each project can be configured separately, and run different set of tests with different parameters.
-Supported options are `name`, `outputDir`, `repeatEach`, `retries`, `snapshotDir`, `testDir`, `testIgnore`, `testMatch` and `timeout`. See [configuration object](#configuration-object) for detailed description.
+Supported options are `name`, `outputDir`, `repeatEach`, `retries`, `testDir`, `testIgnore`, `testMatch` and `timeout`. See [configuration object](#configuration-object) for detailed description.
 
 You can run all projects or just a single one:
 ```sh
@@ -765,8 +764,8 @@ In addition to everything from the [`workerInfo`](#workerinfo), the following in
 - `expectedStatus: 'passed' | 'failed' | 'timedOut'` - Whether this test is expected to pass, fail or timeout.
 - `timeout: number` - Test timeout.
 - `annotations` - [Annotations](#annotations) that were added to the test.
-- `snapshotPathSegment: string` - Relative path, used to locate snapshots for the test.
-- `snapshotPath(...pathSegments: string[])` - Function that returns the full path to a particular snapshot for the test.
+- `snapshotSuffix: string` - Suffix used to locate snapshots for the test.
+- `snapshotPath(snapshotName: string)` - Function that returns the full path to a particular snapshot for the test.
 - `outputDir: string` - Absolute path to the output directory for this test run.
 - `outputPath(...pathSegments: string[])` - Function that returns the full path to a particular output artifact for the test.
 

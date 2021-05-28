@@ -21,16 +21,14 @@ import { DeclaredFixtures, TestTypeImpl } from './testType';
 
 export class ProjectImpl {
   config: FullProject;
-  readonly useRootDirForSnapshots: boolean;
   private index: number;
   private defines = new Map<TestType<any, any>, Fixtures>();
   private testTypePools = new Map<TestTypeImpl, FixturePool>();
   private specPools = new Map<Spec, FixturePool>();
 
-  constructor(project: FullProject, index: number, useRootDirForSnapshots: boolean) {
+  constructor(project: FullProject, index: number) {
     this.config = project;
     this.index = index;
-    this.useRootDirForSnapshots = useRootDirForSnapshots;
     this.defines = new Map();
     for (const { test, fixtures } of Array.isArray(project.define) ? project.define : [project.define])
       this.defines.set(test, fixtures);
