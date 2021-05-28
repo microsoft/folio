@@ -81,13 +81,13 @@ test('should include the project name', async ({ runInlineTest }) => {
     'helper.ts': `
       export const test = folio.test.extend({
         auto: [ async ({}, run, testInfo) => {
-          testInfo.snapshotPathSegment = 'snapshots1';
+          testInfo.snapshotSuffix = 'snapshots1';
           await run();
         }, { auto: true } ]
       });
       export const test2 = folio.test.extend({
         auto: [ async ({}, run, testInfo) => {
-          testInfo.snapshotPathSegment = 'snapshots2';
+          testInfo.snapshotSuffix = 'snapshots2';
           await run();
         }, { auto: true } ]
       });
@@ -119,33 +119,33 @@ test('should include the project name', async ({ runInlineTest }) => {
 
   // test1, run with foo #1
   expect(result.output).toContain('test-results/my-test-test-1-foo1/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
   expect(result.output).toContain('test-results/my-test-test-1-foo1-retry1/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
 
   // test1, run with foo #2
   expect(result.output).toContain('test-results/my-test-test-1-foo2/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
   expect(result.output).toContain('test-results/my-test-test-1-foo2-retry1/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
 
   // test1, run with bar
   expect(result.output).toContain('test-results/my-test-test-1-bar/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
   expect(result.output).toContain('test-results/my-test-test-1-bar-retry1/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-1/snapshots1/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
 
   // test2, run with foo #1
   expect(result.output).toContain('test-results/my-test-test-2-foo1/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots2/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-2-snapshots2-bar.txt');
 
   // test2, run with foo #2
   expect(result.output).toContain('test-results/my-test-test-2-foo2/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots2/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-2-snapshots2-bar.txt');
 
   // test2, run with bar
   expect(result.output).toContain('test-results/my-test-test-2-bar/bar.txt');
-  expect(result.output).toContain('__snapshots__/my-test/test-2/snapshots2/bar.txt');
+  expect(result.output).toContain('my-test.spec.js-snapshots/test-2-snapshots2-bar.txt');
 });
 
 test('should remove output dirs for projects run', async ({runInlineTest}, testInfo) => {

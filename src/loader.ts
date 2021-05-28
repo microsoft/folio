@@ -164,22 +164,11 @@ export class Loader {
     if (!path.isAbsolute(testDir))
       testDir = path.resolve(rootDir, testDir);
 
-    const useRootDirForSnapshots = !projectConfig.snapshotDir && !!this._config.snapshotDir;
-    let snapshotDir = '';
-    if (useRootDirForSnapshots) {
-      if (!path.isAbsolute(this._config.snapshotDir) && !('testDir' in this._config))
-        throw new Error(`When using projects, passing relative "snapshotDir" in the root requires "testDir"`);
-      snapshotDir = path.isAbsolute(this._config.snapshotDir) ? this._config.snapshotDir : path.resolve(this._config.testDir, this._config.snapshotDir);
-    } else {
-      snapshotDir = path.resolve(testDir, projectConfig.snapshotDir || '__snapshots__');
-    }
-
     const fullProject: FullProject = {
       define: projectConfig.define || [],
       outputDir: takeFirst(this._configOverrides.outputDir, projectConfig.outputDir, this._config.outputDir, path.resolve(process.cwd(), 'test-results')),
       repeatEach: takeFirst(this._configOverrides.repeatEach, projectConfig.repeatEach, this._config.repeatEach, 1),
       retries: takeFirst(this._configOverrides.retries, projectConfig.retries, this._config.retries, 0),
-      snapshotDir,
       metadata: projectConfig.metadata,
       name: projectConfig.name || '',
       testDir,
@@ -188,7 +177,7 @@ export class Loader {
       timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, this._defaultTimeout),
       use: projectConfig.use || {},
     };
-    this._projects.push(new ProjectImpl(fullProject, this._projects.length, useRootDirForSnapshots));
+    this._projects.push(new ProjectImpl(fullProject, this._projects.length));
   }
 }
 

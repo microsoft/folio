@@ -72,7 +72,6 @@ class JSONReporter extends EmptyReporter {
             outputDir: toPosixPath(project.outputDir),
             repeatEach: project.repeatEach,
             retries: project.retries,
-            snapshotDir: toPosixPath(project.snapshotDir),
             metadata: project.metadata,
             name: project.name,
             testDir: toPosixPath(project.testDir),

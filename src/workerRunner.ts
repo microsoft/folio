@@ -181,10 +181,9 @@ export class WorkerRunner extends EventEmitter {
     let deadlineRunner: DeadlineRunner<any> | undefined;
     const testId = test._id;
 
-    const relativeTestFilePath = path.relative(this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
-    const relativeTestFilePathForSnapshots = path.relative(this._project.useRootDirForSnapshots ? this._loader.fullConfig().rootDir : this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
     const sanitizedTitle = spec.title.replace(/[^\w\d]+/g, '-');
     const baseOutputDir = (() => {
+      const relativeTestFilePath = path.relative(this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
       const sanitizedRelativePath = relativeTestFilePath.replace(process.platform === 'win32' ? new RegExp('\\\\', 'g') : new RegExp('/', 'g'), '-');
       let testOutputDir = sanitizedRelativePath + '-' + sanitizedTitle + this._outputPathSegment;
       if (entry.retry)
@@ -210,15 +209,14 @@ export class WorkerRunner extends EventEmitter {
       stdout: [],
       stderr: [],
       timeout: this._project.config.timeout,
-      snapshotPathSegment: '',
+      snapshotSuffix: '',
       outputDir: baseOutputDir,
       outputPath: (...pathSegments: string[]): string => {
         fs.mkdirSync(baseOutputDir, { recursive: true });
         return path.join(baseOutputDir, ...pathSegments);
       },
-      snapshotPath: (...pathSegments: string[]): string => {
-        const basePath = path.join(this._project.config.snapshotDir, relativeTestFilePathForSnapshots, sanitizedTitle, testInfo.snapshotPathSegment);
-        return path.join(basePath, ...pathSegments);
+      snapshotPath: (snapshotName: string): string => {
+        return path.join(spec.file + '-snapshots', sanitizedTitle + (testInfo.snapshotSuffix ? '-' : '') + testInfo.snapshotSuffix + '-' + snapshotName);
       },
       skip: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'skip', args),
       fixme: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'fixme', args),
