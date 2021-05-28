@@ -20,10 +20,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
-import { createMatcher, Matcher, monotonicTime, raceAgainstDeadline } from './util';
+import { createMatcher, forceRegExp, monotonicTime, raceAgainstDeadline } from './util';
 import { Suite } from './test';
 import { Loader } from './loader';
-import { Reporter } from './reporter';
+import { FullConfig, Reporter } from './reporter';
 import { Multiplexer } from './reporters/multiplexer';
 import DotReporter from './reporters/dot';
 import LineReporter from './reporters/line';
@@ -33,6 +33,7 @@ import JUnitReporter from './reporters/junit';
 import EmptyReporter from './reporters/empty';
 import { ProjectImpl } from './project';
 import { Minimatch } from 'minimatch';
+import { Config, ConfigOverrides } from './types';
 
 const removeFolderAsync = promisify(rimraf);
 const readDirAsync = promisify(fs.readdir);
@@ -45,9 +46,65 @@ export class Runner {
   private _reporter: Reporter;
   private _didBegin = false;
 
-  constructor(loader: Loader) {
-    this._loader = loader;
-    this._reporter = this._createReporter();
+  constructor(configOverrides: ConfigOverrides, defaultTimeout: number) {
+    this._loader = new Loader(defaultConfig, configOverrides, defaultTimeout);
+  }
+
+  static commonOptions(defaultTimeout: number): { flags: string, description: string }[] {
+    return [
+      { flags: '--forbid-only', description: `Fail if exclusive test(s) encountered (default: ${defaultConfig.forbidOnly})` },
+      { flags: '-g, --grep <grep>', description: `Only run tests matching this regular expression (default: "${defaultConfig.grep}")` },
+      { flags: '--global-timeout <timeout>', description: `Maximum time this test suite can run in milliseconds (default: 0 for unlimited)` },
+      { flags: '-j, --workers <workers>', description: `Number of concurrent workers, use 1 to run in single worker (default: number of CPU cores / 2)` },
+      { flags: '--list', description: `Collect all the tests and report them, but do not run` },
+      { flags: '--max-failures <N>', description: `Stop after the first N failures (default: do not stop until all tests are run)` },
+      { flags: '--output <dir>', description: `Folder for output artifacts (default: "test-results")` },
+      { flags: '--quiet', description: `Suppress stdio` },
+      { flags: '--repeat-each <N>', description: `Run each test N times (default: 1)` },
+      { flags: '--reporter <reporter>', description: `Reporter to use, comma-separated, can be ${builtinReporters.map(name => `"${name}"`).join(', description: ')} (default: "${defaultReporter}")` },
+      { flags: '--retries <retries>', description: `Maximum retry count for flaky tests (default: 0 for no retries)` },
+      { flags: '--shard <shard>', description: `Shard tests and execute only the selected shard, specify in the form "current/all", 1-based, for example "3/5"` },
+      { flags: '--project <project-name>', description: `Only run tests from the specified project (default: run all projects)` },
+      { flags: '--timeout <timeout>', description: `Specify test timeout threshold in milliseconds (default: ${defaultTimeout})` },
+      { flags: '-u, --update-snapshots', description: `Update snapshots with actual results (default: only create missing snapshots)` },
+      { flags: '-x', description: `Stop after the first failure (default: do not stop until all tests are run)` },
+    ];
+  }
+
+  static configFromOptions(options: { [key: string]: any }): ConfigOverrides {
+    const config: ConfigOverrides = {};
+    if (options.forbidOnly)
+      config.forbidOnly = true;
+    if (options.globalTimeout)
+      config.globalTimeout = parseInt(options.globalTimeout, 10);
+    if (options.grep)
+      config.grep = forceRegExp(options.grep);
+    if (options.maxFailures || options.x)
+      config.maxFailures = options.x ? 1 : parseInt(options.maxFailures, 10);
+    if (options.output)
+      config.outputDir = path.resolve(process.cwd(), options.output);
+    if (options.quiet)
+      config.quiet = options.quiet;
+    if (options.repeatEach)
+      config.repeatEach = parseInt(options.repeatEach, 10);
+    if (options.retries)
+      config.retries = parseInt(options.retries, 10);
+    if (options.reporter && options.reporter.length) {
+      config.reporter = options.reporter.split(',').map(r => {
+        return builtinReporters.includes(r) ? r : { require: r };
+      });
+    }
+    if (options.shard) {
+      const pair = options.shard.split('/').map((t: string) => parseInt(t, 10));
+      config.shard = { current: pair[0] - 1, total: pair[1] };
+    }
+    if (options.timeout)
+      config.timeout = parseInt(options.timeout, 10);
+    if (options.updateSnapshots)
+      config.updateSnapshots = 'all';
+    if (options.workers)
+      config.workers = parseInt(options.workers, 10);
+    return config;
   }
 
   private _createReporter() {
@@ -75,20 +132,54 @@ export class Runner {
     return new Multiplexer(reporters);
   }
 
-  async run(list: boolean, testFileFilter: Matcher, projectName?: string): Promise<RunResult> {
+  loadConfigFile(file: string) {
+    this._loader.loadConfigFile(file);
+  }
+
+  loadEmptyConfig(emptyConfig: Config, rootDir: string) {
+    this._loader.loadEmptyConfig(emptyConfig, rootDir);
+  }
+
+  async run(list: boolean, testFileReFilters: RegExp[], projectName?: string): Promise<RunResult> {
+    this._reporter = this._createReporter();
     const config = this._loader.fullConfig();
     const globalDeadline = config.globalTimeout ? config.globalTimeout + monotonicTime() : undefined;
-    const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFileFilter, projectName), globalDeadline);
+    const { result, timedOut } = await raceAgainstDeadline(this._run(list, testFileReFilters, projectName), globalDeadline);
     if (timedOut) {
       if (!this._didBegin)
         this._reporter.onBegin(config, new Suite(''));
       this._reporter.onTimeout(config.globalTimeout);
+      await this._flushOutput();
       return 'failed';
     }
+    if (result === 'forbid-only') {
+      console.error('=====================================');
+      console.error(' --forbid-only found a focused test.');
+      console.error('=====================================');
+    } else if (result === 'no-tests') {
+      console.error('=================');
+      console.error(' no tests found.');
+      console.error('=================');
+    }
+    await this._flushOutput();
     return result;
   }
 
-  async _run(list: boolean, testFileFilter: Matcher, projectName?: string): Promise<RunResult> {
+  async _flushOutput() {
+    // Calling process.exit() might truncate large stdout/stderr output.
+    // See https://github.com/nodejs/node/issues/6456.
+    //
+    // We can use writableNeedDrain to workaround this, but it is only available
+    // since node v15.2.0.
+    // See https://nodejs.org/api/stream.html#stream_writable_writableneeddrain.
+    if ((process.stdout as any).writableNeedDrain)
+      await new Promise(f => process.stdout.on('drain', f));
+    if ((process.stderr as any).writableNeedDrain)
+      await new Promise(f => process.stderr.on('drain', f));
+  }
+
+  async _run(list: boolean, testFileReFilters: RegExp[], projectName?: string): Promise<RunResult> {
+    const testFileFilter = testFileReFilters.length ? createMatcher(testFileReFilters) : () => true;
     const config = this._loader.fullConfig();
 
     const projects = this._loader.projects().filter(project => {
@@ -279,3 +370,22 @@ async function collectFiles(testDir: string): Promise<string[]> {
   await visit(testDir, [], 'included');
   return files;
 }
+
+const defaultReporter = process.env.CI ? 'dot' : 'list';
+const builtinReporters = ['list', 'line', 'dot', 'json', 'junit', 'null'];
+const defaultConfig: FullConfig = {
+  forbidOnly: false,
+  globalSetup: null,
+  globalTeardown: null,
+  globalTimeout: 0,
+  grep: /.*/,
+  maxFailures: 0,
+  preserveOutput: process.env.CI ? 'failures-only' : 'always',
+  projects: [],
+  reporter: [defaultReporter],
+  rootDir: path.resolve(process.cwd()),
+  quiet: false,
+  shard: null,
+  updateSnapshots: process.env.CI ? 'none' : 'missing',
+  workers: Math.ceil(require('os').cpus().length / 2),
+};

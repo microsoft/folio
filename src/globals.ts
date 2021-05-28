@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { CLIOption, TestInfo } from './types';
+import type { TestInfo } from './types';
 import { Suite } from './test';
 
 let currentTestInfoValue: TestInfo | null = null;
@@ -31,15 +31,4 @@ export function setCurrentlyLoadingFileSuite(suite: Suite | undefined) {
 }
 export function currentlyLoadingFileSuite() {
   return currentFileSuite;
-}
-
-export interface CLIOptionsRegistry {
-  registerCLIOption(name: string, description: string, options?: { type?: 'string' | 'boolean' | 'list' }): CLIOption;
-}
-let currentRegistry: CLIOptionsRegistry | undefined;
-export function setCurrentOptionsRegistry(registry: CLIOptionsRegistry) {
-  currentRegistry = registry;
-}
-export function currentOptionsRegistry() {
-  return currentRegistry;
 }

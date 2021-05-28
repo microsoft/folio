@@ -887,23 +887,3 @@ export type FixturesWithLocation = {
   fixtures: Fixtures;
   location: Location;
 };
-
-export interface BooleanCLIOption {
-  name: string;
-  description: string;
-  type: 'boolean';
-  value?: boolean;
-}
-export interface StringCLIOption {
-  name: string;
-  description: string;
-  type: 'string';
-  value?: string;
-}
-export interface ListCLIOption {
-  name: string;
-  description: string;
-  type: 'list';
-  value?: string[];
-}
-export type CLIOption = BooleanCLIOption | StringCLIOption | ListCLIOption;
