@@ -17,13 +17,11 @@
 import type { TestError } from './reporter';
 import type { Config, ConfigOverrides, FullConfig, TestStatus } from './types';
 
-export type CLIOptionValues = { [key: string]: any };
 export type SerializedLoaderData = {
   defaultTimeout: number;
   defaultConfig: FullConfig;
   overrides: ConfigOverrides;
   configFile: { file: string } | { rootDir: string, config: Config };
-  cliOptionValues: CLIOptionValues;
 };
 export type WorkerInitParams = {
   workerIndex: number;

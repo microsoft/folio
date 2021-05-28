@@ -29,7 +29,6 @@ Folio is **available in preview** and is under active development. Breaking chan
   - [testInfo](#testinfo)
   - [Global setup and teardown](#global-setup-and-teardown)
   - [Fixture options](#fixture-options)
-  - [Custom CLI options](#custom-cli-options)
   - [Add custom matchers using expect.extend](#add-custom-matchers-using-expectextend)
 
 ## Writing a test

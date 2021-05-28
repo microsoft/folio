@@ -22,7 +22,7 @@ import { promisify } from 'util';
 import { Dispatcher } from './dispatcher';
 import { createMatcher, forceRegExp, monotonicTime, raceAgainstDeadline } from './util';
 import { Suite } from './test';
-import { CLIOptionCallback, Loader } from './loader';
+import { Loader } from './loader';
 import { FullConfig, Reporter } from './reporter';
 import { Multiplexer } from './reporters/multiplexer';
 import DotReporter from './reporters/dot';
@@ -46,8 +46,8 @@ export class Runner {
   private _reporter: Reporter;
   private _didBegin = false;
 
-  constructor(configOverrides: ConfigOverrides, defaultTimeout: number, cliOptionCallback: CLIOptionCallback) {
-    this._loader = new Loader(defaultConfig, configOverrides, defaultTimeout, cliOptionCallback);
+  constructor(configOverrides: ConfigOverrides, defaultTimeout: number) {
+    this._loader = new Loader(defaultConfig, configOverrides, defaultTimeout);
   }
 
   static commonOptions(defaultTimeout: number): { flags: string, description: string }[] {

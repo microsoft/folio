@@ -15,15 +15,13 @@
  */
 
 import { installTransform } from './transform';
-import type { FullConfig, Config, ConfigOverrides, FullProject, Project, ReporterDescription, PreserveOutput, CLIOption } from './types';
+import type { FullConfig, Config, ConfigOverrides, FullProject, Project, ReporterDescription, PreserveOutput } from './types';
 import { errorWithCallLocation, prependErrorMessage } from './util';
-import { setCurrentlyLoadingFileSuite, setCurrentOptionsRegistry } from './globals';
+import { setCurrentlyLoadingFileSuite } from './globals';
 import { Suite } from './test';
 import { SerializedLoaderData } from './ipc';
 import * as path from 'path';
 import { ProjectImpl } from './project';
-
-export type CLIOptionCallback = (cliOption: CLIOption) => any;
 
 export class Loader {
   private _defaultTimeout: number;
@@ -34,23 +32,16 @@ export class Loader {
   private _configFile: string | undefined;
   private _projects: ProjectImpl[] = [];
   private _fileSuites = new Map<string, Suite>();
-  private _cliOptionCallback: CLIOptionCallback;
-  private _cliOptions = new Map<string, CLIOption>();
 
-  constructor(defaultConfig: FullConfig, configOverrides: ConfigOverrides, defaultTimeout: number, cliOptionCallback: CLIOptionCallback) {
+  constructor(defaultConfig: FullConfig, configOverrides: ConfigOverrides, defaultTimeout: number) {
     this._defaultConfig = defaultConfig;
     this._configOverrides = configOverrides;
     this._fullConfig = { ...this._defaultConfig, ...configOverrides };
-    this._cliOptionCallback = cliOptionCallback;
     this._defaultTimeout = defaultTimeout;
   }
 
   static deserialize(data: SerializedLoaderData): Loader {
-    const loader = new Loader(data.defaultConfig, data.overrides, data.defaultTimeout, cliOption => {
-      if (cliOption.name in data.cliOptionValues)
-        return data.cliOptionValues[cliOption.name];
-      return undefined;
-    });
+    const loader = new Loader(data.defaultConfig, data.overrides, data.defaultTimeout);
     if ('file' in data.configFile)
       loader.loadConfigFile(data.configFile.file);
     else
@@ -63,7 +54,6 @@ export class Loader {
       throw new Error('Cannot load two config files');
     const revertBabelRequire = installTransform();
     try {
-      setCurrentOptionsRegistry(this);
       this._config = require(file);
       if ('default' in this._config)
         this._config = this._config['default'];
@@ -73,7 +63,6 @@ export class Loader {
       prependErrorMessage(e, `Error while reading ${file}:\n`);
       throw e;
     } finally {
-      setCurrentOptionsRegistry(undefined);
       revertBabelRequire();
     }
   }
@@ -162,15 +151,11 @@ export class Loader {
   }
 
   serialize(): SerializedLoaderData {
-    const cliOptionValues: { [key: string]: any} = {};
-    for (const cliOption of this._cliOptions.values())
-      cliOptionValues[cliOption.name] = cliOption.value;
     return {
       defaultTimeout: this._defaultTimeout,
       defaultConfig: this._defaultConfig,
       configFile: this._configFile ? { file: this._configFile } : { config: this._config, rootDir: this._fullConfig.rootDir },
       overrides: this._configOverrides,
-      cliOptionValues,
     };
   }
 
@@ -204,19 +189,6 @@ export class Loader {
       use: projectConfig.use || {},
     };
     this._projects.push(new ProjectImpl(fullProject, this._projects.length, useRootDirForSnapshots));
-  }
-
-  registerCLIOption(name: string, description: string, options: { type?: 'string' | 'boolean' | 'list' } = {}): CLIOption {
-    if (this._cliOptions.has(name))
-      throw new Error(`CLI option "${name}" is already registered as "${this._cliOptions.get(name)!.description}"`);
-    const cliOption: CLIOption = {
-      name,
-      description,
-      type: options.type || 'string',
-    };
-    cliOption.value = this._cliOptionCallback(cliOption);
-    this._cliOptions.set(name, cliOption);
-    return cliOption;
   }
 }
 

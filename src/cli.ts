@@ -20,52 +20,36 @@ import * as path from 'path';
 import { Runner } from './runner';
 import { forceRegExp } from './util';
 
+const defaultTimeout = 10000;
+
 const program = new commander.Command();
 program.name('folio');
+program.usage('[filter...] [options]');
+program.description('Use [filter...] arguments to filter test files. Each argument is treated as a regular expression.');
 program.helpOption(false);
-program.allowUnknownOption();
-program.version('Folio version ' + require('../package.json').version, '-v, --version', 'Output the version number');
-for (const { flags, description } of Runner.commonOptions(10000))
-  program.option(flags, description);
-program.option('-c, --config <file>', `Configuration file (default: "folio.config.ts" or "folio.config.js")`);
 program.option('-h, --help', `Display help`);
-const builtinOptions = new Set<string>(program.options.filter(o => !!o.long).map(o => o.long.substring(2)));
+program.option('-c, --config <file>', `Configuration file (default: "folio.config.ts" or "folio.config.js")`);
+for (const { flags, description } of Runner.commonOptions(defaultTimeout))
+  program.option(flags, description);
+program.version('Folio version ' + require('../package.json').version, '-v, --version', 'Output the version number');
 program.parse(process.argv);
 (async () => {
   try {
-    await runTests(program, builtinOptions);
+    await runTests(program);
   } catch (e) {
     console.error(e.toString());
     process.exit(1);
   }
 })();
 
-async function runTests(program: commander.Command, builtinOptions: Set<string>) {
+async function runTests(program: commander.Command) {
   const opts = program.opts();
-  const extraOptions: string[] = [];
+  if (opts.help === undefined) {
+    console.log(program.helpInformation());
+    process.exit(0);
+  }
 
-  const runner = new Runner(Runner.configFromOptions(opts), 10000, cliOption => {
-    if (cliOption.name.length <= 1)
-      throw new Error(`CLI option "${cliOption.name}" is too short`);
-    if (builtinOptions.has(cliOption.name))
-      throw new Error(`CLI option "${cliOption.name}" is reserved`);
-    switch (cliOption.type) {
-      case 'boolean':
-        program.option(`--${cliOption.name}`, cliOption.description);
-        break;
-      case 'string':
-        program.option(`--${cliOption.name} <value>`, cliOption.description);
-        break;
-      case 'list':
-        program.option(`--${cliOption.name} <values...>`, cliOption.description);
-        break;
-    }
-    extraOptions.push(cliOption.name);
-    program.parse(process.argv);
-    return program.opts()[cliOption.name];
-  });
-
-  const help = opts.help === undefined;
+  const runner = new Runner(Runner.configFromOptions(opts), defaultTimeout);
 
   function loadConfig(configFile: string) {
     if (fs.existsSync(configFile)) {
@@ -91,41 +75,11 @@ async function runTests(program: commander.Command, builtinOptions: Set<string>)
       // When passed a file, it must be a config file.
       loadConfig(path.resolve(process.cwd(), opts.config));
     }
-  } else if (!loadConfig(path.resolve(process.cwd(), tsConfig)) && !loadConfig(path.resolve(process.cwd(), jsConfig)) && !help) {
+  } else if (!loadConfig(path.resolve(process.cwd(), tsConfig)) && !loadConfig(path.resolve(process.cwd(), jsConfig))) {
     // No --config option, let's look for the config file in the current directory.
     // If not, do not assume that current directory is a root testing directory, to avoid scanning the world.
     throw new Error(`Configuration file not found. Run "folio --help" for more information.`);
   }
-
-  if (help) {
-    const builtinHelp: string[] = [];
-    const extraHelp: string[] = [];
-    for (const line of program.helpInformation().split('\n').slice(3)) {
-      if (extraOptions.some(e => line.includes('--' + e)))
-        extraHelp.push(line);
-      else
-        builtinHelp.push(line);
-    }
-    const lines: string[] = [];
-    lines.push(`Usage: folio [options] <filter...>`);
-    lines.push(``);
-    lines.push(`Use <filter...> arguments to filter test files. Each argument is treated as a regular expression.`);
-    lines.push(``);
-    if (extraHelp.length) {
-      lines.push(`Test suite options:`);
-      lines.push(...extraHelp);
-      lines.push('');
-      lines.push(`General options:`);
-    } else {
-      lines.push(`Options:`);
-    }
-    lines.push(...builtinHelp);
-    console.log(lines.join('\n'));
-    process.exit(0);
-  }
-
-  program.allowUnknownOption(false);
-  program.parse(process.argv);
 
   const result = await runner.run(!!opts.list, program.args.map(forceRegExp), opts.project || undefined);
   if (result === 'sigint')
