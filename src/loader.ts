@@ -15,7 +15,7 @@
  */
 
 import { installTransform } from './transform';
-import type { FullConfig, Config, ConfigOverrides, FullProject, Project, ReporterDescription, PreserveOutput } from './types';
+import type { FullConfig, Config, FullProject, Project, ReporterDescription, PreserveOutput } from './types';
 import { errorWithCallLocation, prependErrorMessage } from './util';
 import { setCurrentlyLoadingFileSuite } from './globals';
 import { Suite } from './test';
@@ -24,32 +24,30 @@ import * as path from 'path';
 import { ProjectImpl } from './project';
 
 export class Loader {
-  private _defaultTimeout: number;
-  private _defaultConfig: FullConfig;
-  private _configOverrides: ConfigOverrides;
+  private _defaultConfig: Config;
+  private _configOverrides: Config;
   private _fullConfig: FullConfig;
   private _config: Config = {};
   private _configFile: string | undefined;
   private _projects: ProjectImpl[] = [];
   private _fileSuites = new Map<string, Suite>();
 
-  constructor(defaultConfig: FullConfig, configOverrides: ConfigOverrides, defaultTimeout: number) {
+  constructor(defaultConfig: Config, configOverrides: Config) {
     this._defaultConfig = defaultConfig;
     this._configOverrides = configOverrides;
-    this._fullConfig = { ...this._defaultConfig, ...configOverrides };
-    this._defaultTimeout = defaultTimeout;
+    this._fullConfig = baseFullConfig;
   }
 
   static deserialize(data: SerializedLoaderData): Loader {
-    const loader = new Loader(data.defaultConfig, data.overrides, data.defaultTimeout);
+    const loader = new Loader(data.defaultConfig, data.overrides);
     if ('file' in data.configFile)
       loader.loadConfigFile(data.configFile.file);
     else
-      loader.loadEmptyConfig(data.configFile.config, data.configFile.rootDir);
+      loader.loadEmptyConfig(data.configFile.rootDir);
     return loader;
   }
 
-  loadConfigFile(file: string) {
+  loadConfigFile(file: string): Config {
     if (this._configFile)
       throw new Error('Cannot load two config files');
     const revertBabelRequire = installTransform();
@@ -57,8 +55,10 @@ export class Loader {
       this._config = require(file);
       if ('default' in this._config)
         this._config = this._config['default'];
+      const rawConfig = { ...this._config };
       this._processConfigObject(path.dirname(file));
       this._configFile = file;
+      return rawConfig;
     } catch (e) {
       prependErrorMessage(e, `Error while reading ${file}:\n`);
       throw e;
@@ -67,36 +67,36 @@ export class Loader {
     }
   }
 
-  loadEmptyConfig(emptyConfig: Config, rootDir: string) {
-    this._config = emptyConfig;
+  loadEmptyConfig(rootDir: string) {
+    this._config = {};
     this._processConfigObject(rootDir);
   }
 
   private _processConfigObject(rootDir: string) {
+    this._config = {
+      ...this._defaultConfig,
+      ...this._config,
+      use: { ...this._defaultConfig.use, ...this._config.use },
+    };
+
     // TODO: add config validation.
-    for (const key of ['define', 'options', 'name', 'testIgnore', 'testMatch']) {
-      if (('projects' in this._config) && (key in this._config))
-        throw new Error(`When using projects, passing "${key}" is not supported`);
-    }
     if ('testDir' in this._config && !path.isAbsolute(this._config.testDir))
       this._config.testDir = path.resolve(rootDir, this._config.testDir);
     const projects: Project[] = 'projects' in this._config ? this._config.projects : [this._config];
 
     this._fullConfig.rootDir = this._config.testDir || rootDir;
-    this._fullConfig.forbidOnly = takeFirst(this._configOverrides.forbidOnly, this._config.forbidOnly, this._defaultConfig.forbidOnly);
-    this._fullConfig.globalSetup = takeFirst(this._config.globalSetup, this._defaultConfig.globalSetup);
-    this._fullConfig.globalTeardown = takeFirst(this._config.globalTeardown, this._defaultConfig.globalTeardown);
-    this._fullConfig.globalTimeout = takeFirst(this._configOverrides.globalTimeout, this._config.globalTimeout, this._defaultConfig.globalTimeout);
-    this._fullConfig.grep = takeFirst(this._configOverrides.grep, this._config.grep, this._defaultConfig.grep);
-    this._fullConfig.maxFailures = takeFirst(this._configOverrides.maxFailures, this._config.maxFailures, this._defaultConfig.maxFailures);
-    this._fullConfig.preserveOutput = takeFirst<PreserveOutput>(this._configOverrides.preserveOutput, this._config.preserveOutput, this._defaultConfig.preserveOutput);
-    const reporter: ReporterDescription[] | undefined = this._config.reporter === undefined ? undefined :
-      (Array.isArray(this._config.reporter) ? this._config.reporter : [this._config.reporter]);
-    this._fullConfig.reporter = takeFirst(this._configOverrides.reporter, reporter, this._defaultConfig.reporter);
-    this._fullConfig.quiet = takeFirst(this._configOverrides.quiet, this._config.quiet, this._defaultConfig.quiet);
-    this._fullConfig.shard = takeFirst(this._configOverrides.shard, this._config.shard, this._defaultConfig.shard);
-    this._fullConfig.updateSnapshots = takeFirst(this._configOverrides.updateSnapshots, this._config.updateSnapshots, this._defaultConfig.updateSnapshots);
-    this._fullConfig.workers = takeFirst(this._configOverrides.workers, this._config.workers, this._defaultConfig.workers);
+    this._fullConfig.forbidOnly = takeFirst(this._configOverrides.forbidOnly, this._config.forbidOnly, baseFullConfig.forbidOnly);
+    this._fullConfig.globalSetup = takeFirst(this._configOverrides.globalSetup, this._config.globalSetup, baseFullConfig.globalSetup);
+    this._fullConfig.globalTeardown = takeFirst(this._configOverrides.globalTeardown, this._config.globalTeardown, baseFullConfig.globalTeardown);
+    this._fullConfig.globalTimeout = takeFirst(this._configOverrides.globalTimeout, this._configOverrides.globalTimeout, this._config.globalTimeout, baseFullConfig.globalTimeout);
+    this._fullConfig.grep = takeFirst(this._configOverrides.grep, this._config.grep, baseFullConfig.grep);
+    this._fullConfig.maxFailures = takeFirst(this._configOverrides.maxFailures, this._config.maxFailures, baseFullConfig.maxFailures);
+    this._fullConfig.preserveOutput = takeFirst<PreserveOutput>(this._configOverrides.preserveOutput, this._config.preserveOutput, baseFullConfig.preserveOutput);
+    this._fullConfig.reporter = takeFirst(toReporters(this._configOverrides.reporter), toReporters(this._config.reporter), baseFullConfig.reporter);
+    this._fullConfig.quiet = takeFirst(this._configOverrides.quiet, this._config.quiet, baseFullConfig.quiet);
+    this._fullConfig.shard = takeFirst(this._configOverrides.shard, this._config.shard, baseFullConfig.shard);
+    this._fullConfig.updateSnapshots = takeFirst(this._configOverrides.updateSnapshots, this._config.updateSnapshots, baseFullConfig.updateSnapshots);
+    this._fullConfig.workers = takeFirst(this._configOverrides.workers, this._config.workers, baseFullConfig.workers);
 
     for (const project of projects)
       this._addProject(project, this._fullConfig.rootDir);
@@ -152,9 +152,8 @@ export class Loader {
 
   serialize(): SerializedLoaderData {
     return {
-      defaultTimeout: this._defaultTimeout,
       defaultConfig: this._defaultConfig,
-      configFile: this._configFile ? { file: this._configFile } : { config: this._config, rootDir: this._fullConfig.rootDir },
+      configFile: this._configFile ? { file: this._configFile } : { rootDir: this._fullConfig.rootDir },
       overrides: this._configOverrides,
     };
   }
@@ -165,25 +164,50 @@ export class Loader {
       testDir = path.resolve(rootDir, testDir);
 
     const fullProject: FullProject = {
-      define: projectConfig.define || [],
+      define: takeFirst(this._configOverrides.define, projectConfig.define, this._config.define, []),
       outputDir: takeFirst(this._configOverrides.outputDir, projectConfig.outputDir, this._config.outputDir, path.resolve(process.cwd(), 'test-results')),
       repeatEach: takeFirst(this._configOverrides.repeatEach, projectConfig.repeatEach, this._config.repeatEach, 1),
       retries: takeFirst(this._configOverrides.retries, projectConfig.retries, this._config.retries, 0),
-      metadata: projectConfig.metadata,
-      name: projectConfig.name || '',
+      metadata: takeFirst(this._configOverrides.metadata, projectConfig.metadata, this._config.metadata, undefined),
+      name: takeFirst(this._configOverrides.name, projectConfig.name, this._config.name, ''),
       testDir,
-      testIgnore: projectConfig.testIgnore || [],
-      testMatch: projectConfig.testMatch || '**/?(*.)+(spec|test).[jt]s',
-      timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, this._defaultTimeout),
-      use: projectConfig.use || {},
+      testIgnore: takeFirst(this._configOverrides.testIgnore, projectConfig.testIgnore, this._config.testIgnore, []),
+      testMatch: takeFirst(this._configOverrides.testMatch, projectConfig.testMatch, this._config.testMatch, '**/?(*.)+(spec|test).[jt]s'),
+      timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, 10000),
+      use: { ...this._config.use, ...projectConfig.use, ...this._configOverrides.use },
     };
     this._projects.push(new ProjectImpl(fullProject, this._projects.length));
   }
 }
 
-const takeFirst = <T>(...args: (T | undefined)[]): T => {
+function takeFirst<T>(...args: (T | undefined)[]): T {
   for (const arg of args) {
     if (arg !== undefined)
       return arg;
   }
+}
+
+function toReporters(reporters: ReporterDescription | ReporterDescription[] | undefined): ReporterDescription[] {
+  if (!reporters)
+    return;
+  if (Array.isArray(reporters))
+    return reporters;
+  return [reporters];
+}
+
+const baseFullConfig: FullConfig = {
+  forbidOnly: false,
+  globalSetup: null,
+  globalTeardown: null,
+  globalTimeout: 0,
+  grep: /.*/,
+  maxFailures: 0,
+  preserveOutput: 'always',
+  projects: [],
+  reporter: ['list'],
+  rootDir: path.resolve(process.cwd()),
+  quiet: false,
+  shard: null,
+  updateSnapshots: 'missing',
+  workers: 1,
 };
