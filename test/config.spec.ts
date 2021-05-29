@@ -175,22 +175,6 @@ test('should support different testDirs', async ({ runInlineTest }) => {
   expect(result.report.suites[1].specs[0].title).toBe('runs twice');
 });
 
-test('should throw for define when projects are present', async ({ runInlineTest }) => {
-  const result = await runInlineTest({
-    'folio.config.ts': `
-      module.exports = { define: [], projects: [{}] };
-    `,
-    'a.test.ts': `
-      const { test } = folio;
-      test('pass', async ({}, testInfo) => {
-      });
-    `
-  });
-
-  expect(result.exitCode).toBe(1);
-  expect(result.output).toContain('When using projects, passing "define" is not supported');
-});
-
 test('should allow export default form the config file', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
@@ -311,4 +295,27 @@ test('should work without config file', async ({ runInlineTest }) => {
   expect(passed).toBe(1);
   expect(failed).toBe(0);
   expect(skipped).toBe(0);
+});
+
+test('should inerhit use options in projects', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = {
+        use: { foo: 'config' },
+        projects: [{
+          use: { bar: 'project' },
+        }]
+      };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', async ({ foo, bar  }, testInfo) => {
+        test.expect(foo).toBe('config');
+        test.expect(bar).toBe('project');
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
 });

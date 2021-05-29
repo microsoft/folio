@@ -26,7 +26,7 @@ test('should run in parallel', async ({ runInlineTest }) => {
         expect(testInfo.workerIndex).toBe(0);
         // First test waits for the second to start to work around the race.
         while (true) {
-          if (fs.existsSync(path.join(testInfo.config.outputDir, 'parallel-index.txt')))
+          if (fs.existsSync(path.join(testInfo.project.outputDir, 'parallel-index.txt')))
             break;
           await new Promise(f => setTimeout(f, 100));
         }
@@ -38,8 +38,8 @@ test('should run in parallel', async ({ runInlineTest }) => {
       const { test } = folio;
       test('succeeds', async ({}, testInfo) => {
         // First test waits for the second to start to work around the race.
-        fs.mkdirSync(testInfo.config.outputDir, { recursive: true });
-        fs.writeFileSync(path.join(testInfo.config.outputDir, 'parallel-index.txt'), 'TRUE');
+        fs.mkdirSync(testInfo.project.outputDir, { recursive: true });
+        fs.writeFileSync(path.join(testInfo.project.outputDir, 'parallel-index.txt'), 'TRUE');
         expect(testInfo.workerIndex).toBe(1);
       });
     `,

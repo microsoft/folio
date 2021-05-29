@@ -209,23 +209,6 @@ export interface FullConfig {
   workers: number;
 }
 
-export interface ConfigOverrides {
-  forbidOnly?: boolean;
-  globalTimeout?: number;
-  grep?: RegExp | RegExp[];
-  maxFailures?: number;
-  repeatEach?: number;
-  outputDir?: string;
-  preserveOutput?: PreserveOutput;
-  retries?: number;
-  reporter?: ReporterDescription[];
-  quiet?: boolean;
-  shard?: Shard;
-  timeout?: number;
-  updateSnapshots?: UpdateSnapshots;
-  workers?: number;
-}
-
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped';
 
 /**

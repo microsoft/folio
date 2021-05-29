@@ -15,13 +15,12 @@
  */
 
 import type { TestError } from './reporter';
-import type { Config, ConfigOverrides, FullConfig, TestStatus } from './types';
+import type { Config, TestStatus } from './types';
 
 export type SerializedLoaderData = {
-  defaultTimeout: number;
-  defaultConfig: FullConfig;
-  overrides: ConfigOverrides;
-  configFile: { file: string } | { rootDir: string, config: Config };
+  defaultConfig: Config;
+  overrides: Config;
+  configFile: { file: string } | { rootDir: string };
 };
 export type WorkerInitParams = {
   workerIndex: number;
