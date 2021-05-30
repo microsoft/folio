@@ -127,9 +127,8 @@ export class FixturePool {
 
           const previous = this.registrations.get(name);
           if (previous && options) {
-            // TODO: report file path of the existing fixture.
             if (previous.scope !== options.scope)
-              throw errorWithLocations(`Fixture "${name}" has already been registered as a { scope: '${previous.scope}' } fixture.`, { location, name} , previous);
+              throw errorWithLocations(`Fixture "${name}" has already been registered as a { scope: '${previous.scope}' } fixture.`, { location, name}, previous);
             if (previous.auto !== options.auto)
               throw errorWithLocations(`Fixture "${name}" has already been registered as a { auto: '${previous.scope}' } fixture.`, { location, name }, previous);
           } else if (previous) {

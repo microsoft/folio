@@ -114,13 +114,13 @@ interface ConfigBase {
    * Path to the global setup file. This file will be required and run before all the tests.
    * It must export a single function.
    */
-  globalSetup?: string | null;
+  globalSetup?: string;
 
   /**
    * Path to the global teardown file. This file will be required and run after all the tests.
    * It must export a single function.
    */
-  globalTeardown?: string | null;
+  globalTeardown?: string;
 
   /**
    * Maximum time in milliseconds the whole test suite can run.
