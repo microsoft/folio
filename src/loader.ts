@@ -16,7 +16,7 @@
 
 import { installTransform } from './transform';
 import type { FullConfig, Config, FullProject, Project, ReporterDescription, PreserveOutput } from './types';
-import { errorWithCallLocation, prependErrorMessage } from './util';
+import { errorWithCallLocation, isRegExp, prependErrorMessage } from './util';
 import { setCurrentlyLoadingFileSuite } from './globals';
 import { Suite } from './test';
 import { SerializedLoaderData } from './ipc';
@@ -53,7 +53,7 @@ export class Loader {
     const revertBabelRequire = installTransform();
     try {
       this._config = require(file);
-      if ('default' in this._config)
+      if (this._config && typeof this._config === 'object' && ('default' in this._config))
         this._config = this._config['default'];
       const rawConfig = { ...this._config };
       this._processConfigObject(path.dirname(file));
@@ -73,13 +73,14 @@ export class Loader {
   }
 
   private _processConfigObject(rootDir: string) {
+    validateConfig(this._config);
+
     this._config = {
       ...this._defaultConfig,
       ...this._config,
       use: { ...this._defaultConfig.use, ...this._config.use },
     };
 
-    // TODO: add config validation.
     if ('testDir' in this._config && !path.isAbsolute(this._config.testDir))
       this._config.testDir = path.resolve(rootDir, this._config.testDir);
     const projects: Project[] = 'projects' in this._config ? this._config.projects : [this._config];
@@ -193,6 +194,183 @@ function toReporters(reporters: ReporterDescription | ReporterDescription[] | un
   if (Array.isArray(reporters))
     return reporters;
   return [reporters];
+}
+
+function validateConfig(config: Config) {
+  if (typeof config !== 'object' || !config)
+    throw new Error(`Configuration file must export a single object`);
+
+  validateProject(config, 'config');
+
+  if ('forbidOnly' in config) {
+    if (typeof config.forbidOnly !== 'boolean')
+      throw new Error(`config.forbidOnly must be a boolean`);
+  }
+
+  if ('globalSetup' in config) {
+    if (typeof config.globalSetup !== 'string')
+      throw new Error(`config.globalSetup must be a string`);
+  }
+
+  if ('globalTeardown' in config) {
+    if (typeof config.globalTeardown !== 'string')
+      throw new Error(`config.globalTeardown must be a string`);
+  }
+
+  if ('globalTimeout' in config) {
+    if (typeof config.globalTimeout !== 'number' || config.globalTimeout < 0)
+      throw new Error(`config.globalTimeout must be a non-negative number`);
+  }
+
+  if ('grep' in config) {
+    if (Array.isArray(config.grep)) {
+      config.grep.forEach((item, index) => {
+        if (!isRegExp(item))
+          throw new Error(`config.grep[${index}] must be a RegExp`);
+      });
+    } else if (!isRegExp(config.grep)) {
+      throw new Error(`config.grep must be a RegExp`);
+    }
+  }
+
+  if ('maxFailures' in config) {
+    if (typeof config.maxFailures !== 'number' || config.maxFailures < 0)
+      throw new Error(`config.maxFailures must be a non-negative number`);
+  }
+
+  if ('preserveOutput' in config) {
+    if (typeof config.preserveOutput !== 'string' || !['always', 'never', 'failures-only'].includes(config.preserveOutput))
+      throw new Error(`config.preserveOutput must be one of "always", "never" or "failures-only"`);
+  }
+
+  if ('projects' in config) {
+    if (!Array.isArray(config.projects))
+      throw new Error(`config.projects must be an array`);
+    config.projects.forEach((project, index) => {
+      validateProject(project, `config.projects[${index}]`);
+    });
+  }
+
+  if ('quiet' in config) {
+    if (typeof config.quiet !== 'boolean')
+      throw new Error(`config.quiet must be a boolean`);
+  }
+
+  if ('reporter' in  config) {
+    if (Array.isArray(config.reporter)) {
+      config.reporter.forEach((item, index) => {
+        validateReporter(item, `config.reporter[${index}]`);
+      });
+    } else {
+      validateReporter(config.reporter, `config.reporter`);
+    }
+  }
+
+  if ('shard' in config && config.shard !== null) {
+    if (!config.shard || typeof config.shard !== 'object')
+      throw new Error(`config.shard must be an object`);
+    if (!('total' in config.shard) || typeof config.shard.total !== 'number' || config.shard.total < 1)
+      throw new Error(`config.shard.total must be a positive number`);
+    if (!('current' in config.shard) || typeof config.shard.current !== 'number' || config.shard.current < 1 || config.shard.current > config.shard.total)
+      throw new Error(`config.shard.current must be a positive number, not greater than config.shard.total`);
+  }
+
+  if ('updateSnapshots' in config) {
+    if (typeof config.updateSnapshots !== 'string' || !['all', 'none', 'missing'].includes(config.updateSnapshots))
+      throw new Error(`config.updateSnapshots must be one of "all", "none" or "missing"`);
+  }
+
+  if ('workers' in config) {
+    if (typeof config.workers !== 'number' || config.workers <= 0)
+      throw new Error(`config.workers must be a positive number`);
+  }
+}
+
+function validateProject(project: Project, title: string) {
+  if (typeof project !== 'object' || !project)
+    throw new Error(`${title} must be an object`);
+
+  if ('define' in project) {
+    if (Array.isArray(project.define)) {
+      project.define.forEach((item, index) => {
+        validateDefine(item, `${title}.define[${index}]`);
+      });
+    } else {
+      validateDefine(project.define, `${title}.define`);
+    }
+  }
+
+  if ('name' in project) {
+    if (typeof project.name !== 'string')
+      throw new Error(`${title}.name must be a string`);
+  }
+
+  if ('outputDir' in project) {
+    if (typeof project.outputDir !== 'string')
+      throw new Error(`${title}.outputDir must be a string`);
+    if (!path.isAbsolute(project.outputDir))
+      throw new Error(`${title}.outputDir must be an absolute path`);
+  }
+
+  if ('repeatEach' in project) {
+    if (typeof project.repeatEach !== 'number' || project.repeatEach < 0)
+      throw new Error(`${title}.repeatEach must be a non-negative number`);
+  }
+
+  if ('retries' in project) {
+    if (typeof project.retries !== 'number' || project.retries < 0)
+      throw new Error(`${title}.retries must be a non-negative number`);
+  }
+
+  if ('testDir' in project) {
+    if (typeof project.testDir !== 'string')
+      throw new Error(`${title}.testDir must be a string`);
+  }
+
+  for (const prop of ['testIgnore', 'testMatch']) {
+    if (prop in project) {
+      const value = project[prop];
+      if (Array.isArray(value)) {
+        value.forEach((item, index) => {
+          if (typeof item !== 'string' && !isRegExp(item))
+            throw new Error(`${title}.${prop}[${index}] must be a string or a RegExp`);
+        });
+      } else if (typeof value !== 'string' && !isRegExp(value)) {
+        throw new Error(`${title}.${prop} must be a string or a RegExp`);
+      }
+    }
+  }
+
+  if ('timeout' in project) {
+    if (typeof project.timeout !== 'number' || project.timeout < 0)
+      throw new Error(`${title}.timeout must be a non-negative number`);
+  }
+
+  if ('use' in project) {
+    if (!project.use || typeof project.use !== 'object')
+      throw new Error(`${title}.use must be an object`);
+  }
+}
+
+function validateDefine(define: any, title: string) {
+  if (!define || typeof define !== 'object' || !define.test || !define.fixtures)
+    throw new Error(`${title} must be an object with "test" and "fixtures" properties`);
+}
+
+function validateReporter(reporter: any, title: string) {
+  const builtinReporters = ['dot', 'line', 'list', 'junit', 'json', 'null'];
+  if (typeof reporter === 'string') {
+    if (!builtinReporters.includes(reporter))
+      throw new Error(`${title} must be one of ${builtinReporters.map(name => `"${name}"`).join(', ')}`);
+  } else if (!reporter || typeof reporter !== 'object') {
+    throw new Error(`${title} must be a string or an object`);
+  } else if ('require' in reporter) {
+    if (typeof reporter.require !== 'string')
+      throw new Error(`${title}.require must be a string`);
+  } else {
+    if (!('name' in reporter) || typeof reporter.name !== 'string' || !builtinReporters.includes(reporter.name))
+      throw new Error(`${title}.name must be one of ${builtinReporters.map(name => `"${name}"`).join(', ')}`);
+  }
 }
 
 const baseFullConfig: FullConfig = {
