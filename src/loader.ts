@@ -124,12 +124,14 @@ export class Loader {
     }
   }
 
-  loadGlobalHook(file: string): () => any {
+  loadGlobalHook(file: string, name: string): (config: FullConfig) => any {
     const revertBabelRequire = installTransform();
     try {
-      const hook = require(file);
+      let hook = require(file);
+      if (hook && typeof hook === 'object' && ('default' in hook))
+        hook = hook['default'];
       if (typeof hook !== 'function')
-        throw errorWithCallLocation(`globalSetup and globalTeardown files must export a single function.`);
+        throw errorWithCallLocation(`${name} file must export a single function.`);
       return hook;
     } catch (e) {
       prependErrorMessage(e, `Error while reading ${file}:\n`);
