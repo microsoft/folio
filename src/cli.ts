@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import inspector from 'inspector';
 import * as commander from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -113,9 +114,10 @@ async function runTests(program: commander.Command) {
 
 function overridesFromOptions(options: { [key: string]: any }): Config {
   const shardPair = options.shard ? options.shard.split('/').map((t: string) => parseInt(t, 10)) : undefined;
+  const isDebuggerAttached = !!inspector.url();
   return {
     forbidOnly: options.forbidOnly ? true : undefined,
-    globalTimeout: options.globalTimeout ? parseInt(options.globalTimeout, 10) : undefined,
+    globalTimeout: isDebuggerAttached ? 0 : (options.globalTimeout ? parseInt(options.globalTimeout, 10) : undefined),
     grep: options.grep ? forceRegExp(options.grep) : undefined,
     maxFailures: options.x ? 1 : (options.maxFailures ? parseInt(options.maxFailures, 10) : undefined),
     outputDir: options.output ? path.resolve(process.cwd(), options.output) : undefined,
@@ -126,7 +128,7 @@ function overridesFromOptions(options: { [key: string]: any }): Config {
       return builtinReporters.includes(r) ? r : { require: r };
     }) : undefined,
     shard: shardPair ? { current: shardPair[0] - 1, total: shardPair[1] } : undefined,
-    timeout: options.timeout ? parseInt(options.timeout, 10) : undefined,
+    timeout: isDebuggerAttached ? 0 : (options.timeout ? parseInt(options.timeout, 10) : undefined),
     updateSnapshots: options.updateSnapshots ? 'all' as const : undefined,
     workers: options.workers ? parseInt(options.workers, 10) : undefined,
   };
