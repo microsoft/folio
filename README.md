@@ -815,23 +815,26 @@ export default test;
 
 To set something up once before running all tests, use `globalSetup` option in the [configuration file](#writing-a-configuration-file). Similarly, use `globalTeardown` to run something once after all the tests.
 
+Global setup function takes the [configuration object](#configuration-object) as a parameter. If it returns a function, this function is treated as a global teardown and will be run at the end.
+
 ```ts
 // global-setup.ts
 import * as http from 'http';
+import app from './my-app';
 
-module.exports = async () => {
+async function globalSetup() {
   const server = http.createServer(app);
   await new Promise(done => server.listen(done));
-  process.env.SERVER_PORT = String(server.address().port); // Expose port to the tests.
-  global.__server = server; // Save the server for the teardown.
-};
-```
 
-```ts
-// global-teardown.ts
-module.exports = async () => {
-  await new Promise(done => global.__server.close(done));
-};
+  // Expose port to the tests.
+  process.env.SERVER_PORT = String(server.address().port);
+
+  // Return the global teardown function.
+  return async () => {
+    await new Promise(done => server.close(done));
+  };
+}
+export default globalSetup;
 ```
 
 ```ts
@@ -840,7 +843,6 @@ import * as folio from 'folio';
 
 const config: folio.Config = {
   globalSetup: 'global-setup.ts',
-  globalTeardown: 'global-teardown.ts',
 };
 export default config;
 ```

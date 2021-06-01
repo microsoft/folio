@@ -151,8 +151,9 @@ export class Runner {
       testFiles.forEach(file => allTestFiles.add(file));
     }
 
+    let globalSetupResult: any;
     if (config.globalSetup)
-      await this._loader.loadGlobalHook(config.globalSetup)();
+      globalSetupResult = await this._loader.loadGlobalHook(config.globalSetup, 'globalSetup')(this._loader.fullConfig());
     try {
       for (const file of allTestFiles)
         this._loader.loadTestFile(file);
@@ -226,8 +227,10 @@ export class Runner {
         return 'sigint';
       return hasWorkerErrors || rootSuite.findSpec(spec => !spec.ok()) ? 'failed' : 'passed';
     } finally {
+      if (globalSetupResult && typeof globalSetupResult === 'function')
+        await globalSetupResult(this._loader.fullConfig());
       if (config.globalTeardown)
-        await this._loader.loadGlobalHook(config.globalTeardown)();
+        await this._loader.loadGlobalHook(config.globalTeardown, 'globalTeardown')(this._loader.fullConfig());
     }
   }
 }

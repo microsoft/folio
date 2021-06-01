@@ -179,5 +179,36 @@ test('globalSetup should throw when passed non-function', async ({ runInlineTest
       });
     `,
   });
-  expect(output).toContain(`globalSetup and globalTeardown files must export a single function.`);
+  expect(output).toContain(`globalSetup file must export a single function.`);
+});
+
+test('globalSetup should work with default export and run the returned fn', async ({ runInlineTest }) => {
+  const { output, exitCode, passed } = await runInlineTest({
+    'folio.config.ts': `
+      import * as path from 'path';
+      module.exports = {
+        globalSetup: path.join(__dirname, 'globalSetup.ts'),
+      };
+    `,
+    'globalSetup.ts': `
+      function setup() {
+        let x = 42;
+        console.log('\\n%%setup: ' + x);
+        return async () => {
+          await x;
+          console.log('\\n%%teardown: ' + x);
+        };
+      }
+      export default setup;
+    `,
+    'a.test.js': `
+      const { test } = folio;
+      test('should work', async ({}) => {
+      });
+    `,
+  });
+  expect(passed).toBe(1);
+  expect(exitCode).toBe(0);
+  expect(output).toContain(`%%setup: 42`);
+  expect(output).toContain(`%%teardown: 42`);
 });
