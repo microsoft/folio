@@ -227,7 +227,7 @@ export interface WorkerInfo {
   project: FullProject;
 
   /**
-   * Unique worker index. Also available as `process.env.FOLIO_WORKER_INDEX`.
+   * Unique worker index. Also available as `process.env.TEST_WORKER_INDEX`.
    */
   workerIndex: number;
 }
