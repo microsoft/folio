@@ -20,9 +20,11 @@ import fs from 'fs';
 import path from 'path';
 import jpeg from 'jpeg-js';
 import pixelmatch from 'pixelmatch';
-import { PNG } from 'pngjs';
 import { diff_match_patch, DIFF_INSERT, DIFF_DELETE, DIFF_EQUAL } from '../third_party/diff_match_patch';
 import { UpdateSnapshots } from './types';
+
+// Note: we require the pngjs version of pixelmatch to avoid version mismatches.
+const { PNG } = require(require.resolve('pngjs', { paths: [require.resolve('pixelmatch')] }));
 
 const extensionToMimeType: { [key: string]: string } = {
   'dat': 'application/octet-string',

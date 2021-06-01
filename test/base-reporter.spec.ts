@@ -59,7 +59,7 @@ test('print should print the error name without a message', async ({ runInlineTe
   });
   expect(result.exitCode).toBe(1);
   expect(result.failed).toBe(1);
-  expect(result.output).toContain('FooBarError: ');
+  expect(result.output).toContain('FooBarError');
 });
 
 test('print an error in a codeframe', async ({ runInlineTest }) => {
