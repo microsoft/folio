@@ -204,27 +204,27 @@ function validateConfig(config: Config) {
 
   validateProject(config, 'config');
 
-  if ('forbidOnly' in config) {
+  if ('forbidOnly' in config && config.forbidOnly !== undefined) {
     if (typeof config.forbidOnly !== 'boolean')
       throw new Error(`config.forbidOnly must be a boolean`);
   }
 
-  if ('globalSetup' in config) {
+  if ('globalSetup' in config && config.globalSetup !== undefined) {
     if (typeof config.globalSetup !== 'string')
       throw new Error(`config.globalSetup must be a string`);
   }
 
-  if ('globalTeardown' in config) {
+  if ('globalTeardown' in config && config.globalTeardown !== undefined) {
     if (typeof config.globalTeardown !== 'string')
       throw new Error(`config.globalTeardown must be a string`);
   }
 
-  if ('globalTimeout' in config) {
+  if ('globalTimeout' in config && config.globalTimeout !== undefined) {
     if (typeof config.globalTimeout !== 'number' || config.globalTimeout < 0)
       throw new Error(`config.globalTimeout must be a non-negative number`);
   }
 
-  if ('grep' in config) {
+  if ('grep' in config && config.grep !== undefined) {
     if (Array.isArray(config.grep)) {
       config.grep.forEach((item, index) => {
         if (!isRegExp(item))
@@ -235,17 +235,17 @@ function validateConfig(config: Config) {
     }
   }
 
-  if ('maxFailures' in config) {
+  if ('maxFailures' in config && config.maxFailures !== undefined) {
     if (typeof config.maxFailures !== 'number' || config.maxFailures < 0)
       throw new Error(`config.maxFailures must be a non-negative number`);
   }
 
-  if ('preserveOutput' in config) {
+  if ('preserveOutput' in config && config.preserveOutput !== undefined) {
     if (typeof config.preserveOutput !== 'string' || !['always', 'never', 'failures-only'].includes(config.preserveOutput))
       throw new Error(`config.preserveOutput must be one of "always", "never" or "failures-only"`);
   }
 
-  if ('projects' in config) {
+  if ('projects' in config && config.projects !== undefined) {
     if (!Array.isArray(config.projects))
       throw new Error(`config.projects must be an array`);
     config.projects.forEach((project, index) => {
@@ -253,12 +253,12 @@ function validateConfig(config: Config) {
     });
   }
 
-  if ('quiet' in config) {
+  if ('quiet' in config && config.quiet !== undefined) {
     if (typeof config.quiet !== 'boolean')
       throw new Error(`config.quiet must be a boolean`);
   }
 
-  if ('reporter' in  config) {
+  if ('reporter' in config && config.reporter !== undefined) {
     if (Array.isArray(config.reporter)) {
       config.reporter.forEach((item, index) => {
         validateReporter(item, `config.reporter[${index}]`);
@@ -268,7 +268,7 @@ function validateConfig(config: Config) {
     }
   }
 
-  if ('shard' in config && config.shard !== null) {
+  if ('shard' in config && config.shard !== undefined && config.shard !== null) {
     if (!config.shard || typeof config.shard !== 'object')
       throw new Error(`config.shard must be an object`);
     if (!('total' in config.shard) || typeof config.shard.total !== 'number' || config.shard.total < 1)
@@ -277,12 +277,12 @@ function validateConfig(config: Config) {
       throw new Error(`config.shard.current must be a positive number, not greater than config.shard.total`);
   }
 
-  if ('updateSnapshots' in config) {
+  if ('updateSnapshots' in config && config.updateSnapshots !== undefined) {
     if (typeof config.updateSnapshots !== 'string' || !['all', 'none', 'missing'].includes(config.updateSnapshots))
       throw new Error(`config.updateSnapshots must be one of "all", "none" or "missing"`);
   }
 
-  if ('workers' in config) {
+  if ('workers' in config && config.workers !== undefined) {
     if (typeof config.workers !== 'number' || config.workers <= 0)
       throw new Error(`config.workers must be a positive number`);
   }
@@ -292,7 +292,7 @@ function validateProject(project: Project, title: string) {
   if (typeof project !== 'object' || !project)
     throw new Error(`${title} must be an object`);
 
-  if ('define' in project) {
+  if ('define' in project && project.define !== undefined) {
     if (Array.isArray(project.define)) {
       project.define.forEach((item, index) => {
         validateDefine(item, `${title}.define[${index}]`);
@@ -302,35 +302,35 @@ function validateProject(project: Project, title: string) {
     }
   }
 
-  if ('name' in project) {
+  if ('name' in project && project.name !== undefined) {
     if (typeof project.name !== 'string')
       throw new Error(`${title}.name must be a string`);
   }
 
-  if ('outputDir' in project) {
+  if ('outputDir' in project && project.outputDir !== undefined) {
     if (typeof project.outputDir !== 'string')
       throw new Error(`${title}.outputDir must be a string`);
     if (!path.isAbsolute(project.outputDir))
       throw new Error(`${title}.outputDir must be an absolute path`);
   }
 
-  if ('repeatEach' in project) {
+  if ('repeatEach' in project && project.repeatEach !== undefined) {
     if (typeof project.repeatEach !== 'number' || project.repeatEach < 0)
       throw new Error(`${title}.repeatEach must be a non-negative number`);
   }
 
-  if ('retries' in project) {
+  if ('retries' in project && project.retries !== undefined) {
     if (typeof project.retries !== 'number' || project.retries < 0)
       throw new Error(`${title}.retries must be a non-negative number`);
   }
 
-  if ('testDir' in project) {
+  if ('testDir' in project && project.testDir !== undefined) {
     if (typeof project.testDir !== 'string')
       throw new Error(`${title}.testDir must be a string`);
   }
 
   for (const prop of ['testIgnore', 'testMatch']) {
-    if (prop in project) {
+    if (prop in project && project[prop] !==  undefined) {
       const value = project[prop];
       if (Array.isArray(value)) {
         value.forEach((item, index) => {
@@ -343,12 +343,12 @@ function validateProject(project: Project, title: string) {
     }
   }
 
-  if ('timeout' in project) {
+  if ('timeout' in project && project.timeout !== undefined) {
     if (typeof project.timeout !== 'number' || project.timeout < 0)
       throw new Error(`${title}.timeout must be a non-negative number`);
   }
 
-  if ('use' in project) {
+  if ('use' in project && project.use !== undefined) {
     if (!project.use || typeof project.use !== 'object')
       throw new Error(`${title}.use must be an object`);
   }

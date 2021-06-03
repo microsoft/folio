@@ -319,3 +319,21 @@ test('should inerhit use options in projects', async ({ runInlineTest }) => {
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
 });
+
+test('should work with undefined values', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'folio.config.ts': `
+      module.exports = {
+        workers: undefined,
+      };
+    `,
+    'a.test.ts': `
+      const { test } = folio;
+      test('pass', async ({}, testInfo) => {
+      });
+    `
+  });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+});
