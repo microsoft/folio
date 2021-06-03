@@ -16,7 +16,7 @@
 
 import { installTransform } from './transform';
 import type { FullConfig, Config, FullProject, Project, ReporterDescription, PreserveOutput } from './types';
-import { errorWithCallLocation, isRegExp, prependErrorMessage } from './util';
+import { errorWithCallLocation, isRegExp, mergeObjects, prependErrorMessage } from './util';
 import { setCurrentlyLoadingFileSuite } from './globals';
 import { Suite } from './test';
 import { SerializedLoaderData } from './ipc';
@@ -75,11 +75,8 @@ export class Loader {
   private _processConfigObject(rootDir: string) {
     validateConfig(this._config);
 
-    this._config = {
-      ...this._defaultConfig,
-      ...this._config,
-      use: { ...this._defaultConfig.use, ...this._config.use },
-    };
+    const configUse = mergeObjects(this._defaultConfig.use, this._config.use);
+    this._config = mergeObjects(mergeObjects(this._defaultConfig, this._config), { use: configUse });
 
     if ('testDir' in this._config && !path.isAbsolute(this._config.testDir))
       this._config.testDir = path.resolve(rootDir, this._config.testDir);
@@ -177,7 +174,7 @@ export class Loader {
       testIgnore: takeFirst(this._configOverrides.testIgnore, projectConfig.testIgnore, this._config.testIgnore, []),
       testMatch: takeFirst(this._configOverrides.testMatch, projectConfig.testMatch, this._config.testMatch, '**/?(*.)+(spec|test).[jt]s'),
       timeout: takeFirst(this._configOverrides.timeout, projectConfig.timeout, this._config.timeout, 10000),
-      use: { ...this._config.use, ...projectConfig.use, ...this._configOverrides.use },
+      use: mergeObjects(mergeObjects(this._config.use, projectConfig.use), this._configOverrides.use),
     };
     this._projects.push(new ProjectImpl(fullProject, this._projects.length));
   }
