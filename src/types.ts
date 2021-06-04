@@ -357,8 +357,8 @@ export interface TestInfo extends WorkerInfo {
 
   /**
    * Suffix used to differentiate snapshots between multiple test configurations.
-   * For example, if snapshots depend on the platform, you can set `testInfo.snapshotPathSegment = process.platform`,
-   * and `expect(value).toMatchSnapshot()` will use different snapshots depending on the platform.
+   * For example, if snapshots depend on the platform, you can set `testInfo.snapshotSuffix = process.platform`,
+   * and `expect(value).toMatchSnapshot(snapshotName)` will use different snapshots depending on the platform.
    */
   snapshotSuffix: string;
 

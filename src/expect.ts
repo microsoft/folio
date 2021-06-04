@@ -21,32 +21,17 @@ import { compare } from './golden';
 
 export const expect: Expect = expectLibrary;
 
-const snapshotOrdinalSymbol = Symbol('snapshotOrdinalSymbol');
-
-function toMatchSnapshot(received: Buffer | string, nameOrOptions?: string | { name?: string, threshold?: number }, optOptions: { threshold?: number } = {}) {
-  let options: { name?: string, threshold?: number };
+function toMatchSnapshot(received: Buffer | string, nameOrOptions: string | { name: string, threshold?: number }, optOptions: { threshold?: number } = {}) {
+  let options: { name: string, threshold?: number };
   const testInfo = currentTestInfo();
   if (typeof nameOrOptions === 'string')
     options = { name: nameOrOptions, ...optOptions };
   else
     options = { ...nameOrOptions };
+  if (!options.name)
+    throw new Error(`toMatchSnapshot() requires a "name" parameter`);
 
-  let name = options.name;
-  if (!name) {
-    const ordinal = (testInfo as any)[snapshotOrdinalSymbol] || 0;
-    (testInfo as any)[snapshotOrdinalSymbol] = ordinal + 1;
-    let extension: string;
-    if (typeof received === 'string')
-      extension = '.txt';
-    else if (received[0] === 0x89 && received[1] === 0x50 && received[2] === 0x4E && received[3] === 0x47)
-      extension = '.png';
-    else if (received[0] === 0xFF && received[1] === 0xD8 && received[2] === 0xFF)
-      extension = '.jpeg';
-    else
-      extension = '.dat';
-    name = 'snapshot' + (ordinal ? '_' + ordinal : '') + extension;
-  }
-  const { pass, message } = compare(received, name, testInfo.snapshotPath, testInfo.outputPath, testInfo.config.updateSnapshots, options);
+  const { pass, message } = compare(received, options.name, testInfo.snapshotPath, testInfo.outputPath, testInfo.config.updateSnapshots, options);
   return { pass, message: () => message };
 }
 

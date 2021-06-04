@@ -410,7 +410,7 @@ Running 1 test using 1 worker
 
 ## Snapshots
 
-Folio includes the ability to produce and compare snapshots. For that, use `expect(value).toMatchSnapshot()`. Folio auto-detects the content type, and includes built-in matchers for text, png and jpeg images, and arbitrary binary data.
+Folio includes the ability to produce and compare snapshots. For that, use `expect(value).toMatchSnapshot(snapshotName)`. Folio auto-detects the content type, and includes built-in matchers for text, png and jpeg images, and arbitrary binary data.
 
 ```ts
 // example.spec.ts
@@ -418,7 +418,7 @@ import test from 'folio';
 
 test('my test', async () => {
   const image = await produceSomePNG();
-  test.expect(image).toMatchSnapshot('optional-snapshot-name.png');
+  test.expect(image).toMatchSnapshot('snapshot-name.png');
 });
 ```
 
