@@ -22,6 +22,7 @@ import { Suite } from './test';
 import { SerializedLoaderData } from './ipc';
 import * as path from 'path';
 import { ProjectImpl } from './project';
+import { Reporter } from './reporter';
 
 export class Loader {
   private _defaultConfig: Config;
@@ -138,6 +139,23 @@ export class Loader {
     }
   }
 
+  loadReporter(file: string): new (arg?: any) => Reporter {
+    const revertBabelRequire = installTransform();
+    try {
+      let func = require(path.resolve(this._fullConfig.rootDir, file));
+      if (func && typeof func === 'object' && ('default' in func))
+        func = func['default'];
+      if (typeof func !== 'function')
+        throw errorWithCallLocation(`Reporter file "${file}" must export a single class.`);
+      return func;
+    } catch (e) {
+      prependErrorMessage(e, `Error while reading ${file}:\n`);
+      throw e;
+    } finally {
+      revertBabelRequire();
+    }
+  }
+
   fullConfig(): FullConfig {
     return this._fullConfig;
   }
@@ -187,12 +205,12 @@ function takeFirst<T>(...args: (T | undefined)[]): T {
   }
 }
 
-function toReporters(reporters: ReporterDescription | ReporterDescription[] | undefined): ReporterDescription[] {
+function toReporters(reporters: 'dot' | 'line' | 'list' | 'junit' | 'json' | 'null' | ReporterDescription[] | undefined): ReporterDescription[] {
   if (!reporters)
     return;
-  if (Array.isArray(reporters))
-    return reporters;
-  return [reporters];
+  if (typeof reporters === 'string')
+    return [ [reporters] ];
+  return reporters;
 }
 
 function validateConfig(config: Config) {
@@ -258,10 +276,13 @@ function validateConfig(config: Config) {
   if ('reporter' in config && config.reporter !== undefined) {
     if (Array.isArray(config.reporter)) {
       config.reporter.forEach((item, index) => {
-        validateReporter(item, `config.reporter[${index}]`);
+        if (!Array.isArray(item) || item.length <= 0 || item.length > 2 || typeof item[0] !== 'string')
+          throw new Error(`config.reporter[${index}] must be a tuple [name, optionalArgument]`);
       });
     } else {
-      validateReporter(config.reporter, `config.reporter`);
+      const builtinReporters = ['dot', 'line', 'list', 'junit', 'json', 'null'];
+      if (typeof config.reporter !== 'string' || !builtinReporters.includes(config.reporter))
+        throw new Error(`config.reporter must be one of ${builtinReporters.map(name => `"${name}"`).join(', ')}`);
     }
   }
 
@@ -356,22 +377,6 @@ function validateDefine(define: any, title: string) {
     throw new Error(`${title} must be an object with "test" and "fixtures" properties`);
 }
 
-function validateReporter(reporter: any, title: string) {
-  const builtinReporters = ['dot', 'line', 'list', 'junit', 'json', 'null'];
-  if (typeof reporter === 'string') {
-    if (!builtinReporters.includes(reporter))
-      throw new Error(`${title} must be one of ${builtinReporters.map(name => `"${name}"`).join(', ')}`);
-  } else if (!reporter || typeof reporter !== 'object') {
-    throw new Error(`${title} must be a string or an object`);
-  } else if ('require' in reporter) {
-    if (typeof reporter.require !== 'string')
-      throw new Error(`${title}.require must be a string`);
-  } else {
-    if (!('name' in reporter) || typeof reporter.name !== 'string' || !builtinReporters.includes(reporter.name))
-      throw new Error(`${title}.name must be one of ${builtinReporters.map(name => `"${name}"`).join(', ')}`);
-  }
-}
-
 const baseFullConfig: FullConfig = {
   forbidOnly: false,
   globalSetup: null,
@@ -381,7 +386,7 @@ const baseFullConfig: FullConfig = {
   maxFailures: 0,
   preserveOutput: 'always',
   projects: [],
-  reporter: ['list'],
+  reporter: [ ['list'] ],
   rootDir: path.resolve(process.cwd()),
   quiet: false,
   shard: null,

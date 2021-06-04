@@ -470,7 +470,10 @@ const config2: folio.Config = {
     ? 'list'
     // Entirely different config on CI.
     // Use very concise "dot" reporter plus a comprehensive json report.
-    : ['dot', { name: 'json', outputFile: 'test-results.json' }],
+    : [
+      ['dot'],
+      [ 'json', { outputFile: 'test-results.json' }]
+    ],
 };
 
 export default config;
@@ -567,7 +570,7 @@ In configuration file, pass options directly:
 ```ts
 // folio.config.ts
 const config = {
-  reporter: { name: 'json', outputFile: 'results.json' },
+  reporter: [ ['json', { outputFile: 'results.json' }] ],
 };
 export default config;
 ```
@@ -585,7 +588,7 @@ In configuration file, pass options directly:
 ```ts
 // folio.config.ts
 const config = {
-  reporter: { name: 'junit', outputFile: 'results.xml' },
+  reporter: [ ['junit', { outputFile: 'results.xml' }] ],
 };
 export default config;
 ```
