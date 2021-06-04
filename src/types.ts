@@ -17,13 +17,13 @@
 import type { Expect } from './expectType';
 
 export type ReporterDescription =
-  'dot' | { name: 'dot' } |
-  'line' | { name: 'line' } |
-  'list' | { name: 'list' } |
-  'junit' | { name: 'junit', outputFile?: string, stripANSIControlSequences?: boolean } |
-  'json' | { name: 'json', outputFile?: string } |
-  'null' | { name: 'null' } |
-  { require: string };
+  ['dot'] |
+  ['line'] |
+  ['list'] |
+  ['junit'] | ['junit', { outputFile?: string, stripANSIControlSequences?: boolean }] |
+  ['json'] | ['json', { outputFile?: string }] |
+  ['null'] |
+  [string] | [string, any];
 
 export type Shard = { total: number, current: number } | null;
 export type PreserveOutput = 'always' | 'never' | 'failures-only';
@@ -158,7 +158,7 @@ interface ConfigBase {
    * It is possible to pass multiple reporters. A common pattern is using one terminal reporter
    * like `'line'` or `'list'`, and one file reporter like `'json'` or `'junit'`.
    */
-  reporter?: ReporterDescription | ReporterDescription[];
+  reporter?: 'dot' | 'line' | 'list' | 'junit' | 'json' | 'null' | ReporterDescription[];
 
   /**
    * Whether to suppress stdio output from the tests.

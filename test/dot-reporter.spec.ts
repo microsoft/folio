@@ -78,7 +78,7 @@ test('render flaky', async ({ runInlineTest }) => {
 test('should work from config', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'folio.config.ts': `
-      module.exports = { reporter: { name: 'dot' } };
+      module.exports = { reporter: 'dot' };
     `,
     'a.test.js': `
       const { test } = folio;
