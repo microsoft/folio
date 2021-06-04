@@ -191,7 +191,11 @@ export class Runner {
       let sigintCallback: () => void;
       const sigIntPromise = new Promise<void>(f => sigintCallback = f);
       const sigintHandler = () => {
-        process.off('SIGINT', sigintHandler);
+        // We remove handler so that double Ctrl+C immediately kills the runner,
+        // for the case where our shutdown takes a lot of time or is buggy.
+        // Removing the handler synchronously sometimes triggers the default handler
+        // that exits the process, so we remove asynchronously.
+        setTimeout(() => process.off('SIGINT', sigintHandler), 0);
         sigint = true;
         sigintCallback();
       };
