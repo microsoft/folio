@@ -96,7 +96,7 @@ test('should include the project name', async ({ runInlineTest }) => {
       module.exports = { projects: [
         { name: 'foo' },
         { name: 'foo' },
-        { name: 'bar' },
+        { name: 'Bar space!' },
       ] };
     `,
     'my-test.spec.js': `
@@ -130,9 +130,9 @@ test('should include the project name', async ({ runInlineTest }) => {
   expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
 
   // test1, run with bar
-  expect(result.output).toContain('test-results/my-test-test-1-bar/bar.txt');
+  expect(result.output).toContain('test-results/my-test-test-1-Bar-space-/bar.txt');
   expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
-  expect(result.output).toContain('test-results/my-test-test-1-bar-retry1/bar.txt');
+  expect(result.output).toContain('test-results/my-test-test-1-Bar-space--retry1/bar.txt');
   expect(result.output).toContain('my-test.spec.js-snapshots/test-1-snapshots1-bar.txt');
 
   // test2, run with foo #1
@@ -144,7 +144,7 @@ test('should include the project name', async ({ runInlineTest }) => {
   expect(result.output).toContain('my-test.spec.js-snapshots/test-2-snapshots2-bar.txt');
 
   // test2, run with bar
-  expect(result.output).toContain('test-results/my-test-test-2-bar/bar.txt');
+  expect(result.output).toContain('test-results/my-test-test-2-Bar-space-/bar.txt');
   expect(result.output).toContain('my-test.spec.js-snapshots/test-2-snapshots2-bar.txt');
 });
 

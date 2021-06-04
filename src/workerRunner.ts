@@ -99,6 +99,7 @@ export class WorkerRunner extends EventEmitter {
       this._outputPathSegment = this._project.config.name;
     if (this._outputPathSegment)
       this._outputPathSegment = '-' + this._outputPathSegment;
+    this._outputPathSegment = sanitizeForFilePath(this._outputPathSegment);
 
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
@@ -181,7 +182,7 @@ export class WorkerRunner extends EventEmitter {
     let deadlineRunner: DeadlineRunner<any> | undefined;
     const testId = test._id;
 
-    const sanitizedTitle = spec.title.replace(/[^\w\d]+/g, '-');
+    const sanitizedTitle = sanitizeForFilePath(spec.title);
     const baseOutputDir = (() => {
       const relativeTestFilePath = path.relative(this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
       const sanitizedRelativePath = relativeTestFilePath.replace(process.platform === 'win32' ? new RegExp('\\\\', 'g') : new RegExp('/', 'g'), '-');
@@ -431,4 +432,8 @@ function modifier(testInfo: TestInfo, type: 'skip' | 'fail' | 'fixme' | 'slow', 
 }
 
 class SkipError extends Error {
+}
+
+function sanitizeForFilePath(s: string) {
+  return s.replace(/[^\w\d]+/g, '-');
 }
