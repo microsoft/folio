@@ -34,7 +34,8 @@ export class WorkerRunner extends EventEmitter {
   private _params: WorkerInitParams;
   private _loader: Loader;
   private _project: ProjectImpl;
-  private _outputPathSegment: string;
+  private _projectNamePathSegment: string;
+  private _uniqueProjectNamePathSegment: string;
   private _workerInfo: WorkerInfo;
   private _fixtureRunner: FixtureRunner;
 
@@ -92,14 +93,14 @@ export class WorkerRunner extends EventEmitter {
     this._loader = Loader.deserialize(this._params.loader);
     this._project = this._loader.projects()[this._params.projectIndex];
 
+    this._projectNamePathSegment = sanitizeForFilePath(this._project.config.name);
+
     const sameName = this._loader.projects().filter(project => project.config.name === this._project.config.name);
     if (sameName.length > 1)
-      this._outputPathSegment = this._project.config.name + (sameName.indexOf(this._project) + 1);
+      this._uniqueProjectNamePathSegment = this._project.config.name + (sameName.indexOf(this._project) + 1);
     else
-      this._outputPathSegment = this._project.config.name;
-    if (this._outputPathSegment)
-      this._outputPathSegment = '-' + this._outputPathSegment;
-    this._outputPathSegment = sanitizeForFilePath(this._outputPathSegment);
+      this._uniqueProjectNamePathSegment = this._project.config.name;
+    this._uniqueProjectNamePathSegment = sanitizeForFilePath(this._uniqueProjectNamePathSegment);
 
     this._workerInfo = {
       workerIndex: this._params.workerIndex,
@@ -182,11 +183,12 @@ export class WorkerRunner extends EventEmitter {
     let deadlineRunner: DeadlineRunner<any> | undefined;
     const testId = test._id;
 
-    const sanitizedTitle = sanitizeForFilePath(spec.title);
     const baseOutputDir = (() => {
       const relativeTestFilePath = path.relative(this._project.config.testDir, spec.file.replace(/\.(spec|test)\.(js|ts)/, ''));
       const sanitizedRelativePath = relativeTestFilePath.replace(process.platform === 'win32' ? new RegExp('\\\\', 'g') : new RegExp('/', 'g'), '-');
-      let testOutputDir = sanitizedRelativePath + '-' + sanitizedTitle + this._outputPathSegment;
+      let testOutputDir = sanitizedRelativePath + '-' + sanitizeForFilePath(spec.title);
+      if (this._uniqueProjectNamePathSegment)
+        testOutputDir += '-' + this._uniqueProjectNamePathSegment;
       if (entry.retry)
         testOutputDir += '-retry' + entry.retry;
       if (this._params.repeatEachIndex)
@@ -217,7 +219,19 @@ export class WorkerRunner extends EventEmitter {
         return path.join(baseOutputDir, ...pathSegments);
       },
       snapshotPath: (snapshotName: string): string => {
-        return path.join(spec.file + '-snapshots', sanitizedTitle + (testInfo.snapshotSuffix ? '-' : '') + testInfo.snapshotSuffix + '-' + snapshotName);
+        let suffix = '';
+        if (this._projectNamePathSegment)
+          suffix += '-' + this._projectNamePathSegment;
+        if (testInfo.snapshotSuffix)
+          suffix += '-' + testInfo.snapshotSuffix;
+        if (suffix) {
+          const ext = path.extname(snapshotName);
+          if (ext)
+            snapshotName = snapshotName.substring(0, snapshotName.length - ext.length) + suffix + ext;
+          else
+            snapshotName += suffix;
+        }
+        return path.join(spec.file + '-snapshots', snapshotName);
       },
       skip: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'skip', args),
       fixme: (...args: [arg?: any, description?: string]) => modifier(testInfo, 'fixme', args),
