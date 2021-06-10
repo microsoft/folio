@@ -1,6 +1,6 @@
 # Folio ![npm](https://img.shields.io/npm/v/folio)
 
-A highly customizable test framework. Foundation for the [Playwright test runner](https://github.com/microsoft/playwright-test).
+A highly customizable test framework.
 
 Folio is **available in preview** and is under active development. Breaking changes could happen. We welcome your feedback to shape this towards 1.0.
 
