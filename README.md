@@ -1,5 +1,7 @@
 # Folio ![npm](https://img.shields.io/npm/v/folio)
 
+If you are looking for Playwright Test, see on [playwright.dev](https://playwright.dev/docs/test-intro) for the documentation and examples.
+
 A highly customizable test framework.
 
 Folio is **available in preview** and is under active development. Breaking changes could happen. We welcome your feedback to shape this towards 1.0.
